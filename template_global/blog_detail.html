@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ post.title }} - NAVITOOLS Blog{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <a href="/blog" class="btn btn-outline-secondary btn-sm mb-4">
+                <i class="bi bi-arrow-left me-1"></i>Voltar para o blog
+            </a>
+
+            <article class="card border-0 shadow-sm">
+                {% if post.cover %}
+                <div class="ratio ratio-16x9">
+                    <img src="{{ post.cover }}" class="card-img-top object-fit-cover rounded-top" alt="{{ post.title }}">
+                </div>
+                {% endif %}
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex flex-wrap align-items-center mb-3 gap-2">
+                        {% if post.section == 'dicas' %}
+                        <span class="badge bg-success-subtle text-success">Dicas</span>
+                        {% else %}
+                        <span class="badge bg-primary-subtle text-primary">Novidades</span>
+                        {% endif %}
+                        {% if post.category %}
+                        <span class="badge bg-secondary-subtle text-secondary">{{ post.category }}</span>
+                        {% endif %}
+                        <small class="text-muted ms-auto">{{ post.date }}{% if post.reading_time %} • {{ post.reading_time }}{% endif %}</small>
+                    </div>
+
+                    <h1 class="fw-bold mb-3">{{ post.title }}</h1>
+                    {% if post.subtitle %}
+                    <p class="lead text-muted">{{ post.subtitle }}</p>
+                    {% endif %}
+
+                    <div class="mt-4 blog-content">
+                        {{ post.content | replace('\n', '<br>') | safe }}
+                    </div>
+
+                    {% if post.cta_text and post.cta_link %}
+                    <div class="mt-5">
+                        <a href="{{ post.cta_link }}" class="btn btn-primary btn-lg">
+                            {{ post.cta_text }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+{% endblock %}

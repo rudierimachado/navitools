@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Blog & Conteúdos - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="text-center mb-5">
+                <p class="text-uppercase text-muted small mb-2">Central de Conteúdo</p>
+                <h1 class="fw-bold">Blog, Novidades e Dicas</h1>
+                <p class="text-muted">Tudo que você publica no painel aparece aqui automaticamente.</p>
+            </div>
+
+            {% if posts %}
+            <div class="row g-4">
+                {% for post in posts %}
+                <div class="col-md-6">
+                    <article class="card border-0 shadow-sm h-100">
+                        {% if post.cover %}
+                        <div class="ratio ratio-16x9">
+                            <img src="{{ post.cover }}" class="card-img-top object-fit-cover rounded-top" alt="{{ post.title }}">
+                        </div>
+                        {% endif %}
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-2">
+                                {% if post.section == 'dicas' %}
+                                <span class="badge bg-success-subtle text-success me-2">Dicas</span>
+                                {% else %}
+                                <span class="badge bg-primary-subtle text-primary me-2">Novidades</span>
+                                {% endif %}
+                                {% if post.category %}
+                                <small class="text-muted">{{ post.category }}</small>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block mb-1">{{ post.date }} • {{ post.reading_time or '—' }}</small>
+                            <h5 class="fw-bold mb-2">{{ post.title }}</h5>
+                            {% if post.subtitle %}
+                            <p class="text-muted small mb-2">{{ post.subtitle }}</p>
+                            {% endif %}
+                            <p class="text-muted mb-3">{{ post.summary }}</p>
+                            <a href="/blog/{{ post.id }}" class="btn btn-outline-primary btn-sm">
+                                Ler conteúdo completo
+                            </a>
+                        </div>
+                    </article>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-journal-x" style="font-size: 3rem;"></i>
+                <p class="mt-3 mb-0">Nenhum conteúdo publicado ainda.</p>
+                <a href="/administrador/content" class="btn btn-primary btn-sm mt-3">Adicionar primeiro post</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}IA Hub - Tudo sobre Inteligência Artificial - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="ia-hub-wrapper">
+    <!-- Hero IA -->
+    <section class="hero-ia bg-gradient-dark text-white rounded-4 p-5 mb-5 shadow-sm">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-robot me-3" style="font-size: 3rem;"></i>
+                    <div>
+                        <h1 class="display-6 fw-bold mb-2">🤖 IA Hub</h1>
+                        <p class="lead mb-0 opacity-75">Seu centro de informações sobre Inteligência Artificial</p>
+                    </div>
+                </div>
+                <p class="fs-5 mb-4 opacity-90">
+                    Mantenha-se atualizado com as últimas novidades, ferramentas, dicas e tendências do mundo da IA. 
+                    Desde ChatGPT até as IAs mais recentes do mercado.
+                </p>
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="stats-grid">
+                    <div class="stat-item mb-3">
+                        <h3 class="fw-bold mb-1">50+</h3>
+                        <small class="opacity-75">Ferramentas de IA</small>
+                    </div>
+                    <div class="stat-item mb-3">
+                        <h3 class="fw-bold mb-1">Daily</h3>
+                        <small class="opacity-75">Atualizações</small>
+                    </div>
+                    <div class="stat-item">
+                        <h3 class="fw-bold mb-1">2024</h3>
+                        <small class="opacity-75">Sempre atual</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Últimas Novidades -->
+    <section class="mb-5">
+        <h2 class="fw-bold mb-4">🔥 Últimas Novidades em IA</h2>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <article class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-success me-2">ChatGPT</span>
+                            <small class="text-muted">29 Nov 2024</small>
+                        </div>
+                        <h4 class="fw-bold mb-3">GPT-4 Turbo: Revolução na Velocidade</h4>
+                        <p class="text-muted mb-3">
+                            A OpenAI lançou o GPT-4 Turbo com 50% mais velocidade e 30% menos custo. 
+                            A nova versão processa até 128k tokens e tem conhecimento atualizado até abril de 2024.
+                        </p>
+                        <div class="bg-light p-3 rounded mb-3">
+                            <h6 class="fw-bold mb-2">🚀 Principais Melhorias:</h6>
+                            <ul class="mb-0 small">
+                                <li>Velocidade 50% superior</li>
+                                <li>Custo 30% menor por token</li>
+                                <li>Contexto de 128k tokens</li>
+                                <li>Dados atualizados até 2024</li>
+                            </ul>
+                        </div>
+                        <a href="https://openai.com/gpt-4" target="_blank" class="btn btn-outline-success">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Testar GPT-4 Turbo
+                        </a>
+                    </div>
+                </article>
+            </div>
+            <div class="col-lg-6">
+                <article class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-info me-2">Claude</span>
+                            <small class="text-muted">27 Nov 2024</small>
+                        </div>
+                        <h4 class="fw-bold mb-3">Claude 3.5 Sonnet Supera GPT-4</h4>
+                        <p class="text-muted mb-3">
+                            A Anthropic surpreendeu o mercado com o Claude 3.5 Sonnet, que superou o GPT-4 
+                            em vários benchmarks de raciocínio e programação.
+                        </p>
+                        <div class="alert alert-info border-0 mb-3">
+                            <i class="bi bi-trophy me-2"></i>
+                            <strong>Destaque:</strong> Melhor IA para programação segundo HumanEval benchmark.
+                        </div>
+                        <a href="https://claude.ai" target="_blank" class="btn btn-outline-info">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Experimentar Claude
+                        </a>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ferramentas de IA -->
+    <section class="mb-5">
+        <h2 class="fw-bold mb-4">🛠️ Melhores Ferramentas de IA</h2>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="tool-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="tool-icon bg-success-subtle text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-chat-dots" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold">ChatGPT</h5>
+                        <p class="text-muted small mb-3">Conversação e texto</p>
+                        <div class="mb-3">
+                            <span class="badge bg-success-subtle text-success">Gratuito</span>
+                            <span class="badge bg-warning-subtle text-warning">Plus $20/mês</span>
+                        </div>
+                        <a href="https://chat.openai.com" target="_blank" class="btn btn-outline-success btn-sm w-100">
+                            Acessar
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="tool-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="tool-icon bg-info-subtle text-info rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-palette" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold">Midjourney</h5>
+                        <p class="text-muted small mb-3">Geração de imagens</p>
+                        <div class="mb-3">
+                            <span class="badge bg-warning-subtle text-warning">$10-60/mês</span>
+                        </div>
+                        <a href="https://midjourney.com" target="_blank" class="btn btn-outline-info btn-sm w-100">
+                            Acessar
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="tool-card card border-0 shadow-sm h-100">
+                    <div class="card-body p-4 text-center">
+                        <div class="tool-icon bg-primary-subtle text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-code-slash" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h5 class="fw-bold">GitHub Copilot</h5>
+                        <p class="text-muted small mb-3">Programação assistida</p>
+                        <div class="mb-3">
+                            <span class="badge bg-primary-subtle text-primary">$10/mês</span>
+                        </div>
+                        <a href="https://github.com/features/copilot" target="_blank" class="btn btn-outline-primary btn-sm w-100">
+                            Acessar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dicas e Tutoriais -->
+    <section class="mb-5">
+        <h2 class="fw-bold mb-4">💡 Dicas e Tutoriais</h2>
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="tips-content">
+                    <article class="tip-article card border-0 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h4 class="fw-bold mb-3">Como Escrever Prompts Eficazes para IA</h4>
+                            <p class="text-muted mb-3">
+                                A qualidade do seu prompt determina 80% da qualidade da resposta da IA. 
+                                Aprenda as técnicas que os profissionais usam.
+                            </p>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <h6 class="fw-bold mb-2">📝 Estrutura Ideal de Prompt:</h6>
+                                <ol class="mb-0 small">
+                                    <li><strong>Contexto:</strong> "Você é um especialista em..."</li>
+                                    <li><strong>Tarefa:</strong> "Preciso que você..."</li>
+                                    <li><strong>Formato:</strong> "Responda em formato de lista..."</li>
+                                    <li><strong>Restrições:</strong> "Máximo 200 palavras..."</li>
+                                </ol>
+                            </div>
+                            <div class="alert alert-success border-0">
+                                <i class="bi bi-lightbulb me-2"></i>
+                                <strong>Dica Pro:</strong> Seja específico e dê exemplos do que você quer.
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="tip-article card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h4 class="fw-bold mb-3">IAs Gratuitas vs Pagas: Vale a Pena?</h4>
+                            <p class="text-muted mb-3">
+                                Comparativo completo entre versões gratuitas e pagas das principais IAs do mercado.
+                            </p>
+                            <div class="comparison-table">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="bg-success-subtle p-3 rounded">
+                                            <h6 class="fw-bold text-success mb-2">✅ Versões Gratuitas</h6>
+                                            <ul class="small mb-0">
+                                                <li>ChatGPT 3.5 - Ilimitado</li>
+                                                <li>Claude 3 Haiku - 5 msgs/dia</li>
+                                                <li>Gemini Pro - Gratuito</li>
+                                                <li>Perplexity - 5 buscas/dia</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-warning-subtle p-3 rounded">
+                                            <h6 class="fw-bold text-warning mb-2">⭐ Versões Pagas</h6>
+                                            <ul class="small mb-0">
+                                                <li>GPT-4 Turbo - $20/mês</li>
+                                                <li>Claude 3.5 Sonnet - $20/mês</li>
+                                                <li>Gemini Advanced - $20/mês</li>
+                                                <li>Perplexity Pro - $20/mês</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="sidebar-ia">
+                    <!-- Links Úteis -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3">🔗 Links Úteis</h6>
+                            <div class="link-list">
+                                <a href="https://openai.com" target="_blank" class="d-flex align-items-center text-decoration-none mb-2 p-2 rounded hover-bg-light">
+                                    <i class="bi bi-box-arrow-up-right text-primary me-2"></i>
+                                    <span class="small">OpenAI (ChatGPT)</span>
+                                </a>
+                                <a href="https://claude.ai" target="_blank" class="d-flex align-items-center text-decoration-none mb-2 p-2 rounded hover-bg-light">
+                                    <i class="bi bi-box-arrow-up-right text-info me-2"></i>
+                                    <span class="small">Anthropic (Claude)</span>
+                                </a>
+                                <a href="https://gemini.google.com" target="_blank" class="d-flex align-items-center text-decoration-none mb-2 p-2 rounded hover-bg-light">
+                                    <i class="bi bi-box-arrow-up-right text-warning me-2"></i>
+                                    <span class="small">Google (Gemini)</span>
+                                </a>
+                                <a href="https://perplexity.ai" target="_blank" class="d-flex align-items-center text-decoration-none mb-2 p-2 rounded hover-bg-light">
+                                    <i class="bi bi-box-arrow-up-right text-success me-2"></i>
+                                    <span class="small">Perplexity AI</span>
+                                </a>
+                                <a href="https://huggingface.co" target="_blank" class="d-flex align-items-center text-decoration-none p-2 rounded hover-bg-light">
+                                    <i class="bi bi-box-arrow-up-right text-secondary me-2"></i>
+                                    <span class="small">Hugging Face</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tendências -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3">📈 Tendências IA 2024</h6>
+                            <div class="trend-list">
+                                <div class="trend-item mb-3 pb-3 border-bottom">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-danger me-2">🔥</span>
+                                        <span class="small fw-semibold">Multimodal AI</span>
+                                    </div>
+                                    <p class="small text-muted mb-0">IAs que processam texto, imagem e áudio juntos</p>
+                                </div>
+                                <div class="trend-item mb-3 pb-3 border-bottom">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-success me-2">📊</span>
+                                        <span class="small fw-semibold">AI Agents</span>
+                                    </div>
+                                    <p class="small text-muted mb-0">IAs que executam tarefas complexas automaticamente</p>
+                                </div>
+                                <div class="trend-item">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-info me-2">⚡</span>
+                                        <span class="small fw-semibold">Edge AI</span>
+                                    </div>
+                                    <p class="small text-muted mb-0">IA rodando localmente no seu dispositivo</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

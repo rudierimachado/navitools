@@ -817,3 +817,111 @@ def add_to_global_blueprints(module_name, url_prefix):
 def add_to_sidebar_menu(module_name, url_prefix, display_name, icon):
     """Mantido por compatibilidade; menu agora é gerado dinamicamente."""
     return
+
+# ==================== GERENCIAMENTO DE CONTEÚDO ====================
+
+def load_content_data():
+    """Carrega dados de conteúdo do arquivo JSON"""
+    content_file = os.path.join(os.path.dirname(__file__), 'content_data.json')
+    try:
+        with open(content_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {
+            "posts": []
+        }
+
+def save_content_data(data):
+    """Salva dados de conteúdo no arquivo JSON"""
+    content_file = os.path.join(os.path.dirname(__file__), 'content_data.json')
+    with open(content_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+@administrador_bp.route('/content')
+@login_required
+def content_manager():
+    """Página principal de gerenciamento de conteúdo"""
+    content_data = load_content_data()
+    posts = sorted(content_data.get('posts', []), key=lambda p: p.get('date', ''), reverse=True)
+    return render_template('content_manager.html', posts=posts)
+
+@administrador_bp.route('/content/post/add', methods=['GET', 'POST'])
+@login_required
+def add_post():
+    """Adicionar novo post"""
+    if request.method == 'POST':
+        content_data = load_content_data()
+        posts = content_data.get('posts', [])
+
+        new_id = max([post.get('id', 0) for post in posts], default=0) + 1
+
+        new_post = {
+            'id': new_id,
+            'title': request.form['title'],
+            'subtitle': request.form.get('subtitle', ''),
+            'category': request.form.get('category', ''),
+            'section': request.form.get('section', 'novidades'),
+            'date': request.form['date'],
+            'reading_time': request.form.get('reading_time', ''),
+            'summary': request.form.get('summary', ''),
+            'content': request.form.get('content', ''),
+            'cover': request.form.get('cover', ''),
+            'cta_text': request.form.get('cta_text', ''),
+            'cta_link': request.form.get('cta_link', ''),
+            'active': 'active' in request.form
+        }
+
+        posts.append(new_post)
+        content_data['posts'] = posts
+        save_content_data(content_data)
+
+        flash('Conteúdo publicado com sucesso!', 'success')
+        return redirect(url_for('administrador.content_manager'))
+
+    return render_template('add_post.html')
+
+@administrador_bp.route('/content/post/edit/<int:post_id>', methods=['GET', 'POST'])
+@login_required
+def edit_post(post_id):
+    """Editar post existente"""
+    content_data = load_content_data()
+    posts = content_data.get('posts', [])
+    post = next((p for p in posts if p['id'] == post_id), None)
+
+    if not post:
+        flash('Post não encontrado!', 'error')
+        return redirect(url_for('administrador.content_manager'))
+
+    if request.method == 'POST':
+        post.update({
+            'title': request.form['title'],
+            'subtitle': request.form.get('subtitle', ''),
+            'category': request.form.get('category', ''),
+            'section': request.form.get('section', post.get('section', 'novidades')),
+            'date': request.form['date'],
+            'reading_time': request.form.get('reading_time', ''),
+            'summary': request.form.get('summary', ''),
+            'content': request.form.get('content', ''),
+            'cover': request.form.get('cover', ''),
+            'cta_text': request.form.get('cta_text', ''),
+            'cta_link': request.form.get('cta_link', ''),
+            'active': 'active' in request.form
+        })
+
+        save_content_data(content_data)
+        flash('Conteúdo atualizado!', 'success')
+        return redirect(url_for('administrador.content_manager'))
+
+    return render_template('edit_post.html', post=post)
+
+@administrador_bp.route('/content/post/delete/<int:post_id>')
+@login_required
+def delete_post(post_id):
+    """Excluir post"""
+    content_data = load_content_data()
+    posts = content_data.get('posts', [])
+    content_data['posts'] = [p for p in posts if p['id'] != post_id]
+    save_content_data(content_data)
+
+    flash('Post removido.', 'success')
+    return redirect(url_for('administrador.content_manager'))

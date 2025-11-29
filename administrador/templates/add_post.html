@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Novo Conteúdo - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div>
+                    <p class="text-uppercase text-muted small mb-1">Publicação</p>
+                    <h1 class="h3 fw-bold mb-0">Adicionar Post / Dica</h1>
+                </div>
+                <a href="{{ url_for('administrador.content_manager') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="title">Título *</label>
+                                <input type="text" id="title" name="title" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="subtitle">Subtítulo</label>
+                                <input type="text" id="subtitle" name="subtitle" class="form-control" placeholder="Resumo curto abaixo do título">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="category">Categoria</label>
+                                <input type="text" id="category" name="category" class="form-control" placeholder="Ex: Inteligência Artificial, QR Code, Tutoriais">
+                                <div class="form-text">Campo livre: escreva como quer que apareça no site.</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="date">Data *</label>
+                                <input type="date" id="date" name="date" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="reading_time">Tempo de leitura</label>
+                                <input type="text" id="reading_time" name="reading_time" class="form-control" placeholder="Ex: 3 min">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4 pt-2">
+                                    <input class="form-check-input" type="checkbox" id="active" name="active" checked>
+                                    <label class="form-check-label fw-semibold" for="active">
+                                        Publicar imediatamente
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="section">Sessão da Home *</label>
+                                <select id="section" name="section" class="form-select" required>
+                                    <option value="novidades">Novidades</option>
+                                    <option value="dicas">Dicas</option>
+                                </select>
+                                <div class="form-text">Escolha onde o post aparecerá na home.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="summary">Resumo *</label>
+                                <textarea id="summary" name="summary" rows="3" class="form-control" placeholder="Texto curto que aparece na home" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="content">Conteúdo completo *</label>
+                                <textarea id="content" name="content" rows="6" class="form-control" placeholder="Texto exibido na página do Blog" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="cover">Imagem / Capa (URL)</label>
+                                <input type="text" id="cover" name="cover" class="form-control" placeholder="https://... opcional">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="cta_text">Texto do botão (opcional)</label>
+                                <input type="text" id="cta_text" name="cta_text" class="form-control" placeholder="Ex: Ver ferramenta">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="cta_link">Link do botão (opcional)</label>
+                                <input type="text" id="cta_link" name="cta_link" class="form-control" placeholder="/gerador-de-qr-code">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Publicar
+                            </button>
+                            <a href="{{ url_for('administrador.content_manager') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

@@ -2,81 +2,172 @@
 
 {% block title %}Home - NAVITOOLS{% endblock %}
 
-{% block top_banner %}
-<div class="ad-slot ad-slot--banner mb-4">
-    <h6>Banner Superior</h6>
-    <small>970 x 250 px</small>
-</div>
-{% endblock %}
+{% block top_banner %}{% endblock %}
 
-{% block sidebar_ad %}
-<div class="ad-slot ad-slot--sidebar">
-    <h6>Patrocínio Lateral</h6>
-    <small>300 x 600 px</small>
-</div>
-{% endblock %}
+{% block sidebar_ad %}{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row align-items-center mb-5">
-        <div class="col-lg-7">
-            <h1 class="display-5 fw-bold mb-3" style="color: var(--primary-color);">
-                Ferramentas Web que aceleram seu trabalho
-            </h1>
-            <p class="lead text-muted">
-                Suite completa para converter, otimizar e gerenciar arquivos online. Integrações fáceis
-                e resultados em poucos cliques.
-            </p>
-        </div>
-        <div class="col-lg-5">
-            <div class="ad-slot ad-slot--banner">
-                <h6>Banner Destaque</h6>
-                <small>728 x 90 px</small>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-md-6 col-lg-4">
-            <div class="card tool-card h-100">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <i class="bi bi-image" style="font-size: 3rem; color: var(--accent-color);"></i>
-                    </div>
-                    <h5 class="card-title">Conversor de Imagens</h5>
-                    <p class="card-text">
-                        Converta JPG, PNG, WEBP, AVIF e muito mais. Controle de qualidade e compressão otimizada.
-                    </p>
-                    <a href="/conversor-imagens" class="btn btn-primary">
-                        <i class="bi bi-arrow-right"></i> Abrir Ferramenta
+<div class="home-wrapper">
+    <!-- Hero Section Simples -->
+    <section class="hero-section bg-gradient-primary text-white rounded-4 p-5 mb-5 shadow-sm">
+        <div class="row align-items-center">
+            <div class="col-12 text-center">
+                <h1 class="display-5 fw-bold mb-3">NAVITOOLS</h1>
+                <p class="fs-5 mb-4">Ferramentas web para acelerar seu trabalho</p>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="/gerador-de-qr-code" class="btn btn-light btn-lg">
+                        <i class="bi bi-qr-code me-2"></i>Gerador de QR Code
+                    </a>
+                    <a href="/conversor-imagens" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-image me-2"></i>Conversor de Imagens
                     </a>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="col-md-6 col-lg-4">
-            <div class="card tool-card h-100">
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <i class="bi bi-lightning-charge" style="font-size: 3rem; color: var(--warning-color);"></i>
+    <!-- Seção 1: Ferramentas do site -->
+    <section class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <p class="text-uppercase text-muted small mb-1">Ferramentas</p>
+                <h2 class="h4 fw-bold mb-0">O que já está disponível</h2>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm hover-lift">
+                    <div class="card-body">
+                        <div class="icon-pill bg-primary-subtle text-primary mb-3">
+                            <i class="bi bi-qr-code"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2">Gerador de QR Code</h5>
+                        <p class="text-muted mb-4">Crie QR Codes para links, WiFi, WhatsApp, vCards e mais.</p>
+                        <a href="/gerador-de-qr-code" class="btn btn-primary w-100">
+                            Abrir ferramenta
+                        </a>
                     </div>
-                    <h5 class="card-title">Em breve</h5>
-                    <p class="card-text">
-                        Novas ferramentas de automação e produtividade estão chegando.
-                    </p>
-                    <button class="btn btn-outline-secondary" disabled>
-                        <i class="bi bi-clock"></i> Em desenvolvimento
-                    </button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm hover-lift">
+                    <div class="card-body">
+                        <div class="icon-pill bg-success-subtle text-success mb-3">
+                            <i class="bi bi-image"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2">Conversor de Imagens</h5>
+                        <p class="text-muted mb-4">Converta entre JPG, PNG, WEBP, AVIF, PDF e compacta automaticamente.</p>
+                        <a href="/conversor-imagens" class="btn btn-success w-100">
+                            Abrir ferramenta
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm hover-lift">
+                    <div class="card-body">
+                        <div class="icon-pill bg-dark-subtle text-dark mb-3">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <h5 class="fw-bold mb-2">Blog e Conteúdos</h5>
+                        <p class="text-muted mb-4">Centralize artigos, novidades e dicas criadas no painel administrativo.</p>
+                        <a href="/administrador/content" class="btn btn-dark w-100">
+                            Gerenciar conteúdos
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- Seção 2: Novidades -->
+    <section class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <p class="text-uppercase text-muted small mb-1">Novidades</p>
+                <h2 class="h4 fw-bold mb-0">Atualizações e lançamentos</h2>
+            </div>
+            <a href="/blog" class="btn btn-outline-secondary btn-sm">
+                Ver tudo
+            </a>
+        </div>
+
+        {% if novidades_posts %}
+        <div class="row g-4">
+            {% for post in novidades_posts %}
+            <div class="col-md-6">
+                <article class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <small class="text-muted d-block mb-2">{{ post.date }} • {{ post.reading_time }}</small>
+                        <h5 class="fw-bold mb-2">{{ post.title }}</h5>
+                        {% if post.subtitle %}
+                        <p class="text-muted small mb-2">{{ post.subtitle }}</p>
+                        {% endif %}
+                        <p class="text-muted mb-3">{{ post.summary }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="/blog/{{ post.id }}" class="btn btn-outline-primary btn-sm">
+                                Ler mais
+                            </a>
+                            {% if post.category %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ post.category }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            Nenhuma novidade cadastrada.
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Seção 3: Dicas -->
+    <section class="mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <p class="text-uppercase text-muted small mb-1">Dicas</p>
+                <h2 class="h4 fw-bold mb-0">Guias e conteúdos educativos</h2>
+            </div>
+            <a href="/blog" class="btn btn-outline-secondary btn-sm">
+                Ver tudo
+            </a>
+        </div>
+
+        {% if dicas_posts %}
+        <div class="row g-4">
+            {% for post in dicas_posts %}
+            <div class="col-md-6">
+                <article class="card border-0 shadow-sm h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-success-subtle text-success me-2">{{ post.category or 'Dica' }}</span>
+                            <small class="text-muted">{{ post.date }}</small>
+                        </div>
+                        <h5 class="fw-bold mb-2">{{ post.title }}</h5>
+                        <p class="text-muted mb-3">{{ post.summary }}</p>
+                        {% if post.cta_text and post.cta_link %}
+                        <a href="{{ post.cta_link }}" class="btn btn-outline-success btn-sm">
+                            {{ post.cta_text }}
+                        </a>
+                        {% else %}
+                        <a href="/blog/{{ post.id }}" class="btn btn-outline-success btn-sm">Ler dica completa</a>
+                        {% endif %}
+                    </div>
+                </article>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            Nenhuma dica cadastrada.
+        </div>
+        {% endif %}
+    </section>
+
 </div>
 {% endblock %}
 
-{% block bottom_banner %}
-<div class="ad-slot ad-slot--banner mt-5">
-    <h6>Banner Inferior</h6>
-    <small>970 x 90 px</small>
-</div>
-{% endblock %}
+{% block bottom_banner %}{% endblock %}
