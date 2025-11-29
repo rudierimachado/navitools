@@ -1,6 +1,6 @@
 Flask==2.3.2
 python-dotenv==1.1.0
-Pillow==10.0.1
+Pillow==11.0.0
 gunicorn==23.0.0
 Werkzeug==2.3.6
 itsdangerous==2.1.2
