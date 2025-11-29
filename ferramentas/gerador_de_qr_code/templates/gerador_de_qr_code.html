@@ -1,0 +1,749 @@
+{% extends 'base.html' %}
+
+{% block title %}Gerador de QR Code - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 bg-light">
+    <div class="container-fluid px-3 py-4">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                
+                <!-- Header -->
+                <div class="text-center mb-5">
+                    <div class="d-inline-flex align-items-center justify-content-center mb-4 rounded-circle bg-primary shadow-lg" 
+                         style="width: 80px; height: 80px;">
+                        <i class="bi bi-qr-code text-white" style="font-size: 2rem;"></i>
+                    </div>
+                    <h1 class="display-4 fw-bold text-dark mb-3">
+                        Gerador de QR Code
+                    </h1>
+                    <p class="lead text-muted mb-4">Crie QR codes personalizados para qualquer necessidade</p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <span class="badge bg-primary text-white px-3 py-2 rounded-pill">
+                            <i class="bi bi-lightning me-1"></i>Instantâneo
+                        </span>
+                        <span class="badge bg-success text-white px-3 py-2 rounded-pill">
+                            <i class="bi bi-shield-check me-1"></i>Seguro
+                        </span>
+                        <span class="badge bg-info text-white px-3 py-2 rounded-pill">
+                            <i class="bi bi-download me-1"></i>Gratuito
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Seleção de Tipo -->
+                <div class="card border-0 mb-4 shadow-sm" id="typeSelectionCard">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0" id="typeCardTitle">
+                            <i class="bi bi-grid-3x3-gap me-2"></i>Escolha o tipo de QR Code
+                        </h5>
+                        <button class="btn btn-sm btn-outline-light d-none" id="changeTypeBtn" onclick="expandTypeSelection()">
+                            <i class="bi bi-arrow-repeat me-1"></i>Alterar
+                        </button>
+                    </div>
+                    <div class="card-body p-4" id="typeSelectionBody">
+                        <div class="row g-3" id="typeGrid">
+                            <div class="col-md-6 col-lg-4">
+                                <div class="qr-type-card" data-type="url">
+                                    <div class="text-center p-4 rounded border h-100" style="cursor: pointer; transition: all 0.3s;">
+                                        <i class="bi bi-globe text-primary mb-3" style="font-size: 2.5rem;"></i>
+                                        <h6 class="fw-bold">URL/Link</h6>
+                                        <small class="text-muted">Site, página, link qualquer</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="qr-type-card" data-type="wifi">
+                                    <div class="text-center p-4 rounded border h-100" style="cursor: pointer; transition: all 0.3s;">
+                                        <i class="bi bi-wifi text-success mb-3" style="font-size: 2.5rem;"></i>
+                                        <h6 class="fw-bold">WiFi</h6>
+                                        <small class="text-muted">Conexão automática</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="qr-type-card" data-type="text">
+                                    <div class="text-center p-4 rounded border h-100" style="cursor: pointer; transition: all 0.3s;">
+                                        <i class="bi bi-chat-text text-info mb-3" style="font-size: 2.5rem;"></i>
+                                        <h6 class="fw-bold">Texto</h6>
+                                        <small class="text-muted">Mensagem, instrução</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="qr-type-card" data-type="whatsapp">
+                                    <div class="text-center p-4 rounded border h-100" style="cursor: pointer; transition: all 0.3s;">
+                                        <i class="bi bi-whatsapp text-success mb-3" style="font-size: 2.5rem;"></i>
+                                        <h6 class="fw-bold">WhatsApp</h6>
+                                        <small class="text-muted">Chat direto</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="qr-type-card" data-type="vcard">
+                                    <div class="text-center p-4 rounded border h-100" style="cursor: pointer; transition: all 0.3s;">
+                                        <i class="bi bi-person-vcard text-warning mb-3" style="font-size: 2.5rem;"></i>
+                                        <h6 class="fw-bold">Contato</h6>
+                                        <small class="text-muted">Cartão de visita digital</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulário Dinâmico -->
+                <div class="card border-0 mb-4 shadow-sm d-none" id="dataForm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0" id="formTitle">
+                            <i class="bi bi-pencil me-2"></i>Preencha os dados
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- URL Form -->
+                        <div class="qr-form" id="urlForm" style="display: none;">
+                            <div class="mb-3">
+                                <label for="urlInput" class="form-label fw-bold">URL/Link</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-globe"></i></span>
+                                    <input type="url" class="form-control form-control-lg" id="urlInput" 
+                                           placeholder="https://exemplo.com">
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Digite a URL completa do site que você quer compartilhar
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WiFi Form -->
+                        <div class="qr-form" id="wifiForm" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="wifiSSID" class="form-label fw-bold">Nome da Rede (SSID)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-wifi"></i></span>
+                                        <input type="text" class="form-control" id="wifiSSID" 
+                                               placeholder="MinhaRede">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="wifiPassword" class="form-label fw-bold">Senha</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                        <input type="password" class="form-control" id="wifiPassword" 
+                                               placeholder="Digite a senha">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('wifiPassword')">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="wifiSecurity" class="form-label fw-bold">Segurança</label>
+                                    <select class="form-select" id="wifiSecurity">
+                                        <option value="WPA">WPA/WPA2 (Padrão)</option>
+                                        <option value="WEP">WEP (Antigo)</option>
+                                        <option value="nopass">Sem senha</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="wifiHidden">
+                                        <label class="form-check-label fw-bold" for="wifiHidden">
+                                            Rede oculta
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Text Form -->
+                        <div class="qr-form" id="textForm" style="display: none;">
+                            <div class="mb-3">
+                                <label for="textInput" class="form-label fw-bold">Texto</label>
+                                <textarea class="form-control" id="textInput" rows="4" 
+                                          placeholder="Digite seu texto aqui..."></textarea>
+                                <div class="form-text">
+                                    <span id="textCounter">0</span> caracteres
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WhatsApp Form -->
+                        <div class="qr-form" id="whatsappForm" style="display: none;">
+                            <div class="mb-3">
+                                <label for="whatsappPhone" class="form-label fw-bold">Número do WhatsApp</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-whatsapp"></i> +55
+                                    </span>
+                                    <input type="tel" class="form-control" id="whatsappPhone" 
+                                           placeholder="11999887766" maxlength="15">
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Digite apenas números (DDD + número)
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="whatsappMessage" class="form-label fw-bold">Mensagem (opcional)</label>
+                                <textarea class="form-control" id="whatsappMessage" rows="3" 
+                                          placeholder="Olá! Vi seu QR Code..."></textarea>
+                                <div class="form-text">Mensagem que aparecerá automaticamente</div>
+                            </div>
+                        </div>
+
+                        <!-- vCard Form -->
+                        <div class="qr-form" id="vcardForm" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="vcardName" class="form-label fw-bold">Nome Completo *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                        <input type="text" class="form-control" id="vcardName" 
+                                               placeholder="João Silva">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="vcardPhone" class="form-label fw-bold">Telefone</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                                        <input type="tel" class="form-control" id="vcardPhone" 
+                                               placeholder="(11) 99999-9999">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="vcardEmail" class="form-label fw-bold">Email</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                        <input type="email" class="form-control" id="vcardEmail" 
+                                               placeholder="joao@exemplo.com">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="vcardOrganization" class="form-label fw-bold">Empresa/Organização</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                                        <input type="text" class="form-control" id="vcardOrganization" 
+                                               placeholder="Minha Empresa">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="vcardURL" class="form-label fw-bold">Website</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-globe"></i></span>
+                                    <input type="url" class="form-control" id="vcardURL" 
+                                           placeholder="https://meusite.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customização -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">🎨 Personalização</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <label for="fillColor" class="form-label">Cor Principal</label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="fillColor" value="#000000">
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="backColor" class="form-label">Cor de Fundo</label>
+                                        <input type="color" class="form-control form-control-color" 
+                                               id="backColor" value="#FFFFFF">
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="form-label">Tamanho</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="qrSize" 
+                                               id="sizeSmall" value="small">
+                                        <label class="btn btn-outline-primary" for="sizeSmall">Pequeno</label>
+                                        
+                                        <input type="radio" class="btn-check" name="qrSize" 
+                                               id="sizeMedium" value="medium" checked>
+                                        <label class="btn btn-outline-primary" for="sizeMedium">Médio</label>
+                                        
+                                        <input type="radio" class="btn-check" name="qrSize" 
+                                               id="sizeLarge" value="large">
+                                        <label class="btn btn-outline-primary" for="sizeLarge">Grande</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preview -->
+                            <div class="col-md-6">
+                                <h6 class="fw-bold mb-3">👁️ Preview</h6>
+                                <div class="text-center">
+                                    <div id="qrPreview" class="border rounded p-4 bg-light" 
+                                         style="min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                                        <div class="text-muted">
+                                            <i class="bi bi-qr-code" style="font-size: 3rem;"></i>
+                                            <div class="mt-2">Preencha os dados<br>para gerar o preview</div>
+                                        </div>
+                                    </div>
+                                    <div id="previewInfo" class="mt-2 text-muted small"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botão Gerar -->
+                        <div class="text-center mt-4">
+                            <button class="btn btn-primary btn-lg px-5" id="generateBtn" disabled>
+                                <i class="bi bi-magic me-2"></i>Gerar QR Code
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Resultado -->
+                <div class="card border-0 shadow-sm d-none" id="resultCard">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-check-circle me-2"></i>QR Code Gerado com Sucesso!
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div id="finalQR" class="mb-4"></div>
+                        <div id="qrInfo" class="mb-4"></div>
+                        
+                        <div class="d-flex gap-3 justify-content-center flex-wrap">
+                            <button class="btn btn-success btn-lg" id="downloadBtn">
+                                <i class="bi bi-download me-2"></i>Baixar PNG
+                            </button>
+                            <button class="btn btn-outline-primary btn-lg" id="newQRBtn">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Criar Novo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    let currentType = null;
+    let currentFilename = null;
+
+    // Elementos
+    const typeCards = document.querySelectorAll('.qr-type-card');
+    const dataForm = document.getElementById('dataForm');
+    const generateBtn = document.getElementById('generateBtn');
+    const resultCard = document.getElementById('resultCard');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const newQRBtn = document.getElementById('newQRBtn');
+
+    // Event Listeners
+    typeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const type = this.dataset.type;
+            selectType(type);
+        });
+    });
+
+    generateBtn.addEventListener('click', generateQR);
+    downloadBtn.addEventListener('click', downloadQR);
+    newQRBtn.addEventListener('click', resetForm);
+
+    // Adicionar listeners para preview em tempo real
+    const inputs = ['urlInput', 'wifiSSID', 'textInput', 'whatsappPhone', 'vcardName'];
+    inputs.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', updatePreview);
+        }
+    });
+
+    // Color inputs
+    document.getElementById('fillColor').addEventListener('change', updatePreview);
+    document.getElementById('backColor').addEventListener('change', updatePreview);
+
+    // Size inputs
+    document.querySelectorAll('input[name="qrSize"]').forEach(radio => {
+        radio.addEventListener('change', updatePreview);
+    });
+
+    // Text counter
+    const textInput = document.getElementById('textInput');
+    if (textInput) {
+        textInput.addEventListener('input', function() {
+            document.getElementById('textCounter').textContent = this.value.length;
+        });
+    }
+
+    function selectType(type) {
+        currentType = type;
+        
+        // Visual feedback nos cards
+        typeCards.forEach(card => {
+            const cardDiv = card.querySelector('div');
+            if (card.dataset.type === type) {
+                cardDiv.classList.remove('border');
+                cardDiv.classList.add('border-primary', 'bg-primary', 'text-white');
+            } else {
+                cardDiv.classList.remove('border-primary', 'bg-primary', 'text-white');
+                cardDiv.classList.add('border');
+            }
+        });
+        
+        // Mostrar formulário apropriado
+        document.querySelectorAll('.qr-form').forEach(form => {
+            form.style.display = 'none';
+        });
+        
+        document.getElementById(type + 'Form').style.display = 'block';
+        dataForm.classList.remove('d-none');
+        
+        // Update form title
+        const titles = {
+            'url': 'URL/Link',
+            'wifi': 'WiFi',
+            'text': 'Texto',
+            'whatsapp': 'WhatsApp', 
+            'vcard': 'Contato'
+        };
+        
+        document.getElementById('formTitle').innerHTML = 
+            `<i class="bi bi-pencil me-2"></i>Dados do QR Code - ${titles[type]}`;
+        
+        // Reset e focus no primeiro input
+        resetInputs();
+        focusFirstInput(type);
+        updatePreview();
+        
+        // Minimizar menu de tipos após seleção
+        minimizeTypeSelection(type, titles[type]);
+    }
+
+    function resetInputs() {
+        document.querySelectorAll('.qr-form input, .qr-form textarea, .qr-form select').forEach(input => {
+            if (input.type !== 'radio' && input.type !== 'checkbox') {
+                input.value = '';
+            }
+        });
+        generateBtn.disabled = true;
+    }
+
+    function focusFirstInput(type) {
+        const firstInputs = {
+            'url': 'urlInput',
+            'wifi': 'wifiSSID',
+            'text': 'textInput',
+            'whatsapp': 'whatsappPhone',
+            'vcard': 'vcardName'
+        };
+        
+        const firstInput = document.getElementById(firstInputs[type]);
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
+    }
+
+    function updatePreview() {
+        if (!currentType) return;
+        
+        const data = collectFormData();
+        if (!data) return;
+        
+        // Preview rápido via validação
+        fetch('/gerador-de-qr-code/preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: currentType,
+                data: data
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            const previewInfo = document.getElementById('previewInfo');
+            
+            if (result.valid) {
+                previewInfo.innerHTML = `✅ ${result.message}`;
+                previewInfo.className = 'mt-2 text-success small';
+                generateBtn.disabled = false;
+            } else {
+                previewInfo.innerHTML = `⚠️ ${result.message}`;
+                previewInfo.className = 'mt-2 text-warning small';
+                generateBtn.disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Erro no preview:', error);
+        });
+    }
+
+    function collectFormData() {
+        const data = {};
+        
+        switch(currentType) {
+            case 'url':
+                data.url = document.getElementById('urlInput').value;
+                break;
+                
+            case 'wifi':
+                data.ssid = document.getElementById('wifiSSID').value;
+                data.password = document.getElementById('wifiPassword').value;
+                data.security = document.getElementById('wifiSecurity').value;
+                data.hidden = document.getElementById('wifiHidden').checked;
+                break;
+                
+            case 'text':
+                data.text = document.getElementById('textInput').value;
+                break;
+                
+            case 'whatsapp':
+                data.phone = document.getElementById('whatsappPhone').value;
+                data.message = document.getElementById('whatsappMessage').value;
+                break;
+                
+            case 'vcard':
+                data.name = document.getElementById('vcardName').value;
+                data.phone = document.getElementById('vcardPhone').value;
+                data.email = document.getElementById('vcardEmail').value;
+                data.organization = document.getElementById('vcardOrganization').value;
+                data.url = document.getElementById('vcardURL').value;
+                break;
+        }
+        
+        return data;
+    }
+
+    function generateQR() {
+        if (!currentType) return;
+        
+        const data = collectFormData();
+        const fillColor = document.getElementById('fillColor').value;
+        const backColor = document.getElementById('backColor').value;
+        const size = document.querySelector('input[name="qrSize"]:checked').value;
+        
+        // Loading state
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Gerando...';
+        
+        fetch('/gerador-de-qr-code/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: currentType,
+                data: data,
+                fillColor: fillColor,
+                backColor: backColor,
+                size: size
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showResult(result);
+            } else {
+                showNotification(result.message, 'error');
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<i class="bi bi-magic me-2"></i>Gerar QR Code';
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            showNotification('Erro ao gerar QR Code', 'error');
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<i class="bi bi-magic me-2"></i>Gerar QR Code';
+        });
+    }
+
+    function showResult(result) {
+        currentFilename = result.filename;
+        
+        // Reset button
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="bi bi-magic me-2"></i>Gerar QR Code';
+        
+        // Show QR Code
+        document.getElementById('finalQR').innerHTML = 
+            `<img src="data:image/png;base64,${result.qr_code}" class="img-fluid" style="max-width: 300px;">`;
+        
+        // Show info
+        document.getElementById('qrInfo').innerHTML = 
+            `<p class="text-muted mb-0">${result.info}</p>`;
+        
+        // Mostrar resultado
+        resultCard.classList.remove('d-none');
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+        
+        showNotification('QR Code gerado com sucesso!', 'success');
+    }
+
+    function downloadQR() {
+        if (!currentFilename) return;
+        
+        window.location.href = `/gerador-de-qr-code/download/${currentFilename}`;
+    }
+
+    function resetForm() {
+        currentType = null;
+        currentFilename = null;
+        
+        // Expandir menu de tipos
+        expandTypeSelection();
+        
+        // Reset visual
+        typeCards.forEach(card => {
+            const cardDiv = card.querySelector('div');
+            cardDiv.classList.remove('border-primary', 'bg-primary', 'text-white');
+            cardDiv.classList.add('border');
+        });
+        
+        // Hide forms
+        dataForm.classList.add('d-none');
+        resultCard.classList.add('d-none');
+        
+        // Reset inputs
+        document.querySelectorAll('.qr-form input, .qr-form textarea, .qr-form select').forEach(input => {
+            if (input.type !== 'radio' && input.type !== 'checkbox') {
+                input.value = '';
+            } else if (input.type === 'checkbox') {
+                input.checked = false;
+            }
+        });
+        
+        // Reset colors
+        document.getElementById('fillColor').value = '#000000';
+        document.getElementById('backColor').value = '#FFFFFF';
+        
+        // Reset size
+        document.getElementById('sizeMedium').checked = true;
+        
+        generateBtn.disabled = true;
+    }
+
+    // Toggle password visibility
+    window.togglePassword = function(inputId) {
+        const input = document.getElementById(inputId);
+        const button = input.nextElementSibling;
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    };
+
+    // Minimizar menu de tipos
+    function minimizeTypeSelection(selectedType, selectedTitle) {
+        const typeIcons = {
+            'url': 'bi-globe text-primary',
+            'wifi': 'bi-wifi text-success', 
+            'text': 'bi-chat-text text-info',
+            'whatsapp': 'bi-whatsapp text-success',
+            'vcard': 'bi-person-vcard text-warning'
+        };
+        
+        // Atualizar título para mostrar tipo selecionado
+        document.getElementById('typeCardTitle').innerHTML = 
+            `<i class="${typeIcons[selectedType]} me-2"></i>Tipo: ${selectedTitle}`;
+        
+        // Mostrar botão de alterar
+        document.getElementById('changeTypeBtn').classList.remove('d-none');
+        
+        // Minimizar o corpo do card com animação
+        const typeBody = document.getElementById('typeSelectionBody');
+        typeBody.style.transition = 'all 0.3s ease';
+        typeBody.style.height = typeBody.offsetHeight + 'px';
+        
+        setTimeout(() => {
+            typeBody.style.height = '0px';
+            typeBody.style.padding = '0';
+            typeBody.style.overflow = 'hidden';
+        }, 10);
+        
+        setTimeout(() => {
+            typeBody.classList.add('d-none');
+        }, 300);
+    }
+
+    // Expandir menu de tipos
+    window.expandTypeSelection = function() {
+        const typeBody = document.getElementById('typeSelectionBody');
+        
+        // Restaurar título original
+        document.getElementById('typeCardTitle').innerHTML = 
+            '<i class="bi bi-grid-3x3-gap me-2"></i>Escolha o tipo de QR Code';
+        
+        // Esconder botão de alterar
+        document.getElementById('changeTypeBtn').classList.add('d-none');
+        
+        // Expandir o corpo do card
+        typeBody.classList.remove('d-none');
+        typeBody.style.height = '0px';
+        typeBody.style.padding = '0';
+        
+        setTimeout(() => {
+            typeBody.style.height = 'auto';
+            typeBody.style.padding = '1.5rem';
+            typeBody.style.overflow = 'visible';
+        }, 10);
+        
+        // Reset visual dos cards
+        document.querySelectorAll('.qr-type-card').forEach(card => {
+            const cardDiv = card.querySelector('div');
+            cardDiv.classList.remove('border-primary', 'bg-primary', 'text-white');
+            cardDiv.classList.add('border');
+        });
+        
+        // Esconder formulário
+        document.getElementById('dataForm').classList.add('d-none');
+        document.getElementById('resultCard').classList.add('d-none');
+        
+        // Reset variáveis
+        currentType = null;
+        currentFilename = null;
+    };
+
+    // Show notification
+    function showNotification(message, type) {
+        // Simple notification - you can enhance this
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+
+})();
+</script>
+{% endblock %}

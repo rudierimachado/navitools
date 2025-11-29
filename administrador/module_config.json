@@ -13,5 +13,13 @@
         "display_name": "Conversor de Imagens",
         "icon": "image",
         "version": "1.0.1"
+    },
+    "gerador_de_qr_code": {
+        "display_name": "Gerador de QR Code",
+        "description": "",
+        "icon": "gear",
+        "location": "lateral",
+        "parent_module": "ferramentas",
+        "version": "1.0.0"
     }
 }

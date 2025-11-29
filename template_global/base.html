@@ -150,7 +150,7 @@
         }
         
         .sidebar-section {
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
         }
         
         .sidebar-title {
@@ -160,12 +160,44 @@
             letter-spacing: 0.05em;
             color: var(--text-secondary);
             padding: 0 1.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
         
         .sidebar-nav {
             list-style: none;
         }
+
+        .sidebar-group-toggle {
+            width: calc(100% - 2rem);
+            margin: 0 1rem 0.5rem;
+            padding: 0.85rem 1rem;
+            border: none;
+            background: rgba(99, 102, 241, 0.08);
+            color: var(--text-primary);
+            border-radius: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-group-toggle:hover,
+        .sidebar-group-toggle.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(99, 102, 241, 0.25);
+        }
+
+        .sidebar-group-toggle i.arrow {
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-group-toggle.active i.arrow {
+            transform: rotate(180deg);
+        }
+
         
         .nav-item {
             margin-bottom: 0.25rem;
@@ -279,6 +311,39 @@
         
         .card-body {
             padding: 1.5rem;
+        }
+
+        /* Ads */
+        .ad-slot {
+            border: 1px dashed rgba(99, 102, 241, 0.4);
+            border-radius: 16px;
+            padding: 1.25rem;
+            background: rgba(99, 102, 241, 0.04);
+            color: var(--text-secondary);
+            text-align: center;
+            width: 100%;
+        }
+
+        .ad-slot h6 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--primary-dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .ad-slot small {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .ad-slot--sidebar {
+            min-height: 200px;
+        }
+
+        .ad-slot--banner {
+            min-height: 120px;
         }
         
         /* Buttons */
@@ -411,37 +476,51 @@
 
                 {% if side_groups %}
                     {% for group in side_groups %}
+                    {% set section_id = 'sidebar-group-' ~ loop.index %}
                     <div class="sidebar-section">
                         <div class="sidebar-title">{{ group.display_name | upper }}</div>
-                        <ul class="sidebar-nav">
-                            {% if group.children %}
-                                {% for module in group.children %}
-                                <li class="nav-item">
-                                    <a href="{{ module.url }}" class="nav-link">
-                                        <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                        <span>{{ module.display_name }}</span>
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            {% else %}
-                                <li class="nav-item">
-                                    <span class="nav-link text-muted">
-                                        <i class="bi bi-info-circle"></i>
-                                        <span>Nenhum módulo</span>
-                                    </span>
-                                </li>
-                            {% endif %}
-                        </ul>
+                        <button class="sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
+                            <span>
+                                <i class="bi bi-{{ group.icon or 'grid' }} me-2"></i>
+                                {{ group.display_name }}
+                            </span>
+                            <i class="bi bi-chevron-down arrow"></i>
+                        </button>
+                        <div class="collapse show sidebar-submenu" id="{{ section_id }}">
+                            <ul class="sidebar-nav">
+                                {% if group.children %}
+                                    {% for module in group.children %}
+                                    <li class="nav-item">
+                                        <a href="{{ module.url }}" class="nav-link">
+                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                            <span>{{ module.display_name }}</span>
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="nav-item">
+                                        <span class="nav-link text-muted">
+                                            <i class="bi bi-info-circle"></i>
+                                            <span>Nenhum módulo</span>
+                                        </span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </div>
                     </div>
                     {% endfor %}
                 {% endif %}
+
+                {% block sidebar_ad %}{% endblock %}
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="app-main" id="appMain">
             <div class="main-content fade-in-up">
+                {% block top_banner %}{% endblock %}
                 {% block content %}{% endblock %}
+                {% block bottom_banner %}{% endblock %}
             </div>
             
             <!-- Footer -->
@@ -504,15 +583,49 @@
             }
         });
         
-        // Add active class to current page
+        // Add active class & handle collapses
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll('.nav-link');
+            const groupButtons = document.querySelectorAll('.sidebar-group-toggle');
             
             navLinks.forEach(link => {
                 if (link.getAttribute('href') === currentPath) {
                     link.classList.add('active');
+                    const parentCollapse = link.closest('.collapse');
+                    if (parentCollapse) {
+                        const button = document.querySelector(`.sidebar-group-toggle[data-target="#${parentCollapse.id}"]`);
+                        if (button) {
+                            button.classList.add('active');
+                            parentCollapse.classList.add('show');
+                        }
+                    }
                 }
+            });
+
+            groupButtons.forEach(button => {
+                const targetSelector = button.getAttribute('data-target');
+                const target = document.querySelector(targetSelector);
+                if (!target) return;
+
+                button.addEventListener('click', () => {
+                    const isOpen = target.classList.contains('show');
+                    document.querySelectorAll('.sidebar-submenu.collapse').forEach(collapse => {
+                        if (collapse !== target) {
+                            collapse.classList.remove('show');
+                            const otherBtn = document.querySelector(`.sidebar-group-toggle[data-target="#${collapse.id}"]`);
+                            if (otherBtn) otherBtn.classList.remove('active');
+                        }
+                    });
+
+                    if (isOpen) {
+                        target.classList.remove('show');
+                        button.classList.remove('active');
+                    } else {
+                        target.classList.add('show');
+                        button.classList.add('active');
+                    }
+                });
             });
         });
     </script>

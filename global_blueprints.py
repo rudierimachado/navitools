@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template
 from ferramentas.conversor_imagens.routes import conversor_bp
+from ferramentas.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from administrador.routes import administrador_bp
 
 
@@ -20,4 +21,7 @@ def register_blueprints(app):
     app.register_blueprint(administrador_bp)
     
     # Conversor de imagens
+
+    # Gerador De Qr Code
+    app.register_blueprint(gerador_de_qr_code_bp, url_prefix="/gerador-de-qr-code")
     app.register_blueprint(conversor_bp, url_prefix="/conversor-imagens")

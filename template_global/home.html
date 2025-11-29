@@ -2,21 +2,41 @@
 
 {% block title %}Home - NAVITOOLS{% endblock %}
 
+{% block top_banner %}
+<div class="ad-slot ad-slot--banner mb-4">
+    <h6>Banner Superior</h6>
+    <small>970 x 250 px</small>
+</div>
+{% endblock %}
+
+{% block sidebar_ad %}
+<div class="ad-slot ad-slot--sidebar">
+    <h6>Patrocínio Lateral</h6>
+    <small>300 x 600 px</small>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="container">
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <h1 class="display-4 mb-3" style="color: var(--primary-color);">
-                Bem-vindo ao NAVITOOLS
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-7">
+            <h1 class="display-5 fw-bold mb-3" style="color: var(--primary-color);">
+                Ferramentas Web que aceleram seu trabalho
             </h1>
             <p class="lead text-muted">
-                Sua plataforma completa de FERRAMENTAS DE WEB web profissionais
+                Suite completa para converter, otimizar e gerenciar arquivos online. Integrações fáceis
+                e resultados em poucos cliques.
             </p>
+        </div>
+        <div class="col-lg-5">
+            <div class="ad-slot ad-slot--banner">
+                <h6>Banner Destaque</h6>
+                <small>728 x 90 px</small>
+            </div>
         </div>
     </div>
 
     <div class="row g-4">
-        <!-- Conversor de Imagens -->
         <div class="col-md-6 col-lg-4">
             <div class="card tool-card h-100">
                 <div class="card-body text-center">
@@ -25,8 +45,7 @@
                     </div>
                     <h5 class="card-title">Conversor de Imagens</h5>
                     <p class="card-text">
-                        Converta imagens entre diferentes formatos (JPG, PNG, WEBP, etc.) 
-                        com compressão otimizada e qualidade ajustável.
+                        Converta JPG, PNG, WEBP, AVIF e muito mais. Controle de qualidade e compressão otimizada.
                     </p>
                     <a href="/conversor-imagens" class="btn btn-primary">
                         <i class="bi bi-arrow-right"></i> Abrir Ferramenta
@@ -34,6 +53,30 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="card tool-card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-lightning-charge" style="font-size: 3rem; color: var(--warning-color);"></i>
+                    </div>
+                    <h5 class="card-title">Em breve</h5>
+                    <p class="card-text">
+                        Novas ferramentas de automação e produtividade estão chegando.
+                    </p>
+                    <button class="btn btn-outline-secondary" disabled>
+                        <i class="bi bi-clock"></i> Em desenvolvimento
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
+{% endblock %}
+
+{% block bottom_banner %}
+<div class="ad-slot ad-slot--banner mt-5">
+    <h6>Banner Inferior</h6>
+    <small>970 x 90 px</small>
 </div>
 {% endblock %}
