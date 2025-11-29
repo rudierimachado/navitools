@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Home - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h1 class="display-4 mb-3" style="color: var(--primary-color);">
+                Bem-vindo ao NAVITOOLS
+            </h1>
+            <p class="lead text-muted">
+                Sua plataforma completa de FERRAMENTAS DE WEB web profissionais
+            </p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Conversor de Imagens -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card tool-card h-100">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-image" style="font-size: 3rem; color: var(--accent-color);"></i>
+                    </div>
+                    <h5 class="card-title">Conversor de Imagens</h5>
+                    <p class="card-text">
+                        Converta imagens entre diferentes formatos (JPG, PNG, WEBP, etc.) 
+                        com compressão otimizada e qualidade ajustável.
+                    </p>
+                    <a href="/conversor-imagens" class="btn btn-primary">
+                        <i class="bi bi-arrow-right"></i> Abrir Ferramenta
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

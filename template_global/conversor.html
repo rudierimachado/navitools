@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}Conversor de Imagens - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3" style="color: var(--primary-color);">
+                <i class="bi bi-image"></i> Conversor de Imagens
+            </h1>
+            <p class="text-muted">
+                Converta suas imagens entre diferentes formatos com qualidade otimizada.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card tool-card">
+                <div class="card-body">
+                    <!-- Área de Upload -->
+                    <div class="upload-area mb-4" id="uploadArea">
+                        <div class="text-center">
+                            <i class="bi bi-cloud-upload" style="font-size: 4rem; color: var(--accent-color);"></i>
+                            <h4 class="mt-3">Arraste suas imagens aqui</h4>
+                            <p class="text-muted">ou clique para selecionar arquivos</p>
+                            <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                <i class="bi bi-folder-plus"></i> Selecionar Imagens
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configurações de Conversão -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="outputFormat" class="form-label">Formato de Saída</label>
+                            <select class="form-select" id="outputFormat">
+                                <option value="png">PNG</option>
+                                <option value="jpg">JPG</option>
+                                <option value="webp">WEBP</option>
+                                <option value="gif">GIF</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quality" class="form-label">Qualidade (<span id="qualityValue">85</span>%)</label>
+                            <input type="range" class="form-range" id="quality" min="10" max="100" value="85">
+                        </div>
+                    </div>
+
+                    <!-- Botão de Conversão -->
+                    <div class="text-center mb-4">
+                        <button class="btn btn-primary btn-lg" id="convertBtn" disabled>
+                            <i class="bi bi-arrow-repeat"></i> Converter Imagens
+                        </button>
+                    </div>
+
+                    <!-- Área de Resultados -->
+                    <div id="results" style="display: none;">
+                        <h5 class="mb-3">Resultados da Conversão</h5>
+                        <div id="resultsList"></div>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-success" id="downloadAllBtn">
+                                <i class="bi bi-download"></i> Baixar Todas as Imagens
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="loading" style="display: none;" class="text-center">
+                        <div class="spinner-border" style="color: var(--accent-color);" role="status">
+                            <span class="visually-hidden">Convertendo...</span>
+                        </div>
+                        <p class="mt-2">Convertendo suas imagens...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedFiles = [];
+    
+    // Elementos DOM
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const convertBtn = document.getElementById('convertBtn');
+    const qualitySlider = document.getElementById('quality');
+    const qualityValue = document.getElementById('qualityValue');
+    const results = document.getElementById('results');
+    const resultsList = document.getElementById('resultsList');
+    const loading = document.getElementById('loading');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+
+    // Atualizar valor da qualidade
+    qualitySlider.addEventListener('input', function() {
+        qualityValue.textContent = this.value;
+    });
+
+    // Upload de arquivos
+    fileInput.addEventListener('change', function(e) {
+        selectedFiles = Array.from(e.target.files);
+        updateUI();
+    });
+
+    // Drag and Drop
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        selectedFiles = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+        updateUI();
+    });
+
+    // Atualizar interface
+    function updateUI() {
+        if (selectedFiles.length > 0) {
+            convertBtn.disabled = false;
+            uploadArea.innerHTML = `
+                <div class="text-center">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">${selectedFiles.length} arquivo(s) selecionado(s)</h5>
+                    <button class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                        <i class="bi bi-plus-circle"></i> Adicionar Mais
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Conversão
+    convertBtn.addEventListener('click', function() {
+        if (selectedFiles.length === 0) return;
+
+        const formData = new FormData();
+        selectedFiles.forEach(file => {
+            formData.append('files[]', file);
+        });
+        formData.append('format', document.getElementById('outputFormat').value);
+        formData.append('quality', qualitySlider.value);
+
+        loading.style.display = 'block';
+        results.style.display = 'none';
+
+        fetch('/conversor-imagens/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            
+            if (data.success) {
+                showResults(data.files, data.errors);
+            } else {
+                alert('Erro: ' + (data.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            loading.style.display = 'none';
+            alert('Erro na conversão: ' + error.message);
+        });
+    });
+
+    // Mostrar resultados
+    function showResults(files, errors) {
+        resultsList.innerHTML = '';
+        
+        files.forEach(file => {
+            const resultCard = document.createElement('div');
+            resultCard.className = 'card result-card mb-2';
+            resultCard.innerHTML = `
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h6 class="mb-1">${file.converted_name}</h6>
+                            <small class="text-muted">Original: ${file.original_name}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">
+                                ${(file.original_size / 1024).toFixed(1)} KB → ${(file.converted_size / 1024).toFixed(1)} KB
+                                <br>
+                                <span class="text-${file.compression_ratio > 0 ? 'success' : 'warning'}">
+                                    ${file.compression_ratio > 0 ? '-' : '+'}${Math.abs(file.compression_ratio)}%
+                                </span>
+                            </small>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="/conversor-imagens/download/${file.converted_name}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-download"></i> Baixar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsList.appendChild(resultCard);
+        });
+
+        if (errors.length > 0) {
+            const errorCard = document.createElement('div');
+            errorCard.className = 'alert alert-warning';
+            errorCard.innerHTML = `
+                <h6>Avisos:</h6>
+                <ul class="mb-0">
+                    ${errors.map(error => `<li>${error}</li>`).join('')}
+                </ul>
+            `;
+            resultsList.appendChild(errorCard);
+        }
+
+        results.style.display = 'block';
+    }
+
+    // Download de todas as imagens
+    downloadAllBtn.addEventListener('click', function() {
+        window.location.href = '/conversor-imagens/download-all';
+    });
+</script>
+{% endblock %}

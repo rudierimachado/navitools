@@ -1,0 +1,17 @@
+{
+    "administrador": {
+        "display_name": "Administrador",
+        "icon": "shield-lock",
+        "version": "2.1.0"
+    },
+    "ferramentas": {
+        "display_name": "FERRAMENTAS DE WEB",
+        "icon": "tools",
+        "version": "1.0.0"
+    },
+    "conversor_imagens": {
+        "display_name": "Conversor de Imagens",
+        "icon": "image",
+        "version": "1.0.1"
+    }
+}
