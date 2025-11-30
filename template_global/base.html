@@ -282,6 +282,142 @@
             margin-right: 0.75rem;
             font-size: 1.1rem;
         }
+
+        .sidebar-modern-item {
+            margin: 0 1rem 0.75rem;
+        }
+
+        .sidebar-modern-btn {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar-modern-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .sidebar-modern-btn:hover::before {
+            left: 100%;
+        }
+
+        .sidebar-modern-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .sidebar-modern-btn.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+
+        .sidebar-modern-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            color: white;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .sidebar-modern-btn.active .sidebar-modern-icon {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-modern-content {
+            flex: 1;
+            text-align: left;
+        }
+
+        .sidebar-modern-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-modern-desc {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            line-height: 1.3;
+        }
+
+        .sidebar-modern-arrow {
+            margin-left: auto;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-modern-btn:hover .sidebar-modern-arrow {
+            opacity: 1;
+            transform: translateX(4px);
+        }
+
+        .sidebar-submenu-modern {
+            margin-left: 1rem;
+            margin-top: 0.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid rgba(99, 102, 241, 0.1);
+        }
+
+        .sidebar-sub-modern {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
+            background: rgba(248, 250, 252, 0.8);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(226, 232, 240, 0.5);
+        }
+
+        .sidebar-sub-modern:hover {
+            background: rgba(99, 102, 241, 0.08);
+            transform: translateX(4px);
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+
+        .sidebar-sub-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
         
         .nav-submenu {
             list-style: none;
@@ -531,53 +667,50 @@
 
                 {% if side_groups %}
                     {% for group in side_groups %}
-                    {% if group.is_direct_link %}
-                        <!-- Link direto para módulos sem submódulos -->
-                        <div class="sidebar-section">
-                            <ul class="sidebar-nav">
-                                <li class="nav-item">
-                                    <a href="{{ group.url }}" class="nav-link">
-                                        <i class="bi bi-{{ group.icon or 'gear' }}"></i>
-                                        <span>{{ group.display_name }}</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    {% else %}
-                        <!-- Grupo expansível para módulos com submódulos -->
                         {% set section_id = 'sidebar-group-' ~ loop.index %}
-                        <div class="sidebar-section">
-                            <div class="sidebar-title">{{ group.display_name | upper }}</div>
-                            <button class="sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
-                                <span>
-                                    <i class="bi bi-{{ group.icon or 'grid' }} me-2"></i>
-                                    {{ group.display_name }}
-                                </span>
-                                <i class="bi bi-chevron-down arrow"></i>
+                        <div class="sidebar-modern-item">
+                            {% if group.children %}
+                            <button class="sidebar-modern-btn sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
+                                <div class="sidebar-modern-icon">
+                                    <i class="bi bi-{{ group.icon or 'grid' }}"></i>
+                                </div>
+                                <div class="sidebar-modern-content">
+                                    <div class="sidebar-modern-title">{{ group.display_name }}</div>
+                                    <div class="sidebar-modern-desc">{{ group.children|length }} ferramentas disponíveis</div>
+                                </div>
+                                <i class="bi bi-chevron-down sidebar-modern-arrow"></i>
                             </button>
-                            <div class="collapse show sidebar-submenu" id="{{ section_id }}">
-                                <ul class="sidebar-nav">
-                                    {% if group.children %}
-                                        {% for module in group.children %}
-                                        <li class="nav-item">
-                                            <a href="{{ module.url }}" class="nav-link">
-                                                <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                                <span>{{ module.display_name }}</span>
-                                            </a>
-                                        </li>
-                                        {% endfor %}
-                                    {% else %}
-                                        <li class="nav-item">
-                                            <span class="nav-link text-muted">
-                                                <i class="bi bi-info-circle"></i>
-                                                <span>Nenhum módulo</span>
-                                            </span>
-                                        </li>
-                                    {% endif %}
-                                </ul>
+                            <div class="collapse sidebar-submenu-modern" id="{{ section_id }}">
+                                {% if group.children %}
+                                    {% for module in group.children %}
+                                    <a href="{{ module.url }}" class="sidebar-sub-modern">
+                                        <div class="sidebar-sub-icon">
+                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                        </div>
+                                        <div class="sidebar-modern-content">
+                                            <div class="sidebar-modern-title">{{ module.display_name }}</div>
+                                            <div class="sidebar-modern-desc">Acessar ferramenta</div>
+                                        </div>
+                                        <i class="bi bi-arrow-right-short sidebar-modern-arrow"></i>
+                                    </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-muted px-3 py-2 small">Nenhuma ferramenta registrada ainda.</div>
+                                {% endif %}
                             </div>
+                            {% else %}
+                            <a href="{{ group.url }}" class="sidebar-modern-btn">
+                                <div class="sidebar-modern-icon">
+                                    <i class="bi bi-{{ group.icon or 'grid' }}"></i>
+                                </div>
+                                <div class="sidebar-modern-content">
+                                    <div class="sidebar-modern-title">{{ group.display_name }}</div>
+                                    <div class="sidebar-modern-desc">Acessar ferramenta</div>
+                                </div>
+                                <i class="bi bi-arrow-right-short sidebar-modern-arrow"></i>
+                            </a>
+                            {% endif %}
                         </div>
-                    {% endif %}
                     {% endfor %}
                 {% endif %}
 

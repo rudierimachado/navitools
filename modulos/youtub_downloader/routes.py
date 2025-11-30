@@ -2,8 +2,8 @@
 from flask import Blueprint, render_template, request, jsonify, send_file
 import os
 import tempfile
-from pytube import YouTube
-import pytube
+from pytubefix import YouTube
+import pytubefix
 import uuid
 import time
 import logging
@@ -11,9 +11,16 @@ import shutil
 import re
 import ffmpeg
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Configurar logging detalhado
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Para console
+    ]
+)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 youtube_bp = Blueprint('youtube_downloader', __name__, 
                       template_folder='templates',
@@ -51,29 +58,61 @@ def extract_video_id(url):
     return None
 
 def get_video_info(url):
-    """Obter informações básicas usando pytube."""
+    """Obter informações usando pytubefix (mais estável que pytube)."""
+    logger.info(f"Analisando URL com pytubefix: {url}")
+    
     try:
+        # Validar URL
+        if not url or not ('youtube.com' in url or 'youtu.be' in url):
+            return {
+                'success': False,
+                'error': 'URL deve ser do YouTube (youtube.com ou youtu.be)'
+            }
+        
+        # pytubefix é mais simples e estável
         yt = YouTube(url)
+        logger.info("Conectado ao YouTube com sucesso")
+        
+        # Obter informações básicas
+        title = yt.title or 'Vídeo do YouTube'
+        thumbnail = yt.thumbnail_url or ''
+        duration = yt.length or 0
+        author = yt.author or 'Desconhecido'
+        views = yt.views or 0
+        
         upload_date = ''
         if yt.publish_date:
             upload_date = yt.publish_date.strftime('%Y%m%d')
 
+        logger.info(f"Vídeo analisado: {title} por {author}")
+        
         return {
             'success': True,
-            'title': yt.title or 'Vídeo do YouTube',
-            'thumbnail': yt.thumbnail_url or '',
-            'duration': yt.length,
-            'uploader': yt.author or 'Desconhecido',
-            'view_count': yt.views or 0,
+            'title': title,
+            'thumbnail': thumbnail,
+            'duration': duration,
+            'uploader': author,
+            'view_count': views,
             'upload_date': upload_date,
-            'webpage_url': yt.watch_url or url
+            'webpage_url': url
         }
 
     except Exception as e:
-        logger.error(f"Erro ao obter info: {e}")
+        logger.error(f"Erro ao analisar vídeo: {e}")
+        
+        error_msg = str(e)
+        if "unavailable" in error_msg.lower():
+            error_msg = "Vídeo não disponível ou foi removido"
+        elif "private" in error_msg.lower():
+            error_msg = "Vídeo privado - não é possível acessar"
+        elif "age" in error_msg.lower():
+            error_msg = "Vídeo com restrição de idade"
+        else:
+            error_msg = "Erro ao acessar o vídeo. Verifique a URL."
+            
         return {
             'success': False,
-            'error': f'Erro ao analisar vídeo: {str(e)}'
+            'error': error_msg
         }
 
 def _select_video_stream(yt, quality):
@@ -105,27 +144,51 @@ def _select_video_stream(yt, quality):
 
 
 def download_video_simple(url, quality='best', audio_only=False):
-    """Download simples utilizando pytube."""
+    """Download usando pytubefix (mais estável)."""
     try:
         temp_dir = tempfile.mkdtemp(prefix='navitools_ytdl_')
         yt = YouTube(url)
+        logger.info(f"Iniciando download: {'áudio' if audio_only else 'vídeo'}")
 
         if audio_only:
-            stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+            # Download de áudio
+            stream = yt.streams.filter(only_audio=True).first()
             if not stream:
-                return {'success': False, 'error': 'Stream de áudio não encontrado'}
+                stream = yt.streams.filter(adaptive=True, only_audio=True).first()
+            
+            if not stream:
+                return {'success': False, 'error': 'Nenhum stream de áudio disponível'}
 
+            logger.info(f"Stream de áudio selecionado: {stream}")
             temp_file = stream.download(output_path=temp_dir, filename_prefix='audio_')
-            final_path = convert_to_mp3(temp_file)
+            
+            # Tentar converter para MP3
+            try:
+                final_path = convert_to_mp3(temp_file)
+            except:
+                final_path = temp_file
+                logger.warning("Mantendo formato original (conversão MP3 falhou)")
+                
             filename = os.path.basename(final_path)
         else:
-            stream = _select_video_stream(yt, quality)
+            # Download de vídeo
+            if quality == 'best':
+                stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+            else:
+                stream = yt.streams.filter(progressive=True, file_extension='mp4', res=f'{quality}p').first()
+            
+            # Fallback para qualquer stream disponível
             if not stream:
-                return {'success': False, 'error': 'Stream de vídeo não encontrado'}
+                stream = yt.streams.filter(progressive=True).first()
+            
+            if not stream:
+                return {'success': False, 'error': 'Nenhum stream de vídeo disponível'}
 
+            logger.info(f"Stream de vídeo selecionado: {stream}")
             final_path = stream.download(output_path=temp_dir, filename_prefix='video_')
             filename = os.path.basename(final_path)
 
+        logger.info(f"Download concluído: {filename}")
         return {
             'success': True,
             'filepath': final_path,
@@ -135,7 +198,16 @@ def download_video_simple(url, quality='best', audio_only=False):
 
     except Exception as e:
         logger.error(f"Erro no download: {e}")
-        return {'success': False, 'error': str(e)}
+        
+        error_msg = str(e)
+        if "unavailable" in error_msg.lower():
+            error_msg = "Vídeo não disponível para download"
+        elif "private" in error_msg.lower():
+            error_msg = "Vídeo privado - não é possível baixar"
+        else:
+            error_msg = "Erro no download. Tente novamente."
+            
+        return {'success': False, 'error': error_msg}
 
 @youtube_bp.route('/')
 def youtube_home():
@@ -258,10 +330,46 @@ def download_file(download_id):
 def test_system():
     """Testar sistema"""
     try:
+        # Testar URL de exemplo
+        test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Rick Roll - vídeo público conhecido
+        
+        logger.info("Testando sistema YouTube Downloader...")
+        logger.info(f"Versão do pytubefix: {pytubefix.__version__}")
+        
+        # Testar análise de vídeo
+        result = get_video_info(test_url)
+        
         return jsonify({
             'success': True,
             'message': 'Sistema funcionando!',
-            'pytube_version': pytube.__version__
+            'pytubefix_version': pytubefix.__version__,
+            'test_result': result
         })
     except Exception as e:
+        logger.error(f"Erro no teste do sistema: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@youtube_bp.route('/debug', methods=['POST'])
+def debug_url():
+    """Endpoint para debug de URLs específicas"""
+    try:
+        data = request.get_json()
+        url = data.get('url', '').strip()
+        
+        if not url:
+            return jsonify({'success': False, 'error': 'URL é obrigatória'}), 400
+        
+        logger.info(f"=== DEBUG URL: {url} ===")
+        
+        # Testar análise detalhada
+        result = get_video_info(url)
+        
+        return jsonify({
+            'success': True,
+            'debug_result': result,
+            'url_tested': url
+        })
+        
+    except Exception as e:
+        logger.error(f"Erro no debug: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
