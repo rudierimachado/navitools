@@ -2,126 +2,685 @@
 
 {% block title %}YouTube Downloader - NAVITOOLS{% endblock %}
 
+{% block styles %}
+<style>
+    .downloader-wrapper {
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    /* Hero Section */
+    .downloader-hero {
+        text-align: center;
+        margin-bottom: 3rem;
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .hero-icon-wrapper {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        box-shadow: 0 12px 30px rgba(239, 68, 68, 0.4);
+        animation: float 3s ease-in-out infinite;
+        position: relative;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .hero-icon-wrapper::before {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border-radius: 24px;
+        opacity: 0.3;
+        filter: blur(20px);
+        animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+        0%, 100% {
+            opacity: 0.3;
+        }
+        50% {
+            opacity: 0.6;
+        }
+    }
+
+    .hero-icon-wrapper i {
+        font-size: 3.5rem;
+        color: white;
+        position: relative;
+        z-index: 1;
+    }
+
+    .downloader-title {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+    }
+
+    .downloader-subtitle {
+        font-size: 1.2rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Main Card Glass */
+    .download-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s ease;
+        animation: slideUp 0.8s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .download-card-glass:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    /* Form Controls Glass */
+    .form-label-glass {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-label-glass i {
+        color: #ef4444;
+        font-size: 1.1rem;
+    }
+
+    .form-control-glass {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(239, 68, 68, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        color: #0f172a;
+    }
+
+    .form-control-glass:focus {
+        outline: none;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+        background: white;
+    }
+
+    .form-control-glass::placeholder {
+        color: #94a3b8;
+    }
+
+    .form-select-glass {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid rgba(239, 68, 68, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        color: #0f172a;
+        cursor: pointer;
+    }
+
+    .form-select-glass:focus {
+        outline: none;
+        border-color: #ef4444;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+    }
+
+    .form-check-glass {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: rgba(239, 68, 68, 0.05);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-glass:hover {
+        background: rgba(239, 68, 68, 0.1);
+    }
+
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        border: 2px solid #ef4444;
+    }
+
+    .form-check-input:checked {
+        background-color: #ef4444;
+        border-color: #ef4444;
+    }
+
+    .form-check-label {
+        font-weight: 600;
+        color: #0f172a;
+        cursor: pointer;
+        margin-bottom: 0;
+    }
+
+    /* Botão Download Principal */
+    .btn-download-primary {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        font-size: 1.1rem;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-download-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s ease;
+    }
+
+    .btn-download-primary:hover::before {
+        left: 100%;
+    }
+
+    .btn-download-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-download-primary:active {
+        transform: translateY(0);
+    }
+
+    .btn-download-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-download-primary i {
+        margin-right: 0.5rem;
+    }
+
+    /* Loading Card */
+    .loading-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: 20px;
+        padding: 3rem;
+        text-align: center;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(239, 68, 68, 0.2);
+        border-top: 4px solid #ef4444;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 2rem;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #ef4444;
+        margin-bottom: 0.75rem;
+    }
+
+    .loading-text {
+        color: #64748b;
+        font-size: 1rem;
+    }
+
+    /* Success Card */
+    .success-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        animation: slideUp 0.5s ease-out;
+    }
+
+    .success-header {
+        background: linear-gradient(135deg, #10b981, #059669);
+        padding: 1.5rem;
+        color: white;
+    }
+
+    .success-header h5 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .success-body {
+        padding: 2rem;
+    }
+
+    .video-thumbnail-wrapper {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        margin-bottom: 1.5rem;
+    }
+
+    .video-thumbnail {
+        width: 100%;
+        height: auto;
+        display: block;
+        transition: transform 0.3s ease;
+    }
+
+    .video-thumbnail-wrapper:hover .video-thumbnail {
+        transform: scale(1.05);
+    }
+
+    .video-info-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.5rem;
+        line-height: 1.4;
+    }
+
+    .video-meta-item {
+        margin-bottom: 1rem;
+    }
+
+    .video-meta-label {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+
+    .video-meta-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-success-glass {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .btn-success-glass:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-secondary-glass {
+        background: rgba(100, 116, 139, 0.1);
+        color: #475569;
+        border: 2px solid rgba(100, 116, 139, 0.2);
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .btn-secondary-glass:hover {
+        background: rgba(100, 116, 139, 0.15);
+        border-color: rgba(100, 116, 139, 0.3);
+        transform: translateY(-2px);
+    }
+
+    /* Error Card */
+    .error-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        animation: shake 0.5s ease-out;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+
+    .error-header {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        padding: 1.5rem;
+        color: white;
+    }
+
+    .error-header h5 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .error-body {
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+
+    .error-icon {
+        width: 80px;
+        height: 80px;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+
+    .error-icon i {
+        font-size: 2.5rem;
+        color: #ef4444;
+    }
+
+    .error-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #ef4444;
+        margin-bottom: 1rem;
+    }
+
+    .error-message {
+        color: #64748b;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .downloader-wrapper {
+            padding: 1rem;
+        }
+
+        .downloader-title {
+            font-size: 2rem;
+        }
+
+        .downloader-subtitle {
+            font-size: 1rem;
+        }
+
+        .download-card-glass {
+            padding: 1.5rem;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn-success-glass,
+        .btn-secondary-glass {
+            width: 100%;
+            min-width: auto;
+        }
+
+        .hero-icon-wrapper {
+            width: 80px;
+            height: 80px;
+        }
+
+        .hero-icon-wrapper i {
+            font-size: 2.5rem;
+        }
+    }
+
+    /* Utilities */
+    .d-none {
+        display: none !important;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid h-100">
-    <div class="row g-0 h-100">
-        <div class="col-12 p-4">
-            
-            <!-- Header -->
-            <div class="text-center mb-5">
-                <div class="d-inline-flex align-items-center justify-content-center mb-4 rounded-circle bg-danger shadow-lg" 
-                     style="width: 80px; height: 80px;">
-                    <i class="fab fa-youtube text-white" style="font-size: 2.5rem;"></i>
-                </div>
-                <h1 class="display-4 fw-bold text-dark mb-3">
-                    YouTube Downloader
-                </h1>
-                <p class="lead text-muted mb-4">Cole o link e baixe instantaneamente</p>
-            </div>
+<div class="downloader-wrapper">
+    <!-- Hero -->
+    <div class="downloader-hero">
+        <div class="hero-icon-wrapper">
+            <i class="fab fa-youtube"></i>
+        </div>
+        <h1 class="downloader-title">YouTube Downloader</h1>
+        <p class="downloader-subtitle">Cole o link e baixe instantaneamente em alta qualidade</p>
+    </div>
 
-            <!-- Input e Download -->
-            <div class="card shadow border-0 mb-4">
-                <div class="card-body p-4">
-                    <form id="downloadForm">
-                        <div class="row align-items-end">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">
-                                    <i class="fab fa-youtube text-danger me-2"></i>URL do YouTube
-                                </label>
-                                <input type="url" class="form-control form-control-lg" id="videoUrl" 
-                                       placeholder="https://www.youtube.com/watch?v=..." 
-                                       required>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label fw-bold">Qualidade</label>
-                                <select class="form-select form-select-lg" id="quality">
-                                    <option value="best">Melhor (1080p)</option>
-                                    <option value="720">HD (720p)</option>
-                                    <option value="480">SD (480p)</option>
-                                    <option value="360">Mobile (360p)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="checkbox" id="audioOnly">
-                                    <label class="form-check-label" for="audioOnly">
-                                        Apenas áudio (MP3)
-                                    </label>
-                                </div>
-                                <button type="submit" class="btn btn-danger btn-lg w-100 fw-bold" id="downloadBtn">
-                                    <i class="fas fa-download me-2"></i>Baixar
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+    <!-- Main Form -->
+    <div class="download-card-glass">
+        <form id="downloadForm">
+            <div class="row g-4">
+                <!-- URL Input -->
+                <div class="col-12">
+                    <label class="form-label-glass">
+                        <i class="fab fa-youtube"></i>
+                        URL do YouTube
+                    </label>
+                    <input type="url" 
+                           class="form-control-glass" 
+                           id="videoUrl" 
+                           placeholder="https://www.youtube.com/watch?v=..." 
+                           required>
                 </div>
-            </div>
-            
-            <!-- Loading -->
-            <div class="card shadow border-0 mb-4 d-none" id="loadingCard">
-                <div class="card-body text-center py-5">
-                    <div class="spinner-border text-danger mb-3" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Baixando...</span>
-                    </div>
-                    <h5 class="fw-bold text-danger">Processando...</h5>
-                    <p class="text-muted mb-0" id="loadingText">Analisando vídeo e iniciando download</p>
-                </div>
-            </div>
 
-            <!-- Video Info -->
-            <div class="card shadow border-0 mb-4 d-none" id="videoInfoCard">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-check-circle me-2"></i>Download Concluído!
-                    </h5>
+                <!-- Quality Select -->
+                <div class="col-md-6">
+                    <label class="form-label-glass">
+                        <i class="bi bi-badge-hd"></i>
+                        Qualidade do Vídeo
+                    </label>
+                    <select class="form-select-glass" id="quality">
+                        <option value="best">Melhor Qualidade (1080p)</option>
+                        <option value="720">HD (720p)</option>
+                        <option value="480">SD (480p)</option>
+                        <option value="360">Mobile (360p)</option>
+                    </select>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <img id="videoThumbnail" src="" class="img-fluid rounded shadow" alt="Thumbnail">
-                        </div>
-                        <div class="col-md-8">
-                            <h4 id="videoTitle" class="fw-bold mb-3"></h4>
-                            <div class="row mb-3">
-                                <div class="col-sm-6">
-                                    <small class="text-muted d-block">Canal</small>
-                                    <span id="videoUploader" class="fw-bold"></span>
-                                </div>
-                                <div class="col-sm-6">
-                                    <small class="text-muted d-block">Duração</small>
-                                    <span id="videoDuration" class="fw-bold"></span>
-                                </div>
-                            </div>
-                            <div class="text-center">
-                                <button class="btn btn-success btn-lg me-3" id="downloadFileBtn">
-                                    <i class="fas fa-download me-2"></i>Baixar Arquivo
-                                </button>
-                                <button class="btn btn-outline-secondary btn-lg" id="newDownloadBtn">
-                                    <i class="fas fa-redo me-2"></i>Novo Download
-                                </button>
-                            </div>
-                        </div>
+
+                <!-- Audio Only -->
+                <div class="col-md-6">
+                    <label class="form-label-glass">
+                        <i class="bi bi-music-note"></i>
+                        Opções de Download
+                    </label>
+                    <div class="form-check-glass">
+                        <input class="form-check-input" type="checkbox" id="audioOnly">
+                        <label class="form-check-label" for="audioOnly">
+                            Apenas Áudio (MP3)
+                        </label>
                     </div>
                 </div>
-            </div>
 
-            <!-- Error Card -->
-            <div class="card shadow border-0 mb-4 d-none" id="errorCard">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Erro
-                    </h5>
-                </div>
-                <div class="card-body text-center">
-                    <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
-                    <h4 class="mt-3 fw-bold text-danger">Ops! Algo deu errado</h4>
-                    <p class="text-muted mb-4" id="errorMessage">Erro desconhecido</p>
-                    <button class="btn btn-outline-secondary btn-lg" id="tryAgainBtn">
-                        <i class="fas fa-redo me-2"></i>Tentar Novamente
+                <!-- Submit Button -->
+                <div class="col-12">
+                    <button type="submit" class="btn-download-primary" id="downloadBtn">
+                        <i class="fas fa-download"></i>
+                        Baixar Agora
                     </button>
                 </div>
             </div>
+        </form>
+    </div>
 
+    <!-- Loading Card -->
+    <div class="loading-card-glass d-none" id="loadingCard">
+        <div class="loading-spinner"></div>
+        <h3 class="loading-title">Processando...</h3>
+        <p class="loading-text" id="loadingText">Analisando vídeo e iniciando download</p>
+    </div>
+
+    <!-- Success Card -->
+    <div class="success-card-glass d-none" id="videoInfoCard">
+        <div class="success-header">
+            <h5>
+                <i class="fas fa-check-circle"></i>
+                Download Concluído!
+            </h5>
+        </div>
+        <div class="success-body">
+            <div class="row g-4">
+                <!-- Thumbnail -->
+                <div class="col-md-5">
+                    <div class="video-thumbnail-wrapper">
+                        <img id="videoThumbnail" src="" class="video-thumbnail" alt="Thumbnail">
+                    </div>
+                </div>
+
+                <!-- Video Info -->
+                <div class="col-md-7">
+                    <h3 id="videoTitle" class="video-info-title"></h3>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <div class="video-meta-item">
+                                <div class="video-meta-label">Canal</div>
+                                <div class="video-meta-value" id="videoUploader"></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="video-meta-item">
+                                <div class="video-meta-label">Duração</div>
+                                <div class="video-meta-value" id="videoDuration"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn-success-glass" id="downloadFileBtn">
+                            <i class="fas fa-download me-2"></i>
+                            Baixar Arquivo
+                        </button>
+                        <button class="btn-secondary-glass" id="newDownloadBtn">
+                            <i class="fas fa-redo me-2"></i>
+                            Novo Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Card -->
+    <div class="error-card-glass d-none" id="errorCard">
+        <div class="error-header">
+            <h5>
+                <i class="fas fa-exclamation-triangle"></i>
+                Erro no Download
+            </h5>
+        </div>
+        <div class="error-body">
+            <div class="error-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="error-title">Ops! Algo deu errado</h3>
+            <p class="error-message" id="errorMessage">Erro desconhecido</p>
+            <button class="btn-download-primary" id="tryAgainBtn" style="max-width: 300px; margin: 0 auto;">
+                <i class="fas fa-redo"></i>
+                Tentar Novamente
+            </button>
         </div>
     </div>
 </div>
@@ -204,7 +763,7 @@
             showError('Erro: ' + error.message);
         } finally {
             downloadBtn.disabled = false;
-            downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Baixar';
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i>Baixar Agora';
         }
     }
 
@@ -225,12 +784,18 @@
         };
         
         videoInfoCard.classList.remove('d-none');
+        
+        // Scroll suave até o card
+        videoInfoCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function showError(message) {
         hideAllCards();
         document.getElementById('errorMessage').textContent = message;
         errorCard.classList.remove('d-none');
+        
+        // Scroll suave até o erro
+        errorCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function hideAllCards() {
@@ -245,6 +810,9 @@
         quality.value = 'best';
         audioOnly.checked = false;
         hideAllCards();
+        
+        // Scroll até o topo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function isValidYouTubeURL(url) {
@@ -269,6 +837,7 @@
         }
     }
 
+    console.log('🎬 YouTube Downloader Glass Premium loaded!');
 })();
 </script>
 {% endblock %}

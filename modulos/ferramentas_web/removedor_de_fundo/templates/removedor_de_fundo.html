@@ -4,76 +4,250 @@
 
 {% block styles %}
 <style>
-    .removedor-bg-page {
-        width: 100%;
-        min-height: calc(100vh - var(--header-height));
-        padding: clamp(40px, 6vw, 110px) 20px;
-        background: #ffffff;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-    }
-
-    .main-content {
-        padding: 0 !important;
-        background: transparent;
-    }
-
-    .content-wrapper {
-        width: 100%;
+    .remover-wrapper {
+        padding: 2rem;
         max-width: 1400px;
-        padding: clamp(30px, 4vw, 60px);
         margin: 0 auto;
+        min-height: calc(100vh - var(--header-height));
     }
 
-    .upload-card {
-        background: white;
-        padding: 60px 40px;
-        border-radius: 16px;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    /* Hero Section */
+    .remover-hero {
         text-align: center;
-        max-width: 900px;
-        margin: 0 auto;
+        margin-bottom: 3rem;
+        animation: fadeIn 0.8s ease-out;
     }
 
-    .upload-card h1 {
-        font-size: 36px;
-        color: #1a1a1a;
-        margin-bottom: 12px;
-        font-weight: 700;
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .upload-badge {
+    .hero-icon-wrapper {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 2rem;
+        box-shadow: 0 12px 30px rgba(14, 165, 233, 0.4);
+        animation: float 3s ease-in-out infinite;
+        position: relative;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .hero-icon-wrapper::before {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        border-radius: 24px;
+        opacity: 0.3;
+        filter: blur(20px);
+        animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+        0%, 100% {
+            opacity: 0.3;
+        }
+        50% {
+            opacity: 0.6;
+        }
+    }
+
+    .hero-icon-wrapper i {
+        font-size: 3.5rem;
+        color: white;
+        position: relative;
+        z-index: 1;
+    }
+
+    .remover-title {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.75rem;
+    }
+
+    .remover-subtitle {
+        font-size: 1.1rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .remover-badge {
         display: inline-block;
-        background: #f0f0f0;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        color: #333;
-        margin: 20px 0 40px 0;
+        background: rgba(14, 165, 233, 0.1);
+        color: #0ea5e9;
+        padding: 0.5rem 1.25rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border: 1px solid rgba(14, 165, 233, 0.2);
+        margin-top: 0.75rem;
     }
 
-    .upload-btn-custom {
-        background: #ff0000;
+    .remover-description {
+        background: rgba(14, 165, 233, 0.05);
+        border: 1px solid rgba(14, 165, 233, 0.1);
+        border-radius: 18px;
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .remover-description h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1rem;
+    }
+
+    .remover-description p {
+        color: #475569;
+        margin-bottom: 1.25rem;
+        line-height: 1.7;
+    }
+
+    .remover-description ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .remover-description li {
+        background: white;
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        font-weight: 600;
+        color: #0ea5e9;
+        border: 1px solid rgba(14, 165, 233, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.08);
+    }
+
+    .remover-description li i {
+        color: #6366f1;
+        font-size: 1.1rem;
+    }
+
+    /* Upload Card Glass */
+    .upload-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(14, 165, 233, 0.15);
+        border-radius: 24px;
+        padding: 4rem 3rem;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s ease;
+        animation: slideUp 0.8s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .upload-card-glass::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.05), rgba(99, 102, 241, 0.05));
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    .upload-card-glass:hover::before {
+        opacity: 1;
+    }
+
+    .upload-card-glass:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(14, 165, 233, 0.15);
+        border-color: rgba(14, 165, 233, 0.3);
+    }
+
+    .upload-card-glass > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Botão Upload */
+    .btn-upload-glass {
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
         color: white;
         border: none;
-        padding: 22px 70px;
-        font-size: 20px;
-        font-weight: 600;
-        border-radius: 12px;
+        border-radius: 14px;
+        padding: 1.25rem 3.5rem;
+        font-size: 1.3rem;
+        font-weight: 700;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 6px 20px rgba(255, 0, 0, 0.3);
-        margin: 30px 0;
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        margin: 2rem 0;
+        display: inline-block;
+        position: relative;
+        overflow: hidden;
     }
 
-    .upload-btn-custom:hover {
-        background: #e60000;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
+    .btn-upload-glass::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.5s ease;
     }
 
-    .upload-btn-custom:active {
+    .btn-upload-glass:hover::before {
+        left: 100%;
+    }
+
+    .btn-upload-glass:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 35px rgba(14, 165, 233, 0.5);
+    }
+
+    .btn-upload-glass:active {
         transform: translateY(0);
     }
 
@@ -82,168 +256,267 @@
     }
 
     .upload-instructions {
-        margin-top: 30px;
-        padding: 25px;
-        background: #fafafa;
-        border-radius: 8px;
-        font-size: 15px;
-        color: #666;
+        background: rgba(14, 165, 233, 0.05);
+        padding: 1.5rem;
+        border-radius: 12px;
+        color: #64748b;
+        font-size: 0.95rem;
         line-height: 1.8;
+        margin-top: 2rem;
     }
 
     .upload-instructions p {
-        margin: 8px 0;
+        margin: 0.5rem 0;
     }
 
-    /* Seção de processamento */
-    .processing-card {
+    /* Processing Card */
+    .processing-card-glass {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(14, 165, 233, 0.15);
+        border-radius: 24px;
+        padding: 2.5rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         display: none;
-        background: white;
-        padding: 40px;
-        border-radius: 16px;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
-        margin-top: 40px;
+        animation: slideUp 0.5s ease-out;
     }
 
-    .processing-card.active {
+    .processing-card-glass.active {
         display: block;
     }
 
-    .processing-card h2 {
-        margin-bottom: 20px;
-        color: #1a1a1a;
-        font-weight: 600;
+    .processing-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 2rem;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
-    .images-grid {
+    /* Images Grid */
+    .images-grid-glass {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 30px;
-        margin: 30px 0;
+        gap: 2rem;
+        margin: 2rem 0;
     }
 
-    .image-item {
-        text-align: center;
-    }
-
-    .image-label {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 12px;
-        font-size: 14px;
-    }
-
-    .image-item img {
-        max-width: 100%;
-        border-radius: 8px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-    }
-
-    .image-placeholder {
-        background: #f0f0f0;
-        padding: 60px 20px;
-        border-radius: 8px;
-        color: #999;
-        font-size: 14px;
-    }
-
-    .processing-controls {
-        background: #f9f9f9;
-        padding: 20px;
-        border-radius: 8px;
-        margin: 30px 0;
-    }
-
-    .control-row {
-        margin-bottom: 15px;
-    }
-
-    .control-row label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 6px;
-        color: #333;
-        font-size: 13px;
-    }
-
-    .control-row select,
-    .control-row input[type="color"] {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
-        background: white;
-    }
-
-    .btn-group-custom {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
-        margin-top: 20px;
-    }
-
-    .btn-rb {
-        padding: 12px 20px;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 600;
+    .image-item-glass {
+        background: rgba(255, 255, 255, 0.6);
+        padding: 1.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(14, 165, 233, 0.1);
         transition: all 0.3s ease;
-        font-size: 14px;
     }
 
-    .btn-rb-process {
-        background: #ff0000;
+    .image-item-glass:hover {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: rgba(14, 165, 233, 0.3);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .image-label-glass {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1rem;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .image-label-glass i {
+        color: #0ea5e9;
+    }
+
+    .image-wrapper {
+        border-radius: 12px;
+        overflow: hidden;
+        background: #f8fafc;
+        min-height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .image-wrapper img {
+        max-width: 100%;
+        max-height: 400px;
+        display: block;
+        border-radius: 8px;
+    }
+
+    .image-placeholder-glass {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.05), rgba(99, 102, 241, 0.05));
+        padding: 3rem 1rem;
+        border-radius: 12px;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .image-placeholder-glass i {
+        font-size: 3rem;
+        color: #cbd5e1;
+    }
+
+    /* Controls */
+    .controls-glass {
+        background: rgba(14, 165, 233, 0.05);
+        padding: 2rem;
+        border-radius: 16px;
+        margin: 2rem 0;
+    }
+
+    .control-row-glass {
+        margin-bottom: 1.5rem;
+    }
+
+    .control-row-glass:last-child {
+        margin-bottom: 0;
+    }
+
+    .control-label-glass {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .control-label-glass i {
+        color: #0ea5e9;
+    }
+
+    .control-select-glass {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        background: white;
+        border: 2px solid rgba(14, 165, 233, 0.2);
+        border-radius: 10px;
+        font-size: 0.95rem;
+        color: #0f172a;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .control-select-glass:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+    }
+
+    .control-select-glass:hover {
+        border-color: #0ea5e9;
+    }
+
+    .control-color-glass {
+        width: 100%;
+        height: 50px;
+        padding: 0.5rem;
+        background: white;
+        border: 2px solid rgba(14, 165, 233, 0.2);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .control-color-glass:hover {
+        border-color: #0ea5e9;
+    }
+
+    /* Buttons */
+    .btn-group-glass {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn-glass {
+        padding: 1rem 1.5rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-process-glass {
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
         color: white;
+        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
     }
 
-    .btn-rb-process:hover {
-        background: #e60000;
+    .btn-process-glass:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
     }
 
-    .btn-rb-process:disabled {
-        background: #ccc;
+    .btn-process-glass:disabled {
+        opacity: 0.6;
         cursor: not-allowed;
     }
 
-    .btn-rb-download {
-        background: #28a745;
+    .btn-download-glass {
+        background: linear-gradient(135deg, #10b981, #059669);
         color: white;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         display: none;
     }
 
-    .btn-rb-download:hover {
-        background: #218838;
+    .btn-download-glass:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
     }
 
-    .btn-rb-new {
-        background: #6c757d;
-        color: white;
+    .btn-new-glass {
+        background: rgba(100, 116, 139, 0.1);
+        color: #475569;
+        border: 2px solid rgba(100, 116, 139, 0.2);
     }
 
-    .btn-rb-new:hover {
-        background: #5a6268;
+    .btn-new-glass:hover {
+        background: rgba(100, 116, 139, 0.15);
+        border-color: rgba(100, 116, 139, 0.3);
+        transform: translateY(-2px);
     }
 
-    .processing-loading {
+    /* Loading */
+    .loading-glass {
         display: none;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        color: #666;
-        margin: 20px 0;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: rgba(14, 165, 233, 0.05);
+        border-radius: 12px;
+        margin: 1.5rem 0;
     }
 
-    .processing-loading.active {
+    .loading-glass.active {
         display: flex;
     }
 
-    .loading-spinner {
-        width: 20px;
-        height: 20px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #ff0000;
+    .loading-spinner-glass {
+        width: 30px;
+        height: 30px;
+        border: 3px solid rgba(14, 165, 233, 0.2);
+        border-top: 3px solid #0ea5e9;
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
@@ -253,119 +526,227 @@
         100% { transform: rotate(360deg); }
     }
 
-    .error-message {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 12px;
-        border-radius: 6px;
-        margin: 15px 0;
+    .loading-text-glass {
+        color: #0ea5e9;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    /* Error Message */
+    .error-glass {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #dc2626;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
         display: none;
-        text-align: left;
-        border: 1px solid #f5c6cb;
+        animation: shake 0.5s ease-out;
     }
 
-    .error-message.show {
-        display: block;
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
     }
 
+    .error-glass.show {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .error-glass i {
+        font-size: 1.3rem;
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
-        .upload-card {
-            padding: 40px 20px;
+        .remover-wrapper {
+            padding: 1rem;
         }
 
-        .upload-card h1 {
-            font-size: 28px;
+        .remover-title {
+            font-size: 2rem;
         }
 
-        .upload-btn-custom {
-            padding: 18px 50px;
-            font-size: 18px;
+        .hero-icon-wrapper {
+            width: 80px;
+            height: 80px;
         }
 
-        .images-grid {
+        .hero-icon-wrapper i {
+            font-size: 2.5rem;
+        }
+
+        .upload-card-glass {
+            padding: 2.5rem 1.5rem;
+        }
+
+        .btn-upload-glass {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+        }
+
+        .images-grid-glass {
             grid-template-columns: 1fr;
         }
 
-        .btn-group-custom {
+        .btn-group-glass {
             grid-template-columns: 1fr;
         }
+
+        .processing-card-glass {
+            padding: 1.5rem;
+        }
+    }
+
+    /* Drag and Drop Effect */
+    .upload-card-glass.drag-over {
+        border-color: #0ea5e9;
+        background: rgba(14, 165, 233, 0.05);
+        transform: scale(1.02);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="removedor-bg-page">
-    <div class="content-wrapper">
-        <div class="error-message" id="errorMsg"></div>
+<div class="remover-wrapper">
+    <!-- Hero -->
+    <div class="remover-hero">
+        <div class="hero-icon-wrapper">
+            <i class="bi bi-scissors"></i>
+        </div>
+        <h1 class="remover-title">Remova Fundos de Imagens</h1>
+        <p class="remover-subtitle">Tecnologia de IA para remover fundos automaticamente</p>
+        <span class="remover-badge">100% Automático e Grátis</span>
+    </div>
 
-        <!-- UPLOAD -->
-        <div class="upload-card" id="uploadCard">
-            <h1>Remova Fundos de Imagens</h1>
-            <div class="upload-badge">100% automático e de graça</div>
+    <div class="remover-description">
+        <h2>O que você pode fazer com este removedor de fundo</h2>
+        <p>
+            Transforme imagens em arte final pronta para uso em lojas virtuais, redes sociais, catálogos ou apresentações.
+            Basta enviar sua foto e ajustar o fundo em segundos.
+        </p>
+        <ul>
+            <li><i class="bi bi-stars"></i>Remover fundo automaticamente com IA</li>
+            <li><i class="bi bi-palette"></i>Aplicar fundo transparente, branco, preto ou cor personalizada</li>
+            <li><i class="bi bi-person-badge"></i>Modelos especiais para pessoas e roupas</li>
+            <li><i class="bi bi-image"></i>Melhorar bordas e preparar imagens para e-commerce</li>
+        </ul>
+    </div>
 
-            <input type="file" id="imageInput" accept="image/*">
-            <button class="upload-btn-custom" onclick="document.getElementById('imageInput').click()">
-                Faça Upload
-            </button>
+    <!-- Error Message -->
+    <div class="error-glass" id="errorMsg">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span></span>
+    </div>
 
-            <div class="upload-instructions">
-                <p>ou arraste uma imagem,</p>
-                <p>cole imagem ou URL</p>
+    <!-- Upload Card -->
+    <div class="upload-card-glass" id="uploadCard">
+        <input type="file" id="imageInput" accept="image/*">
+        <button class="btn-upload-glass" onclick="document.getElementById('imageInput').click()">
+            <i class="bi bi-cloud-upload me-2"></i>
+            Fazer Upload
+        </button>
+
+        <div class="upload-instructions">
+            <p><strong>Ou arraste uma imagem aqui</strong></p>
+            <p>Formatos aceitos: PNG, JPG, WEBP, BMP</p>
+            <p>Tamanho máximo: 16MB</p>
+        </div>
+    </div>
+
+    <!-- Processing Card -->
+    <div class="processing-card-glass" id="processingCard">
+        <h2 class="processing-title">
+            <i class="bi bi-gear-fill me-2"></i>
+            Processando Imagem
+        </h2>
+
+        <!-- Images Grid -->
+        <div class="images-grid-glass">
+            <div class="image-item-glass">
+                <div class="image-label-glass">
+                    <i class="bi bi-image"></i>
+                    Imagem Original
+                </div>
+                <div class="image-wrapper">
+                    <img id="originalImg" src="" alt="Original">
+                </div>
+            </div>
+
+            <div class="image-item-glass">
+                <div class="image-label-glass">
+                    <i class="bi bi-magic"></i>
+                    Imagem Processada
+                </div>
+                <div class="image-wrapper">
+                    <img id="processedImg" src="" alt="Processada" style="display: none;">
+                    <div class="image-placeholder-glass" id="placeholder">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span>Clique em "Processar" para remover o fundo</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- PROCESSAMENTO -->
-        <div class="processing-card" id="processingCard">
-            <h2>Processando imagem...</h2>
-
-            <div class="images-grid">
-                <div class="image-item">
-                    <div class="image-label">Imagem Original</div>
-                    <img id="originalImg" src="" alt="Original">
-                </div>
-                <div class="image-item">
-                    <div class="image-label">Imagem Processada</div>
-                    <img id="processedImg" src="" alt="Processada" style="display: none;">
-                    <div class="image-placeholder" id="placeholder">Clique em "Processar"</div>
-                </div>
+        <!-- Controls -->
+        <div class="controls-glass">
+            <div class="control-row-glass">
+                <label class="control-label-glass">
+                    <i class="bi bi-palette"></i>
+                    Tipo de Fundo
+                </label>
+                <select id="bgType" class="control-select-glass">
+                    <option value="transparent">PNG Transparente</option>
+                    <option value="white">Fundo Branco</option>
+                    <option value="black">Fundo Preto</option>
+                    <option value="custom">Cor Personalizada</option>
+                </select>
             </div>
 
-            <div class="processing-controls">
-                <div class="control-row">
-                    <label for="bgType">Tipo de Fundo</label>
-                    <select id="bgType" class="form-select">
-                        <option value="transparent">PNG Transparente</option>
-                        <option value="white">Fundo Branco</option>
-                        <option value="black">Fundo Preto</option>
-                        <option value="custom">Cor Personalizada</option>
-                    </select>
-                </div>
-
-                <div class="control-row" id="colorRow" style="display: none;">
-                    <label for="customColor">Escolha a cor</label>
-                    <input type="color" id="customColor" value="#ffffff" class="form-control">
-                </div>
-
-                <div class="control-row">
-                    <label for="modelSelect">Modelo IA</label>
-                    <select id="modelSelect" class="form-select">
-                        <option value="u2net">U²-Net (Recomendado)</option>
-                        <option value="u2net_human_seg">U²-Net Human (Pessoas)</option>
-                        <option value="silueta">Silueta (Rápido)</option>
-                    </select>
-                </div>
+            <div class="control-row-glass" id="colorRow" style="display: none;">
+                <label class="control-label-glass">
+                    <i class="bi bi-droplet-fill"></i>
+                    Escolha a Cor
+                </label>
+                <input type="color" id="customColor" value="#ffffff" class="control-color-glass">
             </div>
 
-            <div class="processing-loading" id="loading">
-                <div class="loading-spinner"></div>
-                <span>Processando...</span>
+            <div class="control-row-glass">
+                <label class="control-label-glass">
+                    <i class="bi bi-cpu"></i>
+                    Modelo de IA
+                </label>
+                <select id="modelSelect" class="control-select-glass">
+                    <option value="u2net">U²-Net (Recomendado)</option>
+                    <option value="u2net_human_seg">U²-Net Human (Pessoas)</option>
+                    <option value="silueta">Silueta (Rápido)</option>
+                </select>
             </div>
+        </div>
 
-            <div class="btn-group-custom">
-                <button class="btn-rb btn-rb-process" id="btnProcess">Processar</button>
-                <button class="btn-rb btn-rb-download" id="btnDownload">Baixar</button>
-                <button class="btn-rb btn-rb-new" id="btnNew">Nova Imagem</button>
-            </div>
+        <!-- Loading -->
+        <div class="loading-glass" id="loading">
+            <div class="loading-spinner-glass"></div>
+            <span class="loading-text-glass">Processando imagem...</span>
+        </div>
+
+        <!-- Buttons -->
+        <div class="btn-group-glass">
+            <button class="btn-glass btn-process-glass" id="btnProcess">
+                <i class="bi bi-gear-fill"></i>
+                Processar
+            </button>
+            <button class="btn-glass btn-download-glass" id="btnDownload">
+                <i class="bi bi-download"></i>
+                Baixar
+            </button>
+            <button class="btn-glass btn-new-glass" id="btnNew">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Nova Imagem
+            </button>
         </div>
     </div>
 </div>
@@ -468,7 +849,7 @@
                 processedImg.src = data.preview_url + '?t=' + Date.now();
                 processedImg.style.display = 'block';
                 placeholder.style.display = 'none';
-                btnDownload.style.display = 'block';
+                btnDownload.style.display = 'flex';
             } else {
                 showError(data.error);
             }
@@ -496,36 +877,37 @@
         processingCard.classList.remove('active');
         btnDownload.style.display = 'none';
         processedImg.style.display = 'none';
-        placeholder.style.display = 'block';
+        placeholder.style.display = 'flex';
         clearError();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
     function showError(msg) {
-        errorMsg.textContent = msg;
+        const errorSpan = errorMsg.querySelector('span');
+        errorSpan.textContent = msg;
         errorMsg.classList.add('show');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function clearError() {
-        errorMsg.textContent = '';
         errorMsg.classList.remove('show');
     }
 
-    // Drag and drop (opcional)
+    // Drag and drop
     const dropZone = uploadCard;
     
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.style.background = 'rgba(99, 102, 241, 0.05)';
+        dropZone.classList.add('drag-over');
     });
 
     dropZone.addEventListener('dragleave', () => {
-        dropZone.style.background = 'white';
+        dropZone.classList.remove('drag-over');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.style.background = 'white';
+        dropZone.classList.remove('drag-over');
         
         const file = e.dataTransfer.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -533,5 +915,7 @@
             imageInput.dispatchEvent(new Event('change'));
         }
     });
+
+    console.log('🎨 Removedor de Fundo Glass Premium loaded!');
 </script>
 {% endblock %}
