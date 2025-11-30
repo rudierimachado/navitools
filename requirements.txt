@@ -1,7 +1,7 @@
 Flask==2.3.3
 python-dotenv==1.1.0
 Pillow==11.0.0
-rembg==2.0.53
+rembg==2.0.68
 qrcode==7.4.2
 gunicorn==23.0.0
 Werkzeug==2.3.7
