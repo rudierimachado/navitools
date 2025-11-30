@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}Remova Fundos de Imagens - Grátis{% endblock %}
+
+{% block styles %}
+<style>
+    .removedor-bg-page {
+        width: 100%;
+        min-height: calc(100vh - var(--header-height));
+        padding: clamp(40px, 6vw, 110px) 20px;
+        background: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .main-content {
+        padding: 0 !important;
+        background: transparent;
+    }
+
+    .content-wrapper {
+        width: 100%;
+        max-width: 1400px;
+        padding: clamp(30px, 4vw, 60px);
+        margin: 0 auto;
+    }
+
+    .upload-card {
+        background: white;
+        padding: 60px 40px;
+        border-radius: 16px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .upload-card h1 {
+        font-size: 36px;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        font-weight: 700;
+    }
+
+    .upload-badge {
+        display: inline-block;
+        background: #f0f0f0;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #333;
+        margin: 20px 0 40px 0;
+    }
+
+    .upload-btn-custom {
+        background: #ff0000;
+        color: white;
+        border: none;
+        padding: 22px 70px;
+        font-size: 20px;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 6px 20px rgba(255, 0, 0, 0.3);
+        margin: 30px 0;
+    }
+
+    .upload-btn-custom:hover {
+        background: #e60000;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
+    }
+
+    .upload-btn-custom:active {
+        transform: translateY(0);
+    }
+
+    input[type="file"] {
+        display: none;
+    }
+
+    .upload-instructions {
+        margin-top: 30px;
+        padding: 25px;
+        background: #fafafa;
+        border-radius: 8px;
+        font-size: 15px;
+        color: #666;
+        line-height: 1.8;
+    }
+
+    .upload-instructions p {
+        margin: 8px 0;
+    }
+
+    /* Seção de processamento */
+    .processing-card {
+        display: none;
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        margin-top: 40px;
+    }
+
+    .processing-card.active {
+        display: block;
+    }
+
+    .processing-card h2 {
+        margin-bottom: 20px;
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+
+    .images-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin: 30px 0;
+    }
+
+    .image-item {
+        text-align: center;
+    }
+
+    .image-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 12px;
+        font-size: 14px;
+    }
+
+    .image-item img {
+        max-width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    }
+
+    .image-placeholder {
+        background: #f0f0f0;
+        padding: 60px 20px;
+        border-radius: 8px;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .processing-controls {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 30px 0;
+    }
+
+    .control-row {
+        margin-bottom: 15px;
+    }
+
+    .control-row label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #333;
+        font-size: 13px;
+    }
+
+    .control-row select,
+    .control-row input[type="color"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+    }
+
+    .btn-group-custom {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn-rb {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+
+    .btn-rb-process {
+        background: #ff0000;
+        color: white;
+    }
+
+    .btn-rb-process:hover {
+        background: #e60000;
+    }
+
+    .btn-rb-process:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .btn-rb-download {
+        background: #28a745;
+        color: white;
+        display: none;
+    }
+
+    .btn-rb-download:hover {
+        background: #218838;
+    }
+
+    .btn-rb-new {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-rb-new:hover {
+        background: #5a6268;
+    }
+
+    .processing-loading {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #666;
+        margin: 20px 0;
+    }
+
+    .processing-loading.active {
+        display: flex;
+    }
+
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #ff0000;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 12px;
+        border-radius: 6px;
+        margin: 15px 0;
+        display: none;
+        text-align: left;
+        border: 1px solid #f5c6cb;
+    }
+
+    .error-message.show {
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .upload-card {
+            padding: 40px 20px;
+        }
+
+        .upload-card h1 {
+            font-size: 28px;
+        }
+
+        .upload-btn-custom {
+            padding: 18px 50px;
+            font-size: 18px;
+        }
+
+        .images-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .btn-group-custom {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="removedor-bg-page">
+    <div class="content-wrapper">
+        <div class="error-message" id="errorMsg"></div>
+
+        <!-- UPLOAD -->
+        <div class="upload-card" id="uploadCard">
+            <h1>Remova Fundos de Imagens</h1>
+            <div class="upload-badge">100% automático e de graça</div>
+
+            <input type="file" id="imageInput" accept="image/*">
+            <button class="upload-btn-custom" onclick="document.getElementById('imageInput').click()">
+                Faça Upload
+            </button>
+
+            <div class="upload-instructions">
+                <p>ou arraste uma imagem,</p>
+                <p>cole imagem ou URL</p>
+            </div>
+        </div>
+
+        <!-- PROCESSAMENTO -->
+        <div class="processing-card" id="processingCard">
+            <h2>Processando imagem...</h2>
+
+            <div class="images-grid">
+                <div class="image-item">
+                    <div class="image-label">Imagem Original</div>
+                    <img id="originalImg" src="" alt="Original">
+                </div>
+                <div class="image-item">
+                    <div class="image-label">Imagem Processada</div>
+                    <img id="processedImg" src="" alt="Processada" style="display: none;">
+                    <div class="image-placeholder" id="placeholder">Clique em "Processar"</div>
+                </div>
+            </div>
+
+            <div class="processing-controls">
+                <div class="control-row">
+                    <label for="bgType">Tipo de Fundo</label>
+                    <select id="bgType" class="form-select">
+                        <option value="transparent">PNG Transparente</option>
+                        <option value="white">Fundo Branco</option>
+                        <option value="black">Fundo Preto</option>
+                        <option value="custom">Cor Personalizada</option>
+                    </select>
+                </div>
+
+                <div class="control-row" id="colorRow" style="display: none;">
+                    <label for="customColor">Escolha a cor</label>
+                    <input type="color" id="customColor" value="#ffffff" class="form-control">
+                </div>
+
+                <div class="control-row">
+                    <label for="modelSelect">Modelo IA</label>
+                    <select id="modelSelect" class="form-select">
+                        <option value="u2net">U²-Net (Recomendado)</option>
+                        <option value="u2net_human_seg">U²-Net Human (Pessoas)</option>
+                        <option value="silueta">Silueta (Rápido)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="processing-loading" id="loading">
+                <div class="loading-spinner"></div>
+                <span>Processando...</span>
+            </div>
+
+            <div class="btn-group-custom">
+                <button class="btn-rb btn-rb-process" id="btnProcess">Processar</button>
+                <button class="btn-rb btn-rb-download" id="btnDownload">Baixar</button>
+                <button class="btn-rb btn-rb-new" id="btnNew">Nova Imagem</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const uploadCard = document.getElementById('uploadCard');
+    const processingCard = document.getElementById('processingCard');
+    const originalImg = document.getElementById('originalImg');
+    const processedImg = document.getElementById('processedImg');
+    const placeholder = document.getElementById('placeholder');
+    const errorMsg = document.getElementById('errorMsg');
+    const bgType = document.getElementById('bgType');
+    const colorRow = document.getElementById('colorRow');
+    const customColor = document.getElementById('customColor');
+    const modelSelect = document.getElementById('modelSelect');
+    const btnProcess = document.getElementById('btnProcess');
+    const btnDownload = document.getElementById('btnDownload');
+    const btnNew = document.getElementById('btnNew');
+    const loading = document.getElementById('loading');
+
+    let currentFilename = null;
+    let currentOutput = null;
+
+    // Upload
+    imageInput.addEventListener('change', () => {
+        const file = imageInput.files[0];
+        if (!file) return;
+
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/bmp'];
+        if (!allowedTypes.includes(file.type)) {
+            showError('Formato não suportado. Use PNG, JPG, WebP ou BMP.');
+            return;
+        }
+
+        if (file.size > 16 * 1024 * 1024) {
+            showError('Arquivo muito grande. Máximo 16MB.');
+            return;
+        }
+
+        clearError();
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/removedor-de-fundo/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                currentFilename = data.filename;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImg.src = e.target.result;
+                    uploadCard.style.display = 'none';
+                    processingCard.classList.add('active');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(e => showError('Erro: ' + e.message));
+    });
+
+    // Mostrar cor customizada
+    bgType.addEventListener('change', () => {
+        colorRow.style.display = bgType.value === 'custom' ? 'block' : 'none';
+    });
+
+    // Processar
+    btnProcess.addEventListener('click', () => {
+        if (!currentFilename) return;
+
+        clearError();
+        loading.classList.add('active');
+        btnProcess.disabled = true;
+
+        fetch('/removedor-de-fundo/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: currentFilename,
+                model: modelSelect.value,
+                bg_type: bgType.value,
+                custom_color: bgType.value === 'custom' ? customColor.value : null
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            loading.classList.remove('active');
+            btnProcess.disabled = false;
+
+            if (data.success) {
+                currentOutput = data.output_filename;
+                processedImg.src = data.preview_url + '?t=' + Date.now();
+                processedImg.style.display = 'block';
+                placeholder.style.display = 'none';
+                btnDownload.style.display = 'block';
+            } else {
+                showError(data.error);
+            }
+        })
+        .catch(e => {
+            loading.classList.remove('active');
+            btnProcess.disabled = false;
+            showError('Erro: ' + e.message);
+        });
+    });
+
+    // Download
+    btnDownload.addEventListener('click', () => {
+        if (currentOutput) {
+            window.location.href = `/removedor-de-fundo/download/${currentOutput}`;
+        }
+    });
+
+    // Nova
+    btnNew.addEventListener('click', () => {
+        imageInput.value = '';
+        currentFilename = null;
+        currentOutput = null;
+        uploadCard.style.display = 'block';
+        processingCard.classList.remove('active');
+        btnDownload.style.display = 'none';
+        processedImg.style.display = 'none';
+        placeholder.style.display = 'block';
+        clearError();
+    });
+
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.add('show');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearError() {
+        errorMsg.textContent = '';
+        errorMsg.classList.remove('show');
+    }
+
+    // Drag and drop (opcional)
+    const dropZone = uploadCard;
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.background = 'rgba(99, 102, 241, 0.05)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.background = 'white';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = 'white';
+        
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            imageInput.files = e.dataTransfer.files;
+            imageInput.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

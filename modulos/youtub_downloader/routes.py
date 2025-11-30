@@ -11,16 +11,8 @@ import shutil
 import re
 import ffmpeg
 
-# Configurar logging detalhado
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # Para console
-    ]
-)
+# Logger do módulo (herda configuração global do app)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 youtube_bp = Blueprint('youtube_downloader', __name__, 
                       template_folder='templates',

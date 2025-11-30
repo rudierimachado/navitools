@@ -11,25 +11,39 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary-color: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary-color: #f1f5f9;
-            --accent-color: #10b981;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --dark-bg: #0f172a;
-            --card-bg: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --sidebar-width: 280px;
-            --header-height: 70px;
+            /* Dark Theme - Apenas para Header/Sidebar/Footer */
+            --nav-bg-primary: #0f172a;
+            --nav-bg-secondary: #1e293b;
+            --nav-bg-tertiary: #334155;
+            --nav-bg-hover: #475569;
+            
+            /* Accent Colors */
+            --nav-accent: #3b82f6;
+            --nav-accent-hover: #2563eb;
+            --nav-accent-glow: rgba(59, 130, 246, 0.5);
+            
+            /* Nav Text */
+            --nav-text-primary: #f1f5f9;
+            --nav-text-secondary: #94a3b8;
+            --nav-text-muted: #64748b;
+            
+            /* Nav Borders */
+            --nav-border: rgba(148, 163, 184, 0.1);
+            --nav-border-hover: rgba(59, 130, 246, 0.3);
+            
+            /* Layout */
+            --sidebar-width: 260px;
+            --header-height: 60px;
+            
+            /* Content Area - NEUTRO */
+            --content-bg: #ffffff;
         }
         
+        /* Reset mínimo */
         * {
             margin: 0;
             padding: 0;
@@ -37,58 +51,65 @@
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--content-bg);
+            color: #1f2937;
             line-height: 1.6;
+            overflow-x: hidden;
         }
         
-        /* Layout Principal */
+        /* Layout */
         .app-container {
             display: flex;
             min-height: 100vh;
         }
         
-        /* Header */
+        /* ========================================
+           HEADER - DARK THEME
+        ======================================== */
         .app-header {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             height: var(--header-height);
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--nav-bg-primary);
+            border-bottom: 1px solid var(--nav-border);
             z-index: 1000;
             display: flex;
             align-items: center;
-            padding: 0 2rem;
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+            padding: 0 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
         }
         
         .app-logo {
             display: flex;
             align-items: center;
-            color: white;
+            color: var(--nav-text-primary);
             text-decoration: none;
             font-weight: 700;
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             margin-right: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .app-logo:hover {
+            color: var(--nav-accent);
         }
         
         .app-logo img {
-            height: 40px;
+            height: 32px;
             margin-right: 0.75rem;
         }
         
         .sidebar-toggle {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            border-radius: 12px;
-            width: 44px;
-            height: 44px;
-            color: white;
-            font-size: 1.2rem;
+            background: var(--nav-bg-secondary);
+            border: 1px solid var(--nav-border);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            color: var(--nav-text-secondary);
+            font-size: 1.1rem;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
@@ -97,25 +118,27 @@
         }
         
         .sidebar-toggle:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.05);
+            background: var(--nav-bg-tertiary);
+            border-color: var(--nav-accent);
+            color: var(--nav-accent);
         }
         
         .header-actions {
             margin-left: auto;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.5rem;
         }
         
         .header-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            border-radius: 10px;
+            background: var(--nav-bg-secondary);
+            border: 1px solid var(--nav-border);
+            border-radius: 8px;
             padding: 0.5rem 1rem;
-            color: white;
+            color: var(--nav-text-secondary) !important;
             text-decoration: none;
             font-weight: 500;
+            font-size: 0.875rem;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
@@ -123,38 +146,27 @@
         }
         
         .header-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            transform: translateY(-1px);
+            background: var(--nav-bg-tertiary);
+            border-color: var(--nav-accent);
+            color: var(--nav-accent) !important;
         }
         
-        /* Garantir visibilidade dos botões do header */
-        .header-actions {
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 1000;
-        }
-        
-        .header-btn {
-            visibility: visible !important;
-            opacity: 1 !important;
-            min-width: 60px;
-            font-size: 0.9rem;
-        }
-        
-        /* Sidebar */
+        /* ========================================
+           SIDEBAR - DARK THEME
+        ======================================== */
         .app-sidebar {
             position: fixed;
             top: var(--header-height);
             left: 0;
             width: var(--sidebar-width);
             height: calc(100vh - var(--header-height));
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border-right: 1px solid var(--border-color);
+            background: var(--nav-bg-primary);
+            border-right: 1px solid var(--nav-border);
             overflow-y: auto;
+            overflow-x: hidden;
             transition: transform 0.3s ease;
             z-index: 999;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.05);
+            box-shadow: 4px 0 6px -1px rgba(0, 0, 0, 0.3);
         }
         
         .app-sidebar.collapsed {
@@ -162,194 +174,119 @@
         }
         
         .sidebar-content {
-            padding: 2rem 0;
+            padding: 1rem 0;
         }
         
         .sidebar-section {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
         }
         
         .sidebar-title {
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.65rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            padding: 0 1.5rem;
+            letter-spacing: 0.1em;
+            color: var(--nav-text-muted);
+            padding: 0 1rem;
             margin-bottom: 0.5rem;
         }
         
         .sidebar-nav {
             list-style: none;
+            padding: 0;
+            margin: 0;
         }
 
-        .sidebar-group-toggle {
-            width: calc(100% - 2rem);
-            margin: 0 1rem 0.5rem;
-            padding: 0.85rem 1rem;
-            border: none;
-            background: rgba(99, 102, 241, 0.08);
-            color: var(--text-primary);
-            border-radius: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar-group-toggle:hover,
-        .sidebar-group-toggle.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: #fff;
-            box-shadow: 0 6px 18px rgba(99, 102, 241, 0.25);
-        }
-
-        .sidebar-group-toggle i.arrow {
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar-group-toggle.active i.arrow {
-            transform: rotate(180deg);
-        }
-
-        /* Chips e elementos da home */
-        .chip {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--primary-color);
-            border-radius: 50px;
-            border: 1px solid rgba(99, 102, 241, 0.2);
-        }
-
-        .icon-pill {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-        }
-
-        .hover-lift {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .hover-lift:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-        }
-
-        
         .nav-item {
             margin-bottom: 0.25rem;
+            padding: 0 0.75rem;
         }
         
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-primary);
+            padding: 0.65rem 0.85rem;
+            color: var(--nav-text-secondary);
             text-decoration: none;
             font-weight: 500;
-            border-radius: 0 25px 25px 0;
-            margin-right: 1rem;
-            transition: all 0.3s ease;
-            position: relative;
+            font-size: 0.875rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
         }
-        
+
         .nav-link:hover {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            transform: translateX(8px);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            background: var(--nav-bg-secondary);
+            color: var(--nav-accent);
+            border-color: var(--nav-border-hover);
         }
         
         .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            transform: translateX(8px);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            background: var(--nav-bg-secondary);
+            color: var(--nav-accent);
+            border-color: var(--nav-accent);
+            box-shadow: 0 0 10px var(--nav-accent-glow);
         }
         
         .nav-link i {
-            width: 20px;
+            width: 18px;
             margin-right: 0.75rem;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         .sidebar-modern-item {
-            margin: 0 1rem 0.75rem;
+            margin: 0 0.75rem 0.5rem;
         }
 
         .sidebar-modern-btn {
             display: flex;
             align-items: center;
             width: 100%;
-            padding: 1rem;
-            border: none;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            color: var(--text-primary);
+            padding: 0.85rem;
+            border: 1px solid var(--nav-border);
+            border-radius: 10px;
+            background: var(--nav-bg-secondary);
+            color: var(--nav-text-primary);
             text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 600;
+            transition: all 0.3s ease;
             cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .sidebar-modern-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-            transition: left 0.5s;
-        }
-
-        .sidebar-modern-btn:hover::before {
-            left: 100%;
+            font-size: 0.875rem;
         }
 
         .sidebar-modern-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
-            background: rgba(255, 255, 255, 0.95);
+            border-color: var(--nav-accent);
+            background: var(--nav-bg-tertiary);
+            box-shadow: 0 0 10px var(--nav-accent-glow);
         }
 
         .sidebar-modern-btn.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+            background: var(--nav-bg-tertiary);
+            color: var(--nav-accent);
+            border-color: var(--nav-accent);
+            box-shadow: 0 0 10px var(--nav-accent-glow);
         }
 
         .sidebar-modern-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--nav-bg-primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
-            color: white;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            margin-right: 0.75rem;
+            color: var(--nav-accent);
+            font-size: 1rem;
+            border: 1px solid var(--nav-border);
+            transition: all 0.3s ease;
         }
 
+        .sidebar-modern-btn:hover .sidebar-modern-icon,
         .sidebar-modern-btn.active .sidebar-modern-icon {
-            background: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+            background: var(--nav-accent);
+            color: var(--nav-bg-primary);
+            border-color: var(--nav-accent);
         }
 
         .sidebar-modern-content {
@@ -358,85 +295,77 @@
         }
 
         .sidebar-modern-title {
-            font-size: 0.95rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.15rem;
         }
 
         .sidebar-modern-desc {
-            font-size: 0.8rem;
-            opacity: 0.7;
-            line-height: 1.3;
+            font-size: 0.7rem;
+            color: var(--nav-text-muted);
+            line-height: 1.2;
         }
 
         .sidebar-modern-arrow {
             margin-left: auto;
-            opacity: 0.5;
+            opacity: 0.4;
             transition: all 0.3s ease;
+            font-size: 1.1rem;
         }
 
         .sidebar-modern-btn:hover .sidebar-modern-arrow {
             opacity: 1;
-            transform: translateX(4px);
+            transform: translateX(3px);
         }
 
         .sidebar-submenu-modern {
-            margin-left: 1rem;
+            margin-left: 0.5rem;
             margin-top: 0.5rem;
-            padding-left: 1rem;
-            border-left: 2px solid rgba(99, 102, 241, 0.1);
+            padding-left: 0.75rem;
+            border-left: 2px solid var(--nav-border);
         }
 
         .sidebar-sub-modern {
             display: flex;
             align-items: center;
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.5rem;
-            border-radius: 12px;
-            background: rgba(248, 250, 252, 0.8);
-            color: var(--text-primary);
+            padding: 0.6rem 0.75rem;
+            margin-bottom: 0.3rem;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--nav-text-secondary);
             text-decoration: none;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(226, 232, 240, 0.5);
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            border: 1px solid transparent;
         }
 
         .sidebar-sub-modern:hover {
-            background: rgba(99, 102, 241, 0.08);
-            transform: translateX(4px);
-            border-color: rgba(99, 102, 241, 0.2);
+            background: var(--nav-bg-secondary);
+            color: var(--nav-accent);
+            border-color: var(--nav-border-hover);
         }
 
         .sidebar-sub-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: rgba(99, 102, 241, 0.1);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 0.75rem;
-            color: var(--primary-color);
-            font-size: 0.9rem;
+            margin-right: 0.65rem;
+            color: var(--nav-text-muted);
+            font-size: 0.85rem;
+        }
+
+        .sidebar-sub-modern:hover .sidebar-sub-icon {
+            background: var(--nav-accent);
+            color: var(--nav-bg-primary);
         }
         
-        .nav-submenu {
-            list-style: none;
-            padding-left: 2.5rem;
-            margin-top: 0.5rem;
-        }
-        
-        .nav-submenu .nav-link {
-            font-size: 0.9rem;
-            padding: 0.5rem 1rem;
-            margin-right: 1.5rem;
-            color: var(--text-secondary);
-        }
-        
-        .nav-submenu .nav-link:hover {
-            color: white;
-        }
-        
-        /* Main Content */
+        /* ========================================
+           MAIN CONTENT - NEUTRO/BRANCO
+        ======================================== */
         .app-main {
             flex: 1;
             margin-left: var(--sidebar-width);
@@ -445,110 +374,62 @@
             transition: margin-left 0.3s ease;
             display: flex;
             flex-direction: column;
+            background: var(--content-bg);
         }
         
         .app-main.sidebar-collapsed {
             margin-left: 0;
         }
         
+        /* 
+        IMPORTANTE: main-content NÃO tem estilos aplicados
+        Cada página define seu próprio layout 
+        */
         .main-content {
             flex: 1;
-            padding: 2rem;
-            background: transparent;
+            /* SEM padding, SEM background, SEM nada */
+            /* Página filha controla tudo */
         }
         
-        /* Footer */
+        /* ========================================
+           FOOTER - DARK THEME
+        ======================================== */
         .app-footer {
-            background: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-            padding: 2rem;
+            background: var(--nav-bg-primary);
+            border-top: 1px solid var(--nav-border);
+            padding: 1.25rem 2rem;
             text-align: center;
             margin-top: auto;
         }
         
         .app-footer small {
-            color: var(--text-secondary);
-            line-height: 1.8;
-        }
-        
-        /* Cards */
-        .card {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            background: var(--card-bg);
-        }
-        
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        
-        .card-header {
-            background: transparent;
-            border-bottom: 1px solid var(--border-color);
-            padding: 1.5rem;
-            font-weight: 600;
-        }
-        
-        .card-body {
-            padding: 1.5rem;
-        }
-
-        /* Ads */
-        .ad-slot {
-            border: 1px dashed rgba(99, 102, 241, 0.4);
-            border-radius: 16px;
-            padding: 1.25rem;
-            background: rgba(99, 102, 241, 0.04);
-            color: var(--text-secondary);
-            text-align: center;
-            width: 100%;
-        }
-
-        .ad-slot h6 {
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--primary-dark);
-            margin-bottom: 0.25rem;
-        }
-
-        .ad-slot small {
+            color: var(--nav-text-muted);
             font-size: 0.75rem;
-            color: var(--text-secondary);
+        }
+        
+        /* ========================================
+           SCROLLBAR - Apenas Sidebar
+        ======================================== */
+        .app-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .app-sidebar::-webkit-scrollbar-track {
+            background: var(--nav-bg-primary);
+        }
+        
+        .app-sidebar::-webkit-scrollbar-thumb {
+            background: var(--nav-accent);
+            border-radius: 3px;
+        }
+        
+        .app-sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--nav-accent-hover);
         }
 
-        .ad-slot--sidebar {
-            min-height: 200px;
-        }
-
-        .ad-slot--banner {
-            min-height: 120px;
-        }
-        
-        /* Buttons */
-        .btn {
-            border-radius: 12px;
-            font-weight: 500;
-            padding: 0.75rem 1.5rem;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
-        }
-        
-        /* Responsive */
+        /* ========================================
+           RESPONSIVE
+        ======================================== */
         @media (max-width: 768px) {
             .app-sidebar {
                 transform: translateX(-100%);
@@ -562,47 +443,51 @@
                 margin-left: 0;
             }
             
-            .main-content {
-                padding: 1rem;
-            }
-            
             .app-header {
                 padding: 0 1rem;
             }
         }
-        
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        /* ========================================
+           CLASSES AUXILIARES - Apenas para Nav
+        ======================================== */
+        .nav-badge {
+            background: var(--nav-accent);
+            color: var(--nav-bg-primary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
         }
-        
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
+
+        /* Ads apenas na sidebar */
+        .ad-slot {
+            border: 1px dashed var(--nav-border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            background: var(--nav-bg-secondary);
+            color: var(--nav-text-muted);
+            text-align: center;
+            width: 100%;
+            margin: 1rem 0.75rem;
         }
-        
-        /* Scrollbar */
-        .app-sidebar::-webkit-scrollbar {
-            width: 6px;
+
+        .ad-slot h6 {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--nav-accent);
+            margin-bottom: 0.5rem;
         }
-        
-        .app-sidebar::-webkit-scrollbar-track {
-            background: transparent;
+
+        .ad-slot small {
+            font-size: 0.7rem;
+            color: var(--nav-text-muted);
         }
-        
-        .app-sidebar::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 3px;
-        }
-        
-        .app-sidebar::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
+
+        .ad-slot--sidebar {
+            min-height: 150px;
         }
     </style>
     
@@ -614,7 +499,7 @@
     {% set side_groups = menu_data.get('side_groups', []) %}
 
     <div class="app-container">
-        <!-- Header -->
+        <!-- ========== HEADER (DARK) ========== -->
         <header class="app-header">
             <a href="/" class="app-logo">
                 <img src="/logos/logos.webp" alt="NAVITOOLS" onerror="this.style.display='none';">
@@ -626,13 +511,11 @@
             </button>
             
             <div class="header-actions">
-                <!-- Botão do Blog -->
-                <a href="/blog" class="header-btn" style="background: rgba(255,255,255,0.2) !important;">
+                <a href="/blog" class="header-btn">
                     <i class="bi bi-journal-richtext"></i>
                     <span class="d-none d-md-inline">Blog</span>
                 </a>
                 
-                <!-- Botões dinâmicos do menu superior (se existirem) -->
                 {% if top_menu %}
                     {% for module in top_menu %}
                     <a href="{{ module.url }}" class="header-btn">
@@ -641,8 +524,7 @@
                     </a>
                     {% endfor %}
                 {% else %}
-                    <!-- Admin apenas se não houver menu dinâmico -->
-                    <a href="/administrador" class="header-btn" style="background: rgba(255,255,255,0.2) !important;">
+                    <a href="/administrador" class="header-btn">
                         <i class="bi bi-shield-lock"></i>
                         <span class="d-none d-md-inline">Admin</span>
                     </a>
@@ -650,7 +532,7 @@
             </div>
         </header>
 
-        <!-- Sidebar -->
+        <!-- ========== SIDEBAR (DARK) ========== -->
         <aside class="app-sidebar" id="appSidebar">
             <div class="sidebar-content">
                 <div class="sidebar-section">
@@ -670,15 +552,15 @@
                         {% set section_id = 'sidebar-group-' ~ loop.index %}
                         <div class="sidebar-modern-item">
                             {% if group.children %}
-                            <button class="sidebar-modern-btn sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
+                            <button class="sidebar-modern-btn sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#{{ section_id }}" aria-expanded="false">
                                 <div class="sidebar-modern-icon">
                                     <i class="bi bi-{{ group.icon or 'grid' }}"></i>
                                 </div>
                                 <div class="sidebar-modern-content">
                                     <div class="sidebar-modern-title">{{ group.display_name }}</div>
-                                    <div class="sidebar-modern-desc">{{ group.children|length }} ferramentas disponíveis</div>
+                                    <div class="sidebar-modern-desc">{{ group.children|length }} ferramentas</div>
                                 </div>
-                                <i class="bi bi-chevron-down sidebar-modern-arrow"></i>
+                                <i class="bi bi-chevron-down sidebar-modern-arrow arrow"></i>
                             </button>
                             <div class="collapse sidebar-submenu-modern" id="{{ section_id }}">
                                 {% if group.children %}
@@ -689,13 +571,10 @@
                                         </div>
                                         <div class="sidebar-modern-content">
                                             <div class="sidebar-modern-title">{{ module.display_name }}</div>
-                                            <div class="sidebar-modern-desc">Acessar ferramenta</div>
                                         </div>
                                         <i class="bi bi-arrow-right-short sidebar-modern-arrow"></i>
                                     </a>
                                     {% endfor %}
-                                {% else %}
-                                    <div class="text-muted px-3 py-2 small">Nenhuma ferramenta registrada ainda.</div>
                                 {% endif %}
                             </div>
                             {% else %}
@@ -705,7 +584,7 @@
                                 </div>
                                 <div class="sidebar-modern-content">
                                     <div class="sidebar-modern-title">{{ group.display_name }}</div>
-                                    <div class="sidebar-modern-desc">Acessar ferramenta</div>
+                                    <div class="sidebar-modern-desc">Acessar</div>
                                 </div>
                                 <i class="bi bi-arrow-right-short sidebar-modern-arrow"></i>
                             </a>
@@ -714,19 +593,25 @@
                     {% endfor %}
                 {% endif %}
 
-                {% block sidebar_ad %}{% endblock %}
+                {% block sidebar_ad %}
+                <!-- Ads podem ser colocados aqui -->
+                {% endblock %}
             </div>
         </aside>
 
-        <!-- Main Content -->
+        <!-- ========== MAIN CONTENT (NEUTRO - Cada página define) ========== -->
         <main class="app-main" id="appMain">
-            <div class="main-content fade-in-up">
+            <div class="main-content">
                 {% block top_banner %}{% endblock %}
-                {% block content %}{% endblock %}
+                {% block content %}
+                <!-- CONTEÚDO 100% CONTROLADO PELA PÁGINA FILHA -->
+                <!-- Sem padding, sem background, sem nada -->
+                <!-- A página filha define tudo -->
+                {% endblock %}
                 {% block bottom_banner %}{% endblock %}
             </div>
             
-            <!-- Footer -->
+            <!-- ========== FOOTER (DARK) ========== -->
             <footer class="app-footer">
                 <small>
                     <strong>{{ module_name or "NAVITOOLS" }}</strong> 
@@ -741,7 +626,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Toggle sidebar
         function toggleSidebar() {
             const sidebar = document.getElementById('appSidebar');
             const main = document.getElementById('appMain');
@@ -750,7 +634,6 @@
             sidebar.classList.toggle('collapsed');
             main.classList.toggle('sidebar-collapsed');
             
-            // Change icon
             const icon = toggle.querySelector('i');
             if (sidebar.classList.contains('collapsed')) {
                 icon.className = 'bi bi-chevron-right';
@@ -759,13 +642,6 @@
             }
         }
         
-        // Mobile sidebar
-        function toggleMobileSidebar() {
-            const sidebar = document.getElementById('appSidebar');
-            sidebar.classList.toggle('show');
-        }
-        
-        // Close sidebar on mobile when clicking outside
         document.addEventListener('click', function(e) {
             const sidebar = document.getElementById('appSidebar');
             const toggle = document.getElementById('sidebarToggle');
@@ -778,7 +654,6 @@
             }
         });
         
-        // Handle window resize
         window.addEventListener('resize', function() {
             const sidebar = document.getElementById('appSidebar');
             if (window.innerWidth > 768) {
@@ -786,49 +661,42 @@
             }
         });
         
-        // Add active class & handle collapses
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.nav-link');
-            const groupButtons = document.querySelectorAll('.sidebar-group-toggle');
+            const navLinks = document.querySelectorAll('.nav-link, .sidebar-sub-modern');
             
             navLinks.forEach(link => {
                 if (link.getAttribute('href') === currentPath) {
                     link.classList.add('active');
+                    
                     const parentCollapse = link.closest('.collapse');
                     if (parentCollapse) {
-                        const button = document.querySelector(`.sidebar-group-toggle[data-target="#${parentCollapse.id}"]`);
-                        if (button) {
-                            button.classList.add('active');
-                            parentCollapse.classList.add('show');
+                        const bsCollapse = new bootstrap.Collapse(parentCollapse, {
+                            show: true
+                        });
+                        
+                        const toggleBtn = document.querySelector(`[data-bs-target="#${parentCollapse.id}"]`);
+                        if (toggleBtn) {
+                            toggleBtn.classList.add('active');
                         }
                     }
                 }
             });
 
-            groupButtons.forEach(button => {
-                const targetSelector = button.getAttribute('data-target');
-                const target = document.querySelector(targetSelector);
-                if (!target) return;
-
-                button.addEventListener('click', () => {
-                    const isOpen = target.classList.contains('show');
-                    document.querySelectorAll('.sidebar-submenu.collapse').forEach(collapse => {
-                        if (collapse !== target) {
-                            collapse.classList.remove('show');
-                            const otherBtn = document.querySelector(`.sidebar-group-toggle[data-target="#${collapse.id}"]`);
-                            if (otherBtn) otherBtn.classList.remove('active');
-                        }
+            const groupToggles = document.querySelectorAll('.sidebar-group-toggle');
+            groupToggles.forEach(toggle => {
+                const targetId = toggle.getAttribute('data-bs-target');
+                const target = document.querySelector(targetId);
+                
+                if (target) {
+                    target.addEventListener('show.bs.collapse', () => {
+                        toggle.classList.add('active');
                     });
-
-                    if (isOpen) {
-                        target.classList.remove('show');
-                        button.classList.remove('active');
-                    } else {
-                        target.classList.add('show');
-                        button.classList.add('active');
-                    }
-                });
+                    
+                    target.addEventListener('hide.bs.collapse', () => {
+                        toggle.classList.remove('active');
+                    });
+                }
             });
         });
     </script>

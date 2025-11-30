@@ -4,6 +4,12 @@ import json
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from .auth import login_required, check_credentials
 
+BASE_PATH = os.path.dirname(os.path.dirname(__file__))
+MODULOS_PATH = os.path.join(BASE_PATH, 'modulos')
+FERRAMENTAS_CONTAINER = 'ferramentas_web'
+FERRAMENTAS_PATH = os.path.join(MODULOS_PATH, FERRAMENTAS_CONTAINER)
+LEGACY_FERRAMENTAS_PATH = os.path.join(BASE_PATH, 'ferramentas')
+
 administrador_bp = Blueprint('administrador', __name__, url_prefix='/administrador', template_folder='templates')
 
 @administrador_bp.route('/login', methods=['GET', 'POST'])
@@ -32,15 +38,34 @@ def logout():
 def load_module_config():
     """Carrega configurações dos módulos do arquivo JSON"""
     config_file = os.path.join(os.path.dirname(__file__), 'module_config.json')
+    data = {}
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        # Configuração padrão se arquivo não existir
-        return {
-            "admin": {"display_name": "Admin", "icon": "shield-lock"},
-            "ferramentas": {"display_name": "Ferramentas", "icon": "tools"}
-        }
+        data = {}
+
+    # Normalizar chaves legadas
+    if 'admin' in data and 'administrador' not in data:
+        data['administrador'] = data.pop('admin')
+    if 'ferramentas' in data and FERRAMENTAS_CONTAINER not in data:
+        data[FERRAMENTAS_CONTAINER] = data.pop('ferramentas')
+
+    for module in data.values():
+        parent = module.get('parent_module')
+        if parent == 'ferramentas':
+            module['parent_module'] = FERRAMENTAS_CONTAINER
+        elif parent == 'admin':
+            module['parent_module'] = 'administrador'
+
+    defaults = {
+        'administrador': {"display_name": "Administrador", "icon": "shield-lock", "version": "1.0.0"},
+        FERRAMENTAS_CONTAINER: {"display_name": "Ferramentas Web", "icon": "tools", "version": "1.0.0"}
+    }
+    for key, value in defaults.items():
+        data.setdefault(key, value)
+
+    return data
 
 def save_module_config(config):
     """Salva configurações dos módulos no arquivo JSON"""

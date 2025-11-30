@@ -1,11 +1,12 @@
 import os
 import json
-from modulos.youtub_downloader.routes import youtube_bp
 from flask import Blueprint, render_template, abort, send_from_directory
 
+from administrador.routes import administrador_bp
+from modulos.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
-from administrador.routes import administrador_bp
+from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
 
 
 main_bp = Blueprint("main", __name__)
@@ -252,4 +253,7 @@ def register_blueprints(app):
 
     # YouTube Downloader
     app.register_blueprint(youtube_bp, url_prefix="/youtube-downloader")
+
+    # Removedor De Fundo
+    app.register_blueprint(removedor_de_fundo_bp, url_prefix="/removedor-de-fundo")
     app.register_blueprint(conversor_bp, url_prefix="/conversor-imagens")
