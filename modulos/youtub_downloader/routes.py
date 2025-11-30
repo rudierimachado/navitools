@@ -2,12 +2,14 @@
 from flask import Blueprint, render_template, request, jsonify, send_file
 import os
 import tempfile
-import yt_dlp
+from pytube import YouTube
+import pytube
 import uuid
 import time
 import logging
 import shutil
 import re
+import ffmpeg
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +21,21 @@ youtube_bp = Blueprint('youtube_downloader', __name__,
 
 # Armazenar downloads em andamento
 downloads = {}
+
+
+def convert_to_mp3(source_path):
+    """Converte arquivo de áudio para MP3 usando ffmpeg."""
+    base, _ = os.path.splitext(source_path)
+    target_path = f"{base}.mp3"
+    try:
+        stream = ffmpeg.input(source_path)
+        stream = ffmpeg.output(stream, target_path, audio_bitrate='192k', ac=2, ar=44100)
+        ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        os.remove(source_path)
+        return target_path
+    except Exception as exc:
+        logger.warning(f"Falha ao converter para MP3: {exc}")
+        return source_path
 
 def extract_video_id(url):
     """Extrai ID do vídeo YouTube"""
@@ -34,28 +51,24 @@ def extract_video_id(url):
     return None
 
 def get_video_info(url):
-    """Obter informações do vídeo de forma simples"""
+    """Obter informações básicas usando pytube."""
     try:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
+        yt = YouTube(url)
+        upload_date = ''
+        if yt.publish_date:
+            upload_date = yt.publish_date.strftime('%Y%m%d')
+
+        return {
+            'success': True,
+            'title': yt.title or 'Vídeo do YouTube',
+            'thumbnail': yt.thumbnail_url or '',
+            'duration': yt.length,
+            'uploader': yt.author or 'Desconhecido',
+            'view_count': yt.views or 0,
+            'upload_date': upload_date,
+            'webpage_url': yt.watch_url or url
         }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            
-            return {
-                'success': True,
-                'title': info.get('title', 'Vídeo do YouTube'),
-                'thumbnail': info.get('thumbnail', ''),
-                'duration': info.get('duration', 0),
-                'uploader': info.get('uploader', 'Desconhecido'),
-                'view_count': info.get('view_count', 0),
-                'upload_date': info.get('upload_date', ''),
-                'webpage_url': info.get('webpage_url', url)
-            }
-            
+
     except Exception as e:
         logger.error(f"Erro ao obter info: {e}")
         return {
@@ -63,54 +76,63 @@ def get_video_info(url):
             'error': f'Erro ao analisar vídeo: {str(e)}'
         }
 
+def _select_video_stream(yt, quality):
+    """Seleciona o melhor stream progressivo de acordo com a qualidade desejada."""
+    target_height = {
+        '360': 360,
+        '480': 480,
+        '720': 720,
+        'best': None
+    }.get(quality, None)
+
+    streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc()
+    if not streams:
+        return None
+
+    if target_height is None:
+        return streams.first()
+
+    for stream in streams:
+        if stream.resolution:
+            try:
+                height = int(stream.resolution.replace('p', ''))
+                if height <= target_height:
+                    return stream
+            except ValueError:
+                continue
+
+    return streams.last()
+
+
 def download_video_simple(url, quality='best', audio_only=False):
-    """Download simples e direto"""
+    """Download simples utilizando pytube."""
     try:
-        # Criar diretório temporário
         temp_dir = tempfile.mkdtemp(prefix='navitools_ytdl_')
-        
-        # Configurar opções básicas
-        ydl_opts = {
-            'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-            'restrictfilenames': True,
-            'no_warnings': True,
-        }
-        
+        yt = YouTube(url)
+
         if audio_only:
-            ydl_opts.update({
-                'format': 'bestaudio/best',
-                'extractaudio': True,
-                'audioformat': 'mp3',
-                'audioquality': '192K',
-            })
+            stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+            if not stream:
+                return {'success': False, 'error': 'Stream de áudio não encontrado'}
+
+            temp_file = stream.download(output_path=temp_dir, filename_prefix='audio_')
+            final_path = convert_to_mp3(temp_file)
+            filename = os.path.basename(final_path)
         else:
-            # Configurar qualidade de vídeo
-            if quality == '720':
-                ydl_opts['format'] = 'best[height<=720]'
-            elif quality == '480':
-                ydl_opts['format'] = 'best[height<=480]'
-            elif quality == '360':
-                ydl_opts['format'] = 'best[height<=360]'
-            else:
-                ydl_opts['format'] = 'best[height<=1080]'
-        
-        # Fazer download
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        
-        # Encontrar arquivo baixado
-        files = os.listdir(temp_dir)
-        if files:
-            filepath = os.path.join(temp_dir, files[0])
-            return {
-                'success': True,
-                'filepath': filepath,
-                'filename': files[0],
-                'temp_dir': temp_dir
-            }
-        else:
-            return {'success': False, 'error': 'Arquivo não foi criado'}
-            
+            stream = _select_video_stream(yt, quality)
+            if not stream:
+                return {'success': False, 'error': 'Stream de vídeo não encontrado'}
+
+            final_path = stream.download(output_path=temp_dir, filename_prefix='video_')
+            filename = os.path.basename(final_path)
+
+        return {
+            'success': True,
+            'filepath': final_path,
+            'filename': filename,
+            'temp_dir': temp_dir
+        }
+
     except Exception as e:
         logger.error(f"Erro no download: {e}")
         return {'success': False, 'error': str(e)}
@@ -239,7 +261,7 @@ def test_system():
         return jsonify({
             'success': True,
             'message': 'Sistema funcionando!',
-            'yt_dlp_version': yt_dlp.version.__version__
+            'pytube_version': pytube.__version__
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
