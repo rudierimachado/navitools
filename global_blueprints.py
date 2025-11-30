@@ -1,9 +1,10 @@
 import os
 import json
-from flask import Blueprint, render_template, abort
+from modulos.youtub_downloader.routes import youtube_bp
+from flask import Blueprint, render_template, abort, send_from_directory
 
-from ferramentas.conversor_imagens.routes import conversor_bp
-from ferramentas.gerador_de_qr_code.routes import gerador_de_qr_code_bp
+from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
+from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from administrador.routes import administrador_bp
 
 
@@ -20,15 +21,96 @@ def load_content_data():
             "posts": []
         }
 
+def get_category_info(category):
+    """Helper para informações das categorias"""
+    categories = {
+        'tecnologia': {'name': 'Tecnologia & Ferramentas', 'emoji': '🔧', 'color': 'primary', 'icon': 'gear'},
+        'inteligencia-artificial': {'name': 'Inteligência Artificial', 'emoji': '🤖', 'color': 'info', 'icon': 'robot'},
+        'tutoriais': {'name': 'Tutoriais & Guias', 'emoji': '📚', 'color': 'warning', 'icon': 'book'},
+        'produtividade': {'name': 'Produtividade', 'emoji': '⚡', 'color': 'success', 'icon': 'lightning'},
+        'design': {'name': 'Design & Criatividade', 'emoji': '🎨', 'color': 'danger', 'icon': 'palette'},
+        'marketing': {'name': 'Marketing Digital', 'emoji': '📈', 'color': 'info', 'icon': 'graph-up'},
+        'programacao': {'name': 'Programação', 'emoji': '💻', 'color': 'dark', 'icon': 'code'},
+        'novidades': {'name': 'Novidades & Updates', 'emoji': '🆕', 'color': 'primary', 'icon': 'star'},
+        'dicas': {'name': 'Dicas & Truques', 'emoji': '💡', 'color': 'success', 'icon': 'lightbulb'}
+    }
+    return categories.get(category, {'name': 'Geral', 'emoji': '📄', 'color': 'secondary', 'icon': 'file-text'})
+
+def render_markdown(content):
+    """Converte markdown simples para HTML"""
+    if not content:
+        return ""
+    
+    import re
+    
+    # Converter markdown básico para HTML
+    html = content
+    
+    # Títulos
+    html = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+    html = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+    html = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+    
+    # Negrito e itálico
+    html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html)
+    html = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html)
+    
+    # Links
+    html = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', html)
+    
+    # Listas
+    lines = html.split('\n')
+    in_list = False
+    result_lines = []
+    
+    for line in lines:
+        if line.strip().startswith('- '):
+            if not in_list:
+                result_lines.append('<ul>')
+                in_list = True
+            result_lines.append(f'<li>{line.strip()[2:]}</li>')
+        else:
+            if in_list:
+                result_lines.append('</ul>')
+                in_list = False
+            result_lines.append(line)
+    
+    if in_list:
+        result_lines.append('</ul>')
+    
+    html = '\n'.join(result_lines)
+    
+    # Quebras de linha
+    html = html.replace('\n\n', '</p><p>')
+    html = html.replace('\n', '<br>')
+    html = f'<p>{html}</p>'
+    
+    # Limpar parágrafos vazios
+    html = re.sub(r'<p>\s*</p>', '', html)
+    html = re.sub(r'<p>\s*<(h[1-6]|ul)', r'<\1', html)
+    html = re.sub(r'</(h[1-6]|ul)>\s*</p>', r'</\1>', html)
+    
+    return html
+
+@main_bp.route('/logos/<filename>')
+def serve_logo(filename):
+    """Servir arquivos da pasta logos"""
+    logos_dir = os.path.join(os.path.dirname(__file__), 'logos')
+    return send_from_directory(logos_dir, filename)
+
 @main_bp.route("/")
 def index():
     content_data = load_content_data()
     posts = [post for post in content_data.get('posts', []) if post.get('active', False)]
 
-    # Ordenar por data (mais recente primeiro)
+    # Ordenar por prioridade e data
     def post_sort_key(post):
-        return post.get('date') or ''
+        priority_order = {'pinned': 3, 'featured': 2, 'normal': 1}
+        priority = priority_order.get(post.get('priority', 'normal'), 1)
+        date = post.get('date', '')
+        return (priority, date)
 
+    # Separar posts por seção
     novidades_posts = sorted(
         [p for p in posts if p.get('section') == 'novidades'],
         key=post_sort_key,
@@ -39,8 +121,17 @@ def index():
         key=post_sort_key,
         reverse=True
     )
+    destaque_posts = sorted(
+        [p for p in posts if p.get('section') == 'destaque' or p.get('priority') in ['featured', 'pinned']],
+        key=post_sort_key,
+        reverse=True
+    )
 
-    return render_template('home.html', novidades_posts=novidades_posts, dicas_posts=dicas_posts)
+    return render_template('home.html', 
+                         novidades_posts=novidades_posts, 
+                         dicas_posts=dicas_posts,
+                         destaque_posts=destaque_posts,
+                         get_category_info=get_category_info)
 
 @main_bp.route("/ia-hub")
 def ia_hub():
@@ -49,24 +140,102 @@ def ia_hub():
 
 @main_bp.route("/blog")
 def blog_list():
+    from flask import request
     content_data = load_content_data()
-    posts = sorted(
-        [post for post in content_data.get('posts', []) if post.get('active', False)],
-        key=lambda p: p.get('date') or '',
-        reverse=True
-    )
-    return render_template('blog_list.html', posts=posts)
+    posts = [post for post in content_data.get('posts', []) if post.get('active', False)]
+    
+    # Filtros
+    section_filter = request.args.get('section')
+    category_filter = request.args.get('category')
+    search_query = request.args.get('search', '').strip()
+    
+    # Aplicar filtros
+    if section_filter:
+        posts = [p for p in posts if p.get('section') == section_filter]
+    
+    if category_filter:
+        posts = [p for p in posts if p.get('category') == category_filter]
+    
+    if search_query:
+        search_lower = search_query.lower()
+        posts = [p for p in posts if 
+                search_lower in p.get('title', '').lower() or 
+                search_lower in p.get('summary', '').lower() or 
+                search_lower in p.get('content', '').lower() or
+                any(search_lower in tag.lower() for tag in p.get('tags', []))]
+    
+    # Ordenar por prioridade e data
+    def post_sort_key(post):
+        priority_order = {'pinned': 3, 'featured': 2, 'normal': 1}
+        priority = priority_order.get(post.get('priority', 'normal'), 1)
+        date = post.get('date', '')
+        return (priority, date)
+    
+    posts = sorted(posts, key=post_sort_key, reverse=True)
+    
+    # Obter categorias únicas para filtros
+    all_posts = content_data.get('posts', [])
+    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
+    categories.sort()
+    
+    return render_template('blog_list.html', 
+                         posts=posts, 
+                         categories=categories,
+                         get_category_info=get_category_info,
+                         current_section=section_filter,
+                         current_category=category_filter,
+                         search_query=search_query)
 
 @main_bp.route("/blog/<int:post_id>")
-def blog_detail(post_id):
+def blog_detail_by_id(post_id):
     content_data = load_content_data()
     posts = content_data.get('posts', [])
     post = next((p for p in posts if p.get('id') == post_id and p.get('active', False)), None)
 
     if not post:
         abort(404)
+    
+    # Incrementar visualizações
+    post['views'] = post.get('views', 0) + 1
+    
+    # Salvar dados atualizados
+    with open(os.path.join(os.path.dirname(__file__), 'administrador', 'content_data.json'), 'w', encoding='utf-8') as f:
+        json.dump(content_data, f, indent=4, ensure_ascii=False)
 
-    return render_template('blog_detail.html', post=post)
+    # Obter categorias para o menu
+    all_posts = content_data.get('posts', [])
+    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
+    categories.sort()
+    
+    return render_template('blog_detail.html', post=post, get_category_info=get_category_info, render_markdown=render_markdown, categories=categories)
+
+@main_bp.route("/blog/<slug>")
+def blog_detail_by_slug(slug):
+    content_data = load_content_data()
+    posts = content_data.get('posts', [])
+    post = next((p for p in posts if p.get('slug') == slug and p.get('active', False)), None)
+
+    if not post:
+        # Tentar encontrar por ID se slug não funcionar (compatibilidade)
+        try:
+            post_id = int(slug)
+            return blog_detail_by_id(post_id)
+        except ValueError:
+            abort(404)
+    
+    # Incrementar visualizações
+    post['views'] = post.get('views', 0) + 1
+    
+    # Salvar dados atualizados
+    with open(os.path.join(os.path.dirname(__file__), 'administrador', 'content_data.json'), 'w', encoding='utf-8') as f:
+        json.dump(content_data, f, indent=4, ensure_ascii=False)
+
+    # Obter categorias para o menu
+    all_posts = content_data.get('posts', [])
+    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
+    categories.sort()
+    
+    return render_template('blog_detail.html', post=post, get_category_info=get_category_info, render_markdown=render_markdown, categories=categories)
 
 def register_blueprints(app):
     """Registra todos os blueprints globais da aplicação."""
@@ -80,4 +249,7 @@ def register_blueprints(app):
 
     # Gerador De Qr Code
     app.register_blueprint(gerador_de_qr_code_bp, url_prefix="/gerador-de-qr-code")
+
+    # YouTube Downloader
+    app.register_blueprint(youtube_bp, url_prefix="/youtube-downloader")
     app.register_blueprint(conversor_bp, url_prefix="/conversor-imagens")

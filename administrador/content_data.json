@@ -4,7 +4,7 @@
             "id": 1,
             "title": "A Revolução da Criação: Como a IA Generativa Está Transformando o Design, a Música e a Escrita",
             "subtitle": "De textos coerentes a imagens ultra-realistas, entenda o que são os modelos generativos e por que eles são o futuro da inovação digital.",
-            "category": "Tecnologia e Inovação",
+            "category": "inteligencia-artificial",
             "section": "novidades",
             "date": "2025-11-29",
             "reading_time": "",
@@ -13,7 +13,18 @@
             "cover": "",
             "cta_text": "",
             "cta_link": "",
-            "active": true
+            "active": true,
+            "views": 3,
+            "tags": [
+                "ia",
+                "tecnologia",
+                "empresas",
+                "inteligencia"
+            ],
+            "priority": "normal",
+            "slug": "a-revolucao-da-criacao-como-a-ia-generativa-esta-transformando-o-design-a-musica-e-a-escrita",
+            "meta_description": "A IA Generativa é a tecnologia por trás de ferramentas como o ChatGPT e DALL-E. Este post desvenda como esses sistemas aprendem a criar conteúdo original e de a",
+            "updated_at": "2025-11-29"
         }
     ]
 }

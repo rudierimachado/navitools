@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Novo Conteúdo - Admin{% endblock %}
+{% block title %}Editar Post - Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -9,7 +9,7 @@
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                     <p class="text-uppercase text-muted small mb-1">Publicação</p>
-                    <h1 class="h3 fw-bold mb-0">✍️ Criar Novo Post</h1>
+                    <h1 class="h3 fw-bold mb-0">✏️ Editar Post</h1>
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('administrador.content_manager') }}" class="btn btn-outline-secondary">
@@ -31,7 +31,8 @@
                                     <i class="bi bi-type text-primary me-1"></i>Título *
                                 </label>
                                 <input type="text" id="title" name="title" class="form-control form-control-lg" 
-                                       placeholder="Digite um título atrativo..." required maxlength="100">
+                                       placeholder="Digite um título atrativo..." required maxlength="100"
+                                       value="{{ post.title }}">
                                 <div class="form-text">Máximo 100 caracteres. Seja claro e atrativo.</div>
                             </div>
                             
@@ -41,7 +42,8 @@
                                     <i class="bi bi-text-left text-secondary me-1"></i>Subtítulo
                                 </label>
                                 <input type="text" id="subtitle" name="subtitle" class="form-control" 
-                                       placeholder="Resumo curto que aparece abaixo do título" maxlength="150">
+                                       placeholder="Resumo curto que aparece abaixo do título" maxlength="150"
+                                       value="{{ post.subtitle or '' }}">
                                 <div class="form-text">Opcional. Máximo 150 caracteres.</div>
                             </div>
 
@@ -52,15 +54,15 @@
                                 </label>
                                 <select id="category" name="category" class="form-select" required>
                                     <option value="">Selecione uma categoria</option>
-                                    <option value="tecnologia">🔧 Tecnologia & Ferramentas</option>
-                                    <option value="inteligencia-artificial">🤖 Inteligência Artificial</option>
-                                    <option value="tutoriais">📚 Tutoriais & Guias</option>
-                                    <option value="produtividade">⚡ Produtividade</option>
-                                    <option value="design">🎨 Design & Criatividade</option>
-                                    <option value="marketing">📈 Marketing Digital</option>
-                                    <option value="programacao">💻 Programação</option>
-                                    <option value="novidades">🆕 Novidades & Updates</option>
-                                    <option value="dicas">💡 Dicas & Truques</option>
+                                    <option value="tecnologia" {{ 'selected' if post.category == 'tecnologia' }}>🔧 Tecnologia & Ferramentas</option>
+                                    <option value="inteligencia-artificial" {{ 'selected' if post.category == 'inteligencia-artificial' }}>🤖 Inteligência Artificial</option>
+                                    <option value="tutoriais" {{ 'selected' if post.category == 'tutoriais' }}>📚 Tutoriais & Guias</option>
+                                    <option value="produtividade" {{ 'selected' if post.category == 'produtividade' }}>⚡ Produtividade</option>
+                                    <option value="design" {{ 'selected' if post.category == 'design' }}>🎨 Design & Criatividade</option>
+                                    <option value="marketing" {{ 'selected' if post.category == 'marketing' }}>📈 Marketing Digital</option>
+                                    <option value="programacao" {{ 'selected' if post.category == 'programacao' }}>💻 Programação</option>
+                                    <option value="novidades" {{ 'selected' if post.category == 'novidades' }}>🆕 Novidades & Updates</option>
+                                    <option value="dicas" {{ 'selected' if post.category == 'dicas' }}>💡 Dicas & Truques</option>
                                 </select>
                             </div>
                             
@@ -69,7 +71,8 @@
                                     <i class="bi bi-tags text-info me-1"></i>Tags
                                 </label>
                                 <input type="text" id="tags" name="tags" class="form-control" 
-                                       placeholder="Ex: qr-code, python, tutorial">
+                                       placeholder="Ex: qr-code, python, tutorial"
+                                       value="{{ post.tags|join(', ') if post.tags else '' }}">
                                 <div class="form-text">Separadas por vírgula. Ajudam na busca e organização.</div>
                             </div>
                             
@@ -78,14 +81,16 @@
                                 <label class="form-label fw-semibold" for="date">
                                     <i class="bi bi-calendar text-success me-1"></i>Data de Publicação *
                                 </label>
-                                <input type="date" id="date" name="date" class="form-control" required>
+                                <input type="date" id="date" name="date" class="form-control" required
+                                       value="{{ post.date }}">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold" for="reading_time">
                                     <i class="bi bi-clock text-info me-1"></i>Tempo de Leitura
                                 </label>
                                 <input type="text" id="reading_time" name="reading_time" class="form-control" 
-                                       placeholder="Ex: 5 min de leitura">
+                                       placeholder="Ex: 5 min de leitura"
+                                       value="{{ post.reading_time or '' }}">
                                 <div class="form-text">Estimativa automática baseada no conteúdo.</div>
                             </div>
                             <div class="col-md-4">
@@ -94,13 +99,15 @@
                                 </label>
                                 <div class="mt-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="status" id="publish" value="publish" checked>
+                                        <input class="form-check-input" type="radio" name="status" id="publish" value="publish" 
+                                               {{ 'checked' if post.active else '' }}>
                                         <label class="form-check-label" for="publish">
                                             <i class="bi bi-globe text-success me-1"></i>Publicar agora
                                         </label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="status" id="draft" value="draft">
+                                        <input class="form-check-input" type="radio" name="status" id="draft" value="draft"
+                                               {{ 'checked' if not post.active else '' }}>
                                         <label class="form-check-label" for="draft">
                                             <i class="bi bi-file-earmark text-warning me-1"></i>Salvar como rascunho
                                         </label>
@@ -114,9 +121,9 @@
                                     <i class="bi bi-house text-primary me-1"></i>Seção da Home *
                                 </label>
                                 <select id="section" name="section" class="form-select" required>
-                                    <option value="novidades">🆕 Novidades & Lançamentos</option>
-                                    <option value="dicas">💡 Dicas & Tutoriais</option>
-                                    <option value="destaque">⭐ Posts em Destaque</option>
+                                    <option value="novidades" {{ 'selected' if post.section == 'novidades' }}>🆕 Novidades & Lançamentos</option>
+                                    <option value="dicas" {{ 'selected' if post.section == 'dicas' }}>💡 Dicas & Tutoriais</option>
+                                    <option value="destaque" {{ 'selected' if post.section == 'destaque' }}>⭐ Posts em Destaque</option>
                                 </select>
                                 <div class="form-text">Escolha onde o post aparecerá na página inicial.</div>
                             </div>
@@ -127,9 +134,9 @@
                                     <i class="bi bi-star text-warning me-1"></i>Prioridade
                                 </label>
                                 <select id="priority" name="priority" class="form-select">
-                                    <option value="normal">📄 Normal</option>
-                                    <option value="featured">⭐ Destaque</option>
-                                    <option value="pinned">📌 Fixado no topo</option>
+                                    <option value="normal" {{ 'selected' if post.priority == 'normal' or not post.priority }}>📄 Normal</option>
+                                    <option value="featured" {{ 'selected' if post.priority == 'featured' }}>⭐ Destaque</option>
+                                    <option value="pinned" {{ 'selected' if post.priority == 'pinned' }}>📌 Fixado no topo</option>
                                 </select>
                                 <div class="form-text">Posts em destaque aparecem primeiro.</div>
                             </div>
@@ -141,7 +148,7 @@
                                 </label>
                                 <textarea id="summary" name="summary" rows="3" class="form-control" 
                                           placeholder="Escreva um resumo atrativo que aparecerá nos cards da home..." 
-                                          required maxlength="300"></textarea>
+                                          required maxlength="300">{{ post.summary or '' }}</textarea>
                                 <div class="form-text">Máximo 300 caracteres. Este texto aparece nos cards da home.</div>
                             </div>
 
@@ -178,21 +185,8 @@
                                     </div>
                                 </div>
                                 <textarea id="content" name="content" rows="12" class="form-control" 
-                                          placeholder="Escreva o conteúdo completo do seu post aqui...
-
-Use formatação simples:
-**texto em negrito**
-*texto em itálico*
-## Título de seção
-### Subtítulo
-
-- Item de lista
-- Outro item
-
-[Texto do link](https://exemplo.com)
-
-📝 Dica: Use emojis para deixar o conteúdo mais atrativo!" 
-                                          required></textarea>
+                                          placeholder="Escreva o conteúdo completo do seu post aqui..." 
+                                          required>{{ post.content or '' }}</textarea>
                                 <div class="form-text">
                                     <i class="bi bi-info-circle me-1"></i>
                                     Use Markdown simples para formatação. O conteúdo será convertido automaticamente.
@@ -205,13 +199,14 @@ Use formatação simples:
                                     <i class="bi bi-image text-success me-1"></i>Imagem de Capa
                                 </label>
                                 <input type="text" id="cover" name="cover" class="form-control" 
-                                       placeholder="https://exemplo.com/imagem.jpg ou deixe vazio para usar imagem padrão">
+                                       placeholder="https://exemplo.com/imagem.jpg ou deixe vazio para usar imagem padrão"
+                                       value="{{ post.cover or '' }}">
                                 <div class="form-text">
                                     <i class="bi bi-lightbulb me-1"></i>
                                     Recomendado: 1200x630px. Use Unsplash, Pexels ou suas próprias imagens.
                                 </div>
-                                <div id="cover-preview" class="mt-2" style="display: none;">
-                                    <img id="cover-img" src="" alt="Preview" class="img-thumbnail" style="max-width: 200px;">
+                                <div id="cover-preview" class="mt-2" {% if post.cover %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+                                    <img id="cover-img" src="{{ post.cover or '' }}" alt="Preview" class="img-thumbnail" style="max-width: 200px;">
                                 </div>
                             </div>
 
@@ -221,7 +216,8 @@ Use formatação simples:
                                     <i class="bi bi-cursor text-primary me-1"></i>Texto do Botão CTA
                                 </label>
                                 <input type="text" id="cta_text" name="cta_text" class="form-control" 
-                                       placeholder="Ex: Experimentar Ferramenta, Baixar Arquivo, Saiba Mais">
+                                       placeholder="Ex: Experimentar Ferramenta, Baixar Arquivo, Saiba Mais"
+                                       value="{{ post.cta_text or '' }}">
                                 <div class="form-text">Call-to-Action opcional no final do post.</div>
                             </div>
                             <div class="col-md-6">
@@ -229,7 +225,8 @@ Use formatação simples:
                                     <i class="bi bi-link text-info me-1"></i>Link do Botão CTA
                                 </label>
                                 <input type="text" id="cta_link" name="cta_link" class="form-control" 
-                                       placeholder="/gerador-de-qr-code ou https://exemplo.com">
+                                       placeholder="/gerador-de-qr-code ou https://exemplo.com"
+                                       value="{{ post.cta_link or '' }}">
                                 <div class="form-text">URL interna ou externa para o botão.</div>
                             </div>
 
@@ -245,13 +242,14 @@ Use formatação simples:
                                                 <label class="form-label fw-semibold" for="meta_description">Meta Description</label>
                                                 <textarea id="meta_description" name="meta_description" rows="2" class="form-control" 
                                                           placeholder="Descrição que aparece no Google (será gerada automaticamente se vazio)" 
-                                                          maxlength="160"></textarea>
+                                                          maxlength="160">{{ post.meta_description or '' }}</textarea>
                                                 <div class="form-text">Máximo 160 caracteres para o Google.</div>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-semibold" for="slug">URL Amigável (Slug)</label>
                                                 <input type="text" id="slug" name="slug" class="form-control" 
-                                                       placeholder="sera-gerado-automaticamente">
+                                                       placeholder="sera-gerado-automaticamente"
+                                                       value="{{ post.slug or '' }}">
                                                 <div class="form-text">Será gerado automaticamente do título se vazio.</div>
                                             </div>
                                         </div>
@@ -264,7 +262,7 @@ Use formatação simples:
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="bi bi-send me-1"></i>Publicar Post
+                                    <i class="bi bi-check-circle me-1"></i>Atualizar Post
                                 </button>
                                 <button type="button" class="btn btn-outline-warning" onclick="saveDraft()">
                                     <i class="bi bi-save me-1"></i>Salvar Rascunho
@@ -304,7 +302,7 @@ Use formatação simples:
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 <button type="button" class="btn btn-primary" onclick="submitForm()">
-                    <i class="bi bi-send me-1"></i>Publicar Agora
+                    <i class="bi bi-check-circle me-1"></i>Atualizar Agora
                 </button>
             </div>
         </div>
@@ -350,30 +348,6 @@ Use formatação simples:
 </style>
 
 <script>
-// Configurar data atual
-document.getElementById('date').value = new Date().toISOString().split('T')[0];
-
-// Gerar slug automaticamente do título
-document.getElementById('title').addEventListener('input', function() {
-    const title = this.value;
-    const slug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim('-');
-    
-    if (!document.getElementById('slug').value) {
-        document.getElementById('slug').value = slug;
-    }
-    
-    // Gerar meta description se vazia
-    if (!document.getElementById('meta_description').value && document.getElementById('summary').value) {
-        const summary = document.getElementById('summary').value;
-        document.getElementById('meta_description').value = summary.substring(0, 160);
-    }
-});
-
 // Preview da imagem de capa
 document.getElementById('cover').addEventListener('input', function() {
     const url = this.value;
@@ -558,33 +532,12 @@ document.querySelectorAll('input[name="status"]').forEach(radio => {
             publishBtn.innerHTML = '<i class="bi bi-save me-1"></i>Salvar Rascunho';
             publishBtn.className = 'btn btn-warning btn-lg';
         } else {
-            publishBtn.innerHTML = '<i class="bi bi-send me-1"></i>Publicar Post';
+            publishBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Atualizar Post';
             publishBtn.className = 'btn btn-primary btn-lg';
         }
     });
 });
 
-// Atalhos de teclado
-document.addEventListener('keydown', function(e) {
-    if (e.ctrlKey) {
-        switch(e.key) {
-            case 'b':
-                e.preventDefault();
-                formatText('bold');
-                break;
-            case 'i':
-                e.preventDefault();
-                formatText('italic');
-                break;
-            case 's':
-                e.preventDefault();
-                saveDraft();
-                break;
-        }
-    }
-});
-
-console.log('🚀 Editor de posts avançado carregado!');
-console.log('💡 Atalhos: Ctrl+B (negrito), Ctrl+I (itálico), Ctrl+S (salvar rascunho)');
+console.log('✏️ Editor de edição de posts carregado!');
 </script>
 {% endblock %}

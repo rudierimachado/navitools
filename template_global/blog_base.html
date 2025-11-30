@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Blog NAVITOOLS{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #f1f5f9;
+            --accent-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-bg: #0f172a;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Blog Header */
+        .blog-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .blog-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .blog-logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .blog-logo:hover {
+            color: white;
+            text-decoration: none;
+        }
+        
+        .blog-logo i {
+            margin-right: 0.5rem;
+            font-size: 1.8rem;
+        }
+        
+        .blog-nav {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .blog-nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .blog-nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            transform: translateY(-2px);
+        }
+        
+        .blog-nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Mobile Menu */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .blog-nav {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--primary-dark);
+                flex-direction: column;
+                padding: 1rem;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            
+            .blog-nav.show {
+                display: flex;
+            }
+            
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .blog-navbar {
+                position: relative;
+            }
+        }
+        
+        /* Main Content */
+        .blog-main {
+            min-height: calc(100vh - 140px);
+            padding: 2rem 0;
+        }
+        
+        /* Blog Footer */
+        .blog-footer {
+            background: var(--dark-bg);
+            color: white;
+            padding: 3rem 0 2rem;
+            margin-top: 4rem;
+        }
+        
+        .blog-footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .blog-footer h5 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .blog-footer a {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .blog-footer a:hover {
+            color: white;
+        }
+        
+        .blog-footer-bottom {
+            border-top: 1px solid #334155;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            text-align: center;
+            color: #64748b;
+        }
+        
+        /* Cards e Componentes */
+        .hover-lift {
+            transition: all 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+        }
+        
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+        }
+        
+        .card-img-top {
+            transition: transform 0.3s ease;
+        }
+        
+        .hover-lift:hover .card-img-top {
+            transform: scale(1.02);
+        }
+        
+        .badge {
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Breadcrumb personalizado */
+        .blog-breadcrumb {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            padding: 0.75rem 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .blog-breadcrumb a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .blog-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Animações */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .blog-main {
+                padding: 1rem 0;
+            }
+            
+            .blog-footer {
+                padding: 2rem 0 1rem;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Blog Header -->
+    <header class="blog-header">
+        <nav class="blog-navbar">
+            <a href="/" class="blog-logo">
+                <i class="bi bi-newspaper"></i>
+                <span>NAVITOOLS</span>
+                <small style="font-size: 0.8rem; opacity: 0.9; margin-left: 0.5rem;">Blog & Tutoriais</small>
+            </a>
+            
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <i class="bi bi-list"></i>
+            </button>
+            
+            <div class="blog-nav" id="blogNav">
+                <a href="/blog" class="blog-nav-link active">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Todos os Posts</span>
+                </a>
+                
+                <!-- Categorias Dinâmicas -->
+                {% if categories %}
+                    {% for category in categories %}
+                    {% set category_info = get_category_info(category) %}
+                    <a href="/blog?category={{ category }}" class="blog-nav-link">
+                        <i class="bi bi-{{ category_info.icon }}"></i>
+                        <span>{{ category_info.name }}</span>
+                    </a>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="blog-main">
+        {% block breadcrumb %}
+        <div class="container">
+            <nav class="blog-breadcrumb">
+                <i class="bi bi-house-door me-1"></i>
+                <a href="/">Home</a>
+                <span class="mx-2">›</span>
+                <span class="text-muted">Blog</span>
+            </nav>
+        </div>
+        {% endblock %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Blog Footer -->
+    <footer class="blog-footer">
+        <div class="blog-footer-content">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <h5>
+                        <i class="bi bi-newspaper me-2"></i>
+                        NAVITOOLS Blog
+                    </h5>
+                    <p class="text-muted">
+                        Seu jornal digital sobre ferramentas web, tutoriais práticos, dicas de produtividade e as últimas novidades em tecnologia. Conteúdo gratuito para todos!
+                    </p>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-muted">
+                            <i class="bi bi-twitter fs-5"></i>
+                        </a>
+                        <a href="#" class="text-muted">
+                            <i class="bi bi-linkedin fs-5"></i>
+                        </a>
+                        <a href="#" class="text-muted">
+                            <i class="bi bi-github fs-5"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-2 col-md-6">
+                    <h5>Navegação</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/blog">Todos os Posts</a></li>
+                        <li><a href="/blog?section=novidades">Novidades</a></li>
+                        <li><a href="/blog?section=dicas">Dicas</a></li>
+                        <li><a href="/">← Voltar ao Site</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-lg-2 col-md-6">
+                    <h5>Categorias</h5>
+                    <ul class="list-unstyled">
+                        {% if categories %}
+                            {% for category in categories[:6] %}
+                            {% set category_info = get_category_info(category) %}
+                            <li>
+                                <a href="/blog?category={{ category }}">
+                                    {{ category_info.emoji }} {{ category_info.name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li><small class="text-muted">Nenhuma categoria ainda</small></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="col-lg-4">
+                    <h5>🔧 Ferramentas NAVITOOLS</h5>
+                    <p class="text-muted small mb-3">Ferramentas web gratuitas para acelerar seu trabalho:</p>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <a href="/gerador-de-qr-code" class="text-decoration-none">
+                                <i class="bi bi-qr-code text-primary me-2"></i>
+                                <strong>Gerador de QR Code</strong>
+                                <br><small class="text-muted ms-4">Crie QR Codes para links, WiFi, WhatsApp e mais</small>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/conversor-imagens" class="text-decoration-none">
+                                <i class="bi bi-image text-success me-2"></i>
+                                <strong>Conversor de Imagens</strong>
+                                <br><small class="text-muted ms-4">Converta JPG, PNG, WEBP, PDF com compressão</small>
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/" class="text-decoration-none">
+                                <i class="bi bi-house-door text-info me-2"></i>
+                                <strong>Página Inicial</strong>
+                                <br><small class="text-muted ms-4">Acesse todas as ferramentas e recursos</small>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="blog-footer-bottom">
+                <p class="mb-0">
+                    © 2025 <strong>NAVITOOLS</strong> - Desenvolvido por <strong>Rudieri Machado</strong>
+                    <br>
+                    <small class="text-muted">Ferramentas web para acelerar seu trabalho</small>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            const nav = document.getElementById('blogNav');
+            nav.classList.toggle('show');
+        }
+        
+        // Set active nav link
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const currentSearch = window.location.search;
+            const navLinks = document.querySelectorAll('.blog-nav-link');
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                const href = link.getAttribute('href');
+                
+                // Verificar se é a URL exata
+                if (href === currentPath + currentSearch) {
+                    link.classList.add('active');
+                } 
+                // Se estiver na página do blog sem filtros, ativar "Todos os Posts"
+                else if (currentPath === '/blog' && !currentSearch && href === '/blog') {
+                    link.classList.add('active');
+                }
+                // Se estiver em uma categoria específica
+                else if (currentSearch && href.includes(currentSearch)) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Add animation to cards
+            const cards = document.querySelectorAll('.card, .animate-fade-in');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.classList.add('animate-fade-in');
+            });
+        });
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        console.log('🚀 Blog NAVITOOLS carregado com sucesso!');
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

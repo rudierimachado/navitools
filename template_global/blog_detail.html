@@ -1,16 +1,25 @@
-{% extends 'base.html' %}
+{% extends 'blog_base.html' %}
 
 {% block title %}{{ post.title }} - NAVITOOLS Blog{% endblock %}
 
-{% block content %}
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
-            <a href="/blog" class="btn btn-outline-secondary btn-sm mb-4">
-                <i class="bi bi-arrow-left me-1"></i>Voltar para o blog
-            </a>
+{% block breadcrumb %}
+<div class="container">
+    <nav class="blog-breadcrumb">
+        <i class="bi bi-house-door me-1"></i>
+        <a href="/">Home</a>
+        <span class="mx-2">›</span>
+        <a href="/blog">Blog</a>
+        <span class="mx-2">›</span>
+        <span class="text-muted">{{ post.title[:50] }}{% if post.title|length > 50 %}...{% endif %}</span>
+    </nav>
+</div>
+{% endblock %}
 
-            <article class="card border-0 shadow-sm">
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <article class="card border-0 shadow-lg animate-fade-in">
                 {% if post.cover %}
                 <div class="ratio ratio-16x9">
                     <img src="{{ post.cover }}" class="card-img-top object-fit-cover rounded-top" alt="{{ post.title }}">
@@ -35,7 +44,7 @@
                     {% endif %}
 
                     <div class="mt-4 blog-content">
-                        {{ post.content | replace('\n', '<br>') | safe }}
+                        {{ render_markdown(post.content) | safe }}
                     </div>
 
                     {% if post.cta_text and post.cta_link %}
@@ -47,7 +56,130 @@
                     {% endif %}
                 </div>
             </article>
+            
+            <!-- Posts Relacionados -->
+            <div class="mt-5">
+                <h4 class="fw-bold mb-4">
+                    <i class="bi bi-collection me-2"></i>Posts Relacionados
+                </h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm hover-lift">
+                            <div class="card-body p-3">
+                                <small class="text-muted">Post Anterior</small>
+                                <h6 class="fw-bold mb-0">Exemplo de Post</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm hover-lift">
+                            <div class="card-body p-3">
+                                <small class="text-muted">Próximo Post</small>
+                                <h6 class="fw-bold mb-0">Outro Post Exemplo</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+.blog-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #374151;
+}
+
+.blog-content h1, .blog-content h2, .blog-content h3 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin: 2rem 0 1rem 0;
+}
+
+.blog-content h1 {
+    font-size: 2rem;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+}
+
+.blog-content h2 {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.blog-content h3 {
+    font-size: 1.25rem;
+}
+
+.blog-content p {
+    margin-bottom: 1.5rem;
+}
+
+.blog-content ul, .blog-content ol {
+    margin: 1.5rem 0;
+    padding-left: 2rem;
+}
+
+.blog-content li {
+    margin-bottom: 0.5rem;
+}
+
+.blog-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.blog-content a:hover {
+    color: var(--primary-dark);
+    border-bottom-color: var(--primary-color);
+}
+
+.blog-content strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.blog-content em {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.blog-content blockquote {
+    border-left: 4px solid var(--primary-color);
+    background: var(--secondary-color);
+    padding: 1rem 1.5rem;
+    margin: 2rem 0;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.blog-content code {
+    background: #f1f5f9;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9rem;
+    color: var(--primary-dark);
+}
+
+.blog-content pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 2rem 0;
+}
+
+.blog-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+</style>
+{% endblock %}
 {% endblock %}

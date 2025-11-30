@@ -854,13 +854,35 @@ def add_post():
         posts = content_data.get('posts', [])
 
         new_id = max([post.get('id', 0) for post in posts], default=0) + 1
+        
+        # Gerar slug automaticamente se não fornecido
+        title = request.form['title']
+        slug = request.form.get('slug', '').strip()
+        if not slug:
+            slug = generate_slug(title)
+        
+        # Gerar meta description se não fornecida
+        meta_description = request.form.get('meta_description', '').strip()
+        if not meta_description:
+            summary = request.form.get('summary', '')
+            meta_description = summary[:160] if summary else title[:160]
+        
+        # Processar tags
+        tags = request.form.get('tags', '').strip()
+        tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()] if tags else []
+        
+        # Determinar status de publicação
+        status = request.form.get('status', 'publish')
+        is_active = status == 'publish'
 
         new_post = {
             'id': new_id,
-            'title': request.form['title'],
+            'title': title,
             'subtitle': request.form.get('subtitle', ''),
             'category': request.form.get('category', ''),
+            'tags': tags_list,
             'section': request.form.get('section', 'novidades'),
+            'priority': request.form.get('priority', 'normal'),
             'date': request.form['date'],
             'reading_time': request.form.get('reading_time', ''),
             'summary': request.form.get('summary', ''),
@@ -868,17 +890,39 @@ def add_post():
             'cover': request.form.get('cover', ''),
             'cta_text': request.form.get('cta_text', ''),
             'cta_link': request.form.get('cta_link', ''),
-            'active': 'active' in request.form
+            'slug': slug,
+            'meta_description': meta_description,
+            'active': is_active,
+            'views': 0,  # Contador de visualizações
+            'created_at': request.form['date'],
+            'updated_at': request.form['date']
         }
 
         posts.append(new_post)
         content_data['posts'] = posts
         save_content_data(content_data)
 
-        flash('Conteúdo publicado com sucesso!', 'success')
+        status_message = 'Post publicado com sucesso!' if is_active else 'Rascunho salvo com sucesso!'
+        flash(status_message, 'success')
         return redirect(url_for('administrador.content_manager'))
 
     return render_template('add_post.html')
+
+def generate_slug(title):
+    """Gera slug amigável a partir do título"""
+    import re
+    import unicodedata
+    
+    # Normalizar caracteres especiais
+    slug = unicodedata.normalize('NFKD', title)
+    slug = slug.encode('ascii', 'ignore').decode('ascii')
+    
+    # Converter para minúsculas e substituir espaços
+    slug = re.sub(r'[^a-zA-Z0-9\s-]', '', slug.lower())
+    slug = re.sub(r'\s+', '-', slug)
+    slug = re.sub(r'-+', '-', slug)
+    
+    return slug.strip('-')
 
 @administrador_bp.route('/content/post/edit/<int:post_id>', methods=['GET', 'POST'])
 @login_required
@@ -893,11 +937,33 @@ def edit_post(post_id):
         return redirect(url_for('administrador.content_manager'))
 
     if request.method == 'POST':
+        # Gerar slug automaticamente se não fornecido
+        title = request.form['title']
+        slug = request.form.get('slug', '').strip()
+        if not slug:
+            slug = generate_slug(title)
+        
+        # Gerar meta description se não fornecida
+        meta_description = request.form.get('meta_description', '').strip()
+        if not meta_description:
+            summary = request.form.get('summary', '')
+            meta_description = summary[:160] if summary else title[:160]
+        
+        # Processar tags
+        tags = request.form.get('tags', '').strip()
+        tags_list = [tag.strip() for tag in tags.split(',') if tag.strip()] if tags else []
+        
+        # Determinar status de publicação
+        status = request.form.get('status', 'publish')
+        is_active = status == 'publish'
+
         post.update({
-            'title': request.form['title'],
+            'title': title,
             'subtitle': request.form.get('subtitle', ''),
             'category': request.form.get('category', ''),
+            'tags': tags_list,
             'section': request.form.get('section', post.get('section', 'novidades')),
+            'priority': request.form.get('priority', 'normal'),
             'date': request.form['date'],
             'reading_time': request.form.get('reading_time', ''),
             'summary': request.form.get('summary', ''),
@@ -905,11 +971,15 @@ def edit_post(post_id):
             'cover': request.form.get('cover', ''),
             'cta_text': request.form.get('cta_text', ''),
             'cta_link': request.form.get('cta_link', ''),
-            'active': 'active' in request.form
+            'slug': slug,
+            'meta_description': meta_description,
+            'active': is_active,
+            'updated_at': request.form['date']
         })
 
         save_content_data(content_data)
-        flash('Conteúdo atualizado!', 'success')
+        status_message = 'Post atualizado com sucesso!' if is_active else 'Rascunho atualizado com sucesso!'
+        flash(status_message, 'success')
         return redirect(url_for('administrador.content_manager'))
 
     return render_template('edit_post.html', post=post)

@@ -1,6 +1,6 @@
 import os
 from flask import Flask
-from ferramentas.conversor_imagens.config import Config
+from modulos.ferramentas_web.conversor_imagens.config import Config
 from global_blueprints import register_blueprints
 from menu_helpers import build_sidebar_menu
 

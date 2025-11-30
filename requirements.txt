@@ -1,4 +1,4 @@
-Flask==2.3.2
+Flask==2.3.3
 python-dotenv==1.1.0
 Pillow==11.0.0
 qrcode==7.4.2
@@ -6,3 +6,12 @@ gunicorn==23.0.0
 Werkzeug==2.3.6
 itsdangerous==2.1.2
 Jinja2==3.1.2
+yt-dlp==2024.1.7
+redis==4.5.1
+celery==5.3.1
+flask-socketio==5.3.4
+flask-limiter==3.5.0
+structlog==23.1.0
+python-socketio==5.8.0
+eventlet==0.33.3
+ffmpeg-python==0.2.0

@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / 'administrador' / 'module_config.json'
-FERRAMENTAS_DIR = BASE_DIR / 'ferramentas'
+MODULOS_DIR = BASE_DIR / 'modulos'
 
 
 def load_module_config() -> dict:
@@ -25,7 +25,7 @@ def _slugify(value: str) -> str:
 def _default_location(module_key: str) -> str:
     if module_key in {'administrador', 'admin'}:
         return 'superior'
-    if module_key == 'ferramentas':
+    if module_key in {'ferramentas_web', 'youtub_downloader'}:
         return 'lateral'
     return 'lateral'
 
@@ -53,42 +53,91 @@ def _normalize_module(module_key: str, module_info: dict, *, parent: str | None 
 
 
 def build_sidebar_menu() -> dict:
-    """Build metadata for both top navigation and sidebar groups."""
+    """Build metadata for both top navigation and sidebar groups based on modulos/ structure."""
     module_config = load_module_config()
     modules: dict[str, dict] = {}
 
-    # Primeiro, carregar todos os módulos conhecidos na configuração
-    for module_key, module_info in module_config.items():
-        modules[module_key] = _normalize_module(module_key, module_info)
+    # Garantir entrada para administrador
+    if 'administrador' not in modules:
+        modules['administrador'] = _normalize_module('administrador', {
+            'display_name': 'Administrador',
+            'icon': 'shield-lock',
+            'url_prefix': 'administrador',
+            'location': 'superior'
+        })
 
-    # Garantir entradas padrão para administrador e container de ferramentas
-    for required in ('administrador', 'ferramentas'):
-        if required not in modules:
-            modules[required] = _normalize_module(required, module_config.get(required, {}))
-
-    # Detectar submódulos existentes fisicamente em ferramentas/
-    if FERRAMENTAS_DIR.exists():
-        for entry in sorted(FERRAMENTAS_DIR.iterdir()):
-            if not entry.is_dir() or entry.name.startswith('__'):
+    # Escanear pasta modulos/ para detectar módulos principais
+    if MODULOS_DIR.exists():
+        for main_module_dir in sorted(MODULOS_DIR.iterdir()):
+            if not main_module_dir.is_dir() or main_module_dir.name.startswith('__'):
                 continue
 
-            module_key = entry.name
-            module_info = module_config.get(module_key, {})
-
-            if module_key not in modules:
-                modules[module_key] = _normalize_module(
-                    module_key,
-                    module_info,
-                    parent='ferramentas',
+            main_module_key = main_module_dir.name
+            
+            # Definir configurações específicas para cada módulo principal
+            if main_module_key == 'ferramentas_web':
+                main_module_info = {
+                    'display_name': 'Ferramentas Web',
+                    'icon': 'tools',
+                    'url_prefix': '#',
+                    'location': 'lateral'
+                }
+            elif main_module_key == 'youtub_downloader':
+                main_module_info = {
+                    'display_name': 'YouTube Downloader',
+                    'icon': 'youtube',
+                    'url_prefix': 'youtube-downloader',
+                    'location': 'lateral'
+                }
+            else:
+                main_module_info = {
+                    'display_name': main_module_key.replace('_', ' ').title(),
+                    'icon': 'gear',
+                    'url_prefix': main_module_key.replace('_', '-'),
+                    'location': 'lateral'
+                }
+            
+            modules[main_module_key] = _normalize_module(main_module_key, main_module_info)
+            
+            # Escanear submódulos dentro do módulo principal
+            # Só considera submódulos se forem pastas que contêm routes.py (módulos Flask)
+            for sub_module_dir in sorted(main_module_dir.iterdir()):
+                if not sub_module_dir.is_dir() or sub_module_dir.name.startswith('__'):
+                    continue
+                
+                # Verificar se é realmente um submódulo (tem routes.py)
+                routes_file = sub_module_dir / 'routes.py'
+                if not routes_file.exists():
+                    continue
+                
+                sub_module_key = sub_module_dir.name
+                
+                # Definir configurações específicas para submódulos
+                if sub_module_key == 'gerador_de_qr_code':
+                    sub_module_info = {
+                        'display_name': 'Gerador de QR Code',
+                        'icon': 'qr-code',
+                        'url_prefix': 'gerador-de-qr-code'
+                    }
+                elif sub_module_key == 'conversor_imagens':
+                    sub_module_info = {
+                        'display_name': 'Conversor de Imagens',
+                        'icon': 'image',
+                        'url_prefix': 'conversor-imagens'
+                    }
+                else:
+                    sub_module_info = {
+                        'display_name': sub_module_key.replace('_', ' ').title(),
+                        'icon': 'gear',
+                        'url_prefix': sub_module_key.replace('_', '-')
+                    }
+                
+                modules[sub_module_key] = _normalize_module(
+                    sub_module_key,
+                    sub_module_info,
+                    parent=main_module_key,
                     location='sub'
                 )
-            else:
-                modules[module_key]['parent'] = (
-                    modules[module_key].get('parent')
-                    or module_info.get('parent_module')
-                    or 'ferramentas'
-                )
-                modules[module_key]['location'] = modules[module_key].get('location') or 'sub'
 
     # Construir hierarquia de filhos
     children_map: defaultdict[str, list] = defaultdict(list)
@@ -113,12 +162,15 @@ def build_sidebar_menu() -> dict:
         if location == 'superior':
             top_menu.append(module)
         else:
+            # Se não tem filhos, é um link direto
+            # Se tem filhos, é um grupo expansível
             side_groups.append({
                 'key': module['key'],
                 'display_name': module['display_name'],
                 'icon': module['icon'],
                 'url': module['url'],
-                'children': group_children
+                'children': group_children,
+                'is_direct_link': len(group_children) == 0  # Novo campo para identificar links diretos
             })
 
     return {

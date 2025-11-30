@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+
+{% block title %}YouTube Downloader - NAVITOOLS{% endblock %}
+
+{% block content %}
+<div class="container-fluid h-100">
+    <div class="row g-0 h-100">
+        <div class="col-12 p-4">
+            
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <div class="d-inline-flex align-items-center justify-content-center mb-4 rounded-circle bg-danger shadow-lg" 
+                     style="width: 80px; height: 80px;">
+                    <i class="fab fa-youtube text-white" style="font-size: 2.5rem;"></i>
+                </div>
+                <h1 class="display-4 fw-bold text-dark mb-3">
+                    YouTube Downloader
+                </h1>
+                <p class="lead text-muted mb-4">Cole o link e baixe instantaneamente</p>
+            </div>
+
+            <!-- Input e Download -->
+            <div class="card shadow border-0 mb-4">
+                <div class="card-body p-4">
+                    <form id="downloadForm">
+                        <div class="row align-items-end">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fab fa-youtube text-danger me-2"></i>URL do YouTube
+                                </label>
+                                <input type="url" class="form-control form-control-lg" id="videoUrl" 
+                                       placeholder="https://www.youtube.com/watch?v=..." 
+                                       required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold">Qualidade</label>
+                                <select class="form-select form-select-lg" id="quality">
+                                    <option value="best">Melhor (1080p)</option>
+                                    <option value="720">HD (720p)</option>
+                                    <option value="480">SD (480p)</option>
+                                    <option value="360">Mobile (360p)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="audioOnly">
+                                    <label class="form-check-label" for="audioOnly">
+                                        Apenas áudio (MP3)
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-danger btn-lg w-100 fw-bold" id="downloadBtn">
+                                    <i class="fas fa-download me-2"></i>Baixar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Loading -->
+            <div class="card shadow border-0 mb-4 d-none" id="loadingCard">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-danger mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Baixando...</span>
+                    </div>
+                    <h5 class="fw-bold text-danger">Processando...</h5>
+                    <p class="text-muted mb-0" id="loadingText">Analisando vídeo e iniciando download</p>
+                </div>
+            </div>
+
+            <!-- Video Info -->
+            <div class="card shadow border-0 mb-4 d-none" id="videoInfoCard">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Download Concluído!
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <img id="videoThumbnail" src="" class="img-fluid rounded shadow" alt="Thumbnail">
+                        </div>
+                        <div class="col-md-8">
+                            <h4 id="videoTitle" class="fw-bold mb-3"></h4>
+                            <div class="row mb-3">
+                                <div class="col-sm-6">
+                                    <small class="text-muted d-block">Canal</small>
+                                    <span id="videoUploader" class="fw-bold"></span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <small class="text-muted d-block">Duração</small>
+                                    <span id="videoDuration" class="fw-bold"></span>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <button class="btn btn-success btn-lg me-3" id="downloadFileBtn">
+                                    <i class="fas fa-download me-2"></i>Baixar Arquivo
+                                </button>
+                                <button class="btn btn-outline-secondary btn-lg" id="newDownloadBtn">
+                                    <i class="fas fa-redo me-2"></i>Novo Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Card -->
+            <div class="card shadow border-0 mb-4 d-none" id="errorCard">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erro
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                    <h4 class="mt-3 fw-bold text-danger">Ops! Algo deu errado</h4>
+                    <p class="text-muted mb-4" id="errorMessage">Erro desconhecido</p>
+                    <button class="btn btn-outline-secondary btn-lg" id="tryAgainBtn">
+                        <i class="fas fa-redo me-2"></i>Tentar Novamente
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    let currentDownloadId = null;
+
+    // Elementos DOM
+    const downloadForm = document.getElementById('downloadForm');
+    const videoUrl = document.getElementById('videoUrl');
+    const quality = document.getElementById('quality');
+    const audioOnly = document.getElementById('audioOnly');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const loadingCard = document.getElementById('loadingCard');
+    const videoInfoCard = document.getElementById('videoInfoCard');
+    const errorCard = document.getElementById('errorCard');
+    const loadingText = document.getElementById('loadingText');
+    
+    // Event Listeners
+    downloadForm.addEventListener('submit', handleDownload);
+    
+    document.getElementById('newDownloadBtn').addEventListener('click', function() {
+        resetForm();
+    });
+    
+    document.getElementById('tryAgainBtn').addEventListener('click', function() {
+        resetForm();
+    });
+
+    async function handleDownload(e) {
+        e.preventDefault();
+        
+        const url = videoUrl.value.trim();
+        
+        if (!url) {
+            showError('Por favor, insira a URL do vídeo');
+            return;
+        }
+
+        if (!isValidYouTubeURL(url)) {
+            showError('URL inválida. Use uma URL do YouTube válida');
+            return;
+        }
+
+        try {
+            // Mostrar loading
+            hideAllCards();
+            loadingCard.classList.remove('d-none');
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...';
+
+            // Fazer requisição
+            const response = await fetch('/youtube-downloader/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    quality: quality.value,
+                    audio_only: audioOnly.checked
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                currentDownloadId = data.download_id;
+                showSuccess(data.info);
+            } else {
+                throw new Error(data.error || 'Erro desconhecido');
+            }
+
+        } catch (error) {
+            showError('Erro: ' + error.message);
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="fas fa-download me-2"></i>Baixar';
+        }
+    }
+
+    function showSuccess(info) {
+        hideAllCards();
+        
+        // Preencher informações do vídeo
+        document.getElementById('videoThumbnail').src = info.thumbnail || '';
+        document.getElementById('videoTitle').textContent = info.title || 'Vídeo do YouTube';
+        document.getElementById('videoUploader').textContent = info.uploader || 'Desconhecido';
+        document.getElementById('videoDuration').textContent = formatDuration(info.duration);
+        
+        // Configurar botão de download
+        document.getElementById('downloadFileBtn').onclick = function() {
+            if (currentDownloadId) {
+                window.location.href = `/youtube-downloader/download-file/${currentDownloadId}`;
+            }
+        };
+        
+        videoInfoCard.classList.remove('d-none');
+    }
+
+    function showError(message) {
+        hideAllCards();
+        document.getElementById('errorMessage').textContent = message;
+        errorCard.classList.remove('d-none');
+    }
+
+    function hideAllCards() {
+        [loadingCard, videoInfoCard, errorCard].forEach(card => {
+            card.classList.add('d-none');
+        });
+    }
+
+    function resetForm() {
+        currentDownloadId = null;
+        videoUrl.value = '';
+        quality.value = 'best';
+        audioOnly.checked = false;
+        hideAllCards();
+    }
+
+    function isValidYouTubeURL(url) {
+        const patterns = [
+            /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/).+/,
+            /^https?:\/\/(www\.)?youtube\.com\/shorts\/.+/
+        ];
+        
+        return patterns.some(pattern => pattern.test(url));
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds) return 'N/A';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+    }
+
+})();
+</script>
+{% endblock %}

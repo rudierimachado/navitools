@@ -8,6 +8,8 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -124,6 +126,20 @@
             background: rgba(255, 255, 255, 0.2);
             color: white;
             transform: translateY(-1px);
+        }
+        
+        /* Garantir visibilidade dos botões do header */
+        .header-actions {
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 1000;
+        }
+        
+        .header-btn {
+            visibility: visible !important;
+            opacity: 1 !important;
+            min-width: 60px;
+            font-size: 0.9rem;
         }
         
         /* Sidebar */
@@ -465,7 +481,7 @@
         <!-- Header -->
         <header class="app-header">
             <a href="/" class="app-logo">
-                <img src="logos/logos.webp" alt="NAVITOOLS" onerror="this.style.display='none';">
+                <img src="/logos/logos.webp" alt="NAVITOOLS" onerror="this.style.display='none';">
                 <span>NAVITOOLS</span>
             </a>
             
@@ -474,6 +490,13 @@
             </button>
             
             <div class="header-actions">
+                <!-- Botão do Blog -->
+                <a href="/blog" class="header-btn" style="background: rgba(255,255,255,0.2) !important;">
+                    <i class="bi bi-journal-richtext"></i>
+                    <span class="d-none d-md-inline">Blog</span>
+                </a>
+                
+                <!-- Botões dinâmicos do menu superior (se existirem) -->
                 {% if top_menu %}
                     {% for module in top_menu %}
                     <a href="{{ module.url }}" class="header-btn">
@@ -482,9 +505,10 @@
                     </a>
                     {% endfor %}
                 {% else %}
-                    <a href="/administrador" class="header-btn">
+                    <!-- Admin apenas se não houver menu dinâmico -->
+                    <a href="/administrador" class="header-btn" style="background: rgba(255,255,255,0.2) !important;">
                         <i class="bi bi-shield-lock"></i>
-                        <span class="d-none d-md-inline">Administrador</span>
+                        <span class="d-none d-md-inline">Admin</span>
                     </a>
                 {% endif %}
             </div>
@@ -507,38 +531,53 @@
 
                 {% if side_groups %}
                     {% for group in side_groups %}
-                    {% set section_id = 'sidebar-group-' ~ loop.index %}
-                    <div class="sidebar-section">
-                        <div class="sidebar-title">{{ group.display_name | upper }}</div>
-                        <button class="sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
-                            <span>
-                                <i class="bi bi-{{ group.icon or 'grid' }} me-2"></i>
-                                {{ group.display_name }}
-                            </span>
-                            <i class="bi bi-chevron-down arrow"></i>
-                        </button>
-                        <div class="collapse show sidebar-submenu" id="{{ section_id }}">
+                    {% if group.is_direct_link %}
+                        <!-- Link direto para módulos sem submódulos -->
+                        <div class="sidebar-section">
                             <ul class="sidebar-nav">
-                                {% if group.children %}
-                                    {% for module in group.children %}
-                                    <li class="nav-item">
-                                        <a href="{{ module.url }}" class="nav-link">
-                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                            <span>{{ module.display_name }}</span>
-                                        </a>
-                                    </li>
-                                    {% endfor %}
-                                {% else %}
-                                    <li class="nav-item">
-                                        <span class="nav-link text-muted">
-                                            <i class="bi bi-info-circle"></i>
-                                            <span>Nenhum módulo</span>
-                                        </span>
-                                    </li>
-                                {% endif %}
+                                <li class="nav-item">
+                                    <a href="{{ group.url }}" class="nav-link">
+                                        <i class="bi bi-{{ group.icon or 'gear' }}"></i>
+                                        <span>{{ group.display_name }}</span>
+                                    </a>
+                                </li>
                             </ul>
                         </div>
-                    </div>
+                    {% else %}
+                        <!-- Grupo expansível para módulos com submódulos -->
+                        {% set section_id = 'sidebar-group-' ~ loop.index %}
+                        <div class="sidebar-section">
+                            <div class="sidebar-title">{{ group.display_name | upper }}</div>
+                            <button class="sidebar-group-toggle" type="button" data-target="#{{ section_id }}">
+                                <span>
+                                    <i class="bi bi-{{ group.icon or 'grid' }} me-2"></i>
+                                    {{ group.display_name }}
+                                </span>
+                                <i class="bi bi-chevron-down arrow"></i>
+                            </button>
+                            <div class="collapse show sidebar-submenu" id="{{ section_id }}">
+                                <ul class="sidebar-nav">
+                                    {% if group.children %}
+                                        {% for module in group.children %}
+                                        <li class="nav-item">
+                                            <a href="{{ module.url }}" class="nav-link">
+                                                <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                                <span>{{ module.display_name }}</span>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    {% else %}
+                                        <li class="nav-item">
+                                            <span class="nav-link text-muted">
+                                                <i class="bi bi-info-circle"></i>
+                                                <span>Nenhum módulo</span>
+                                            </span>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endif %}
                     {% endfor %}
                 {% endif %}
 
