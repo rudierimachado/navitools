@@ -1,4 +1,3 @@
-import numpy as np
 from PIL import Image, ImageFilter
 import rembg
 from pathlib import Path
