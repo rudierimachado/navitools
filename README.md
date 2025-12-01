@@ -1,4 +1,4 @@
-# NAVITOOLS
+# NEXUSRDR
 
 Plataforma web modular construída em Flask para reunir ferramentas online (atualmente com foco no Conversor de Imagens) com layout moderno, responsivo e preparado para monetização.
 
@@ -31,8 +31,8 @@ rdr ferramentas/
 ## 🔧 Como executar localmente
 1. **Clonar o repositório:**
    ```bash
-   git clone https://github.com/rudierimachado/navitools.git
-   cd navitools
+   git clone https://github.com/rudierimachado/NEXUSRDR.git
+   cd NEXUSRDR
    ```
 2. **Criar ambiente virtual (opcional, mas recomendado):**
    ```bash
@@ -54,7 +54,7 @@ rdr ferramentas/
 ## 🚀 Deploy no Render
 1. Fazer push do código para o GitHub (`git commit && git push`).
 2. No painel do [Render](https://render.com):
-   - Criar **Web Service** conectado ao repositório `navitools`.
+   - Criar **Web Service** conectado ao repositório `NEXUSRDR`.
    - **Build Command:** `pip install -r requirements.txt` (default).
    - **Start Command:** `gunicorn run:app` (o `Procfile` também já contém essa instrução).
    - Adicionar `SECRET_KEY` (e demais variáveis necessárias) em **Environment Variables**.

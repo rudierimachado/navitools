@@ -6,7 +6,7 @@ from typing import Optional
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-DEFAULT_DB_FILENAME = "navitools_local.db"
+DEFAULT_DB_FILENAME = "NEXUSRDR_local.db"
 
 
 def get_connection(db_path: str | Path) -> sqlite3.Connection:

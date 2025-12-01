@@ -372,7 +372,7 @@ def update_module_files(module_name, new_display_name, new_icon, new_version='1.
         # Atualizar block title
         content = re.sub(
             r'{%\s*block\s+title\s*%}.*?{%\s*endblock\s*%}',
-            f'{{% block title %}}{new_display_name} - NAVITOOLS{{% endblock %}}',
+            f'{{% block title %}}{new_display_name} - NEXUSRDR{{% endblock %}}',
             content
         )
         
@@ -401,7 +401,7 @@ def update_admin_config(new_display_name, new_icon, new_version='1.0.0'):
         # Atualizar block title
         content = re.sub(
             r'{%\s*block\s+title\s*%}.*?{%\s*endblock\s*%}',
-            f'{{% block title %}}{new_display_name} - NAVITOOLS{{% endblock %}}',
+            f'{{% block title %}}{new_display_name} - NEXUSRDR{{% endblock %}}',
             content
         )
         
@@ -606,7 +606,7 @@ def rename_admin_completely(old_name, new_name, new_display_name, new_icon, new_
             # Atualizar block title
             content = re.sub(
                 r'{%\s*block\s+title\s*%}.*?{%\s*endblock\s*%}',
-                f'{{% block title %}}{new_display_name} - NAVITOOLS{{% endblock %}}',
+                f'{{% block title %}}{new_display_name} - NEXUSRDR{{% endblock %}}',
                 content
             )
             
@@ -743,7 +743,7 @@ def index():
     # Criar template HTML com mensagem "Em Desenvolvimento"
     template_content = f'''{{% extends 'base.html' %}}
 
-{{% block title %}}{display_name} - NAVITOOLS{{% endblock %}}
+{{% block title %}}{display_name} - NEXUSRDR{{% endblock %}}
 
 {{% block module_name %}}{display_name}{{% endblock %}}
 {{% block module_version %}}1.0.0{{% endblock %}}

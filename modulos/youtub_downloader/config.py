@@ -9,7 +9,7 @@ from pathlib import Path
 
 class YouTubeConfig:
     # Diretórios
-    TEMP_PREFIX = 'navitools_ytdl_'
+    TEMP_PREFIX = 'NEXUSRDR_ytdl_'
     BASE_DOWNLOAD_DIR = Path(tempfile.gettempdir()) / "youtube_downloads"
     
     # Cache simples em memória (sem Redis)

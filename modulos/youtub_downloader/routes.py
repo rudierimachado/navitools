@@ -138,7 +138,7 @@ def _select_video_stream(yt, quality):
 def download_video_simple(url, quality='best', audio_only=False):
     """Download usando pytubefix (mais estável)."""
     try:
-        temp_dir = tempfile.mkdtemp(prefix='navitools_ytdl_')
+        temp_dir = tempfile.mkdtemp(prefix='NEXUSRDR_ytdl_')
         yt = YouTube(url)
         logger.info(f"Iniciando download: {'áudio' if audio_only else 'vídeo'}")
 
