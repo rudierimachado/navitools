@@ -19,13 +19,7 @@ def gerador_home():
     # Carregar configuração do módulo
     import json
     
-    config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'administrador', 'module_config.json')
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            module_config = json.load(f)
-        gerador_version = module_config.get('gerador_qr', {}).get('version', '1.0.0')
-    except:
-        gerador_version = '1.0.0'
+    gerador_version = '1.0.0'  # Versão fixa
     
     return render_template('gerador_de_qr_code.html',
                          module_name='Gerador de QR Code',

@@ -4,9 +4,10 @@ from flask import Flask
 from modulos.ferramentas_web.conversor_imagens.config import Config
 from global_blueprints import register_blueprints
 from menu_helpers import build_sidebar_menu
-from extensions import db
+from extensions import db, migrate, get_current_db_url, init_database
 
 from dotenv import load_dotenv
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -16,18 +17,39 @@ def create_app():
     # Configurar pastas de templates e static
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template_global')
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
-    
+
     app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(Config)
 
-    # Banco de dados
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///nexusrdr.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    db.init_app(app)
+    # Configurar loader para múltiplas pastas de templates (admin > demais)
+    default_loader = app.jinja_loader
+    template_dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'administrador', 'templates'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'gerenciamento_financeiro', 'templates'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'conversor_imagens', 'templates'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'gerador_de_qr_code', 'templates'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'removedor_de_fundo', 'templates'),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'youtub_downloader', 'templates'),
+    ]
+    loaders = [FileSystemLoader(dir_path) for dir_path in template_dirs if os.path.exists(dir_path)]
+    loaders.append(default_loader)
+    app.jinja_loader = ChoiceLoader(loaders)
 
-    # Configurações Supabase (autenticação SaaS)
-    app.config['SUPABASE_URL'] = os.getenv('SUPABASE_URL', 'https://wimpmajjgqgehsxspzgv.supabase.co')
-    app.config['SUPABASE_ANON_KEY'] = os.getenv('SUPABASE_ANON_KEY', os.getenv('SUPABASE_KEY'))
+    # Configuração do banco usando config_db.py
+    app.config['SQLALCHEMY_DATABASE_URI'] = get_current_db_url()
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+
+    # Inicializar extensões
+    db.init_app(app)
+    migrate.init_app(app, db)
+
+    # Configurações Supabase (removido - não usado)
+    # app.config['SUPABASE_URL'] = os.getenv('SUPABASE_URL', 'https://wimpmajjgqgehsxspzgv.supabase.co')
+    # app.config['SUPABASE_ANON_KEY'] = os.getenv('SUPABASE_ANON_KEY', os.getenv('SUPABASE_KEY'))
 
     # Configurar chave secreta para sessões
     app.secret_key = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
@@ -41,11 +63,23 @@ def create_app():
 
     @app.cli.command('init-db')
     def init_db_command():
-        """Cria as tabelas no banco configurado."""
-        from models import User, LoginAudit  # noqa: F401
+        """Cria as tabelas no banco configurado e popula dados iniciais."""
         with app.app_context():
-            db.create_all()
-        click.echo('Banco inicializado com sucesso.')
+            init_database()
+        click.echo('✅ Banco inicializado com sucesso!')
+        click.echo('📧 Admin: admin@nexusrdr.com / admin123')
+
+    @app.cli.command('db-stats')
+    def db_stats_command():
+        """Mostra estatísticas do banco de dados."""
+        from config_db import get_db_stats
+        stats = get_db_stats()
+        click.echo(f"📊 Estatísticas do Banco: {stats['type']}")
+        click.echo(f"🔗 Status: {stats['status']}")
+        if stats.get('tables'):
+            click.echo(f"📋 Tabelas: {', '.join(stats['tables'])}")
+        if stats.get('connections'):
+            click.echo(f"🔗 Conexões: {stats['connections']}")
 
     return app
 

@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if menu_item else 'Criar' }} Item de Menu - Admin{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .menu-form {
+        padding: 1rem;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    .form-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .form-container {
+        background: var(--bg-elevated);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: var(--shadow-elevated);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: var(--transition-base);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-alpha);
+    }
+
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-check-input {
+        width: auto;
+        margin: 0;
+    }
+
+    .form-text {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition-base);
+    }
+
+    .btn-primary {
+        background: #0ea5e9;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0284c7;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #f8fafc;
+        color: #0f172a;
+        border: 2px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .btn-secondary:hover {
+        background: #ffffff;
+        color: #0f172a;
+    }
+
+    .icon-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: var(--bg-base);
+        border-radius: 6px;
+        margin-top: 0.5rem;
+    }
+
+    .icon-preview i {
+        font-size: 1.2rem;
+        color: var(--primary);
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .alert-error {
+        background: var(--error-bg);
+        color: var(--error);
+        border: 1px solid var(--error);
+    }
+
+    .nivel-info {
+        background: var(--info-bg);
+        color: var(--info);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+    }
+
+    .nivel-info ul {
+        margin: 0.5rem 0 0 1rem;
+    }
+
+    /* Seções do Formulário */
+    .form-section {
+        background: var(--bg-base);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+        margin: 0 0 1.5rem 0;
+        color: var(--primary);
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--primary-alpha);
+    }
+
+    .section-title i {
+        font-size: 1.2rem;
+    }
+
+    .form-label i {
+        color: var(--primary);
+        margin-right: 0.5rem;
+    }
+
+    /* Melhorar visual dos campos */
+    .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .menu-form {
+            padding: 0.5rem;
+        }
+        
+        .form-section {
+            padding: 1rem;
+        }
+        
+        .section-title {
+            font-size: 1rem;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="menu-form">
+    <div class="form-header">
+        <h1>
+            <i class="bi bi-{{ 'pencil' if menu_item else 'plus-lg' }}"></i>
+            {{ 'Editar' if menu_item else 'Criar' }} Item de Menu
+        </h1>
+        <p class="text-muted">
+            {{ 'Modifique as informações do item de menu' if menu_item else 'Adicione um novo item ao menu de navegação' }}
+        </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="form-container">
+        <form method="POST">
+            <!-- Seção: Informações Básicas -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-info-circle"></i> Informações Básicas
+                </h3>
+                
+                <div class="form-group">
+                    <label for="nome" class="form-label">
+                        <i class="bi bi-tag"></i> Nome *
+                    </label>
+                    <input type="text" 
+                           id="nome" 
+                           name="nome" 
+                           class="form-control" 
+                           value="{{ menu_item.nome if menu_item else '' }}" 
+                           required
+                           placeholder="Ex: Conversor de Imagens">
+                    <div class="form-text">Nome que aparecerá no menu de navegação</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="url" class="form-label">
+                        <i class="bi bi-link-45deg"></i> URL *
+                    </label>
+                    <input type="text" 
+                           id="url" 
+                           name="url" 
+                           class="form-control" 
+                           value="{{ menu_item.url if menu_item else '' }}" 
+                           required
+                           placeholder="Ex: /conversor-imagens, /gerenciamento-financeiro/login">
+                    <div class="form-text">URL de destino do item (deve começar com /)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="icone" class="form-label">
+                        <i class="bi bi-palette"></i> Ícone
+                    </label>
+                    <input type="text" 
+                           id="icone" 
+                           name="icone" 
+                           class="form-control" 
+                           value="{{ menu_item.icone if menu_item else '' }}"
+                           placeholder="Ex: tools, server, currency-dollar, image">
+                    <div class="form-text">
+                        Nome do ícone Bootstrap Icons (sem o prefixo 'bi-'). 
+                        <a href="https://icons.getbootstrap.com/" target="_blank">Ver ícones disponíveis</a>
+                    </div>
+                    <div id="icon-preview" class="icon-preview" style="display: none;">
+                        <i id="icon-display"></i>
+                        <span>Preview do ícone</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção: Estrutura e Hierarquia -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-diagram-3"></i> Estrutura e Hierarquia
+                </h3>
+
+            <div class="form-group">
+                <label for="nivel" class="form-label">Nível *</label>
+                <select id="nivel" name="nivel" class="form-control form-select" required>
+                    <option value="1" {{ 'selected' if menu_item and menu_item.nivel == 1 else '' }}>
+                        Nível 1 (Grupo Principal)
+                    </option>
+                    <option value="2" {{ 'selected' if menu_item and menu_item.nivel == 2 else '' }}>
+                        Nível 2 (Item do Grupo)
+                    </option>
+                </select>
+                <div class="nivel-info">
+                    <strong>Estrutura dos níveis:</strong>
+                    <ul>
+                        <li><strong>Nível 1:</strong> Grupos principais (ex: Ferramentas Web, Sistemas)</li>
+                        <li><strong>Nível 2:</strong> Itens dentro de um grupo (ex: Conversor de Imagens)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="form-group" id="parent-group">
+                <label for="parent_id" class="form-label">
+                    <i class="bi bi-diagram-3"></i> Módulo Pai
+                </label>
+                <select id="parent_id" name="parent_id" class="form-control form-select">
+                    <option value="">🏠 Nenhum (Item Principal)</option>
+                    {% for parent in parent_options %}
+                        <option value="{{ parent.id }}" 
+                                {{ 'selected' if menu_item and menu_item.parent_id == parent.id else '' }}>
+                            {% if parent.nivel == 1 %}📁{% else %}📄{% endif %} 
+                            {{ '└─ ' if parent.nivel == 2 else '' }}{{ parent.nome }}
+                            {% if parent.nivel == 1 %} (Grupo){% else %} (Item){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    <strong>Selecione o módulo pai:</strong><br>
+                    • <strong>Nenhum:</strong> Item aparece como grupo principal no menu<br>
+                    • <strong>Com pai:</strong> Item aparece dentro do dropdown do grupo pai
+                </div>
+            </div>
+
+                <div class="form-group">
+                    <label for="ordem" class="form-label">
+                        <i class="bi bi-sort-numeric-up"></i> Ordem
+                    </label>
+                    <input type="number" 
+                           id="ordem" 
+                           name="ordem" 
+                           class="form-control" 
+                           value="{{ menu_item.ordem if menu_item else 0 }}" 
+                           min="0"
+                           placeholder="0">
+                    <div class="form-text">Ordem de exibição (menor número aparece primeiro)</div>
+                </div>
+            </div>
+
+            <!-- Seção: Configurações -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="bi bi-gear"></i> Configurações
+                </h3>
+
+                <div class="form-group">
+                    <div class="form-check">
+                        <input type="checkbox" 
+                               id="ativo" 
+                               name="ativo" 
+                               class="form-check-input"
+                               {{ 'checked' if not menu_item or menu_item.ativo else '' }}>
+                        <label for="ativo" class="form-label">
+                            <i class="bi bi-toggle-on"></i> Item ativo
+                        </label>
+                    </div>
+                    <div class="form-text">Itens inativos não aparecem no menu de navegação</div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i>
+                    {{ 'Atualizar' if menu_item else 'Criar' }} Item
+                </button>
+                <a href="{{ url_for('administrador.menus') }}" class="btn btn-secondary">
+                    <i class="bi bi-x-lg"></i>
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nivelSelect = document.getElementById('nivel');
+    const parentGroup = document.getElementById('parent-group');
+    const parentSelect = document.getElementById('parent_id');
+    const iconeInput = document.getElementById('icone');
+    const iconPreview = document.getElementById('icon-preview');
+    const iconDisplay = document.getElementById('icon-display');
+
+    // Controlar exibição do grupo pai baseado no nível
+    function toggleParentGroup() {
+        // Sempre mostrar o campo de módulo pai
+        parentGroup.style.display = 'block';
+        
+        // Ajustar comportamento baseado no nível
+        if (nivelSelect.value === '2') {
+            parentSelect.required = false; // Não obrigatório, mas recomendado
+            parentGroup.querySelector('.form-text').innerHTML = 
+                '<strong>Recomendado para nível 2:</strong><br>' +
+                '• <strong>Nenhum:</strong> Item aparece como grupo principal<br>' +
+                '• <strong>Com pai:</strong> Item aparece dentro do dropdown do grupo pai';
+        } else {
+            parentSelect.required = false;
+            parentGroup.querySelector('.form-text').innerHTML = 
+                '<strong>Selecione o módulo pai:</strong><br>' +
+                '• <strong>Nenhum:</strong> Item aparece como grupo principal no menu<br>' +
+                '• <strong>Com pai:</strong> Item aparece dentro do dropdown do grupo pai';
+        }
+    }
+
+    // Preview do ícone
+    function updateIconPreview() {
+        const iconName = iconeInput.value.trim();
+        if (iconName) {
+            iconDisplay.className = `bi bi-${iconName}`;
+            iconPreview.style.display = 'flex';
+        } else {
+            iconPreview.style.display = 'none';
+        }
+    }
+
+    // Event listeners
+    nivelSelect.addEventListener('change', toggleParentGroup);
+    iconeInput.addEventListener('input', updateIconPreview);
+
+    // Inicializar estado
+    toggleParentGroup();
+    updateIconPreview();
+});
+</script>
+{% endblock %}

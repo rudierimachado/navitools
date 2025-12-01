@@ -1,578 +1,245 @@
 {% extends 'base.html' %}
 
-{% block title %}Administrador - NEXUSRDR{% endblock %}
+{% block title %}Painel Administrativo{% endblock %}
 
-{% block scripts %}
-<script>
-    // Controlar visibilidade das seções baseado no tipo de módulo
-    document.querySelectorAll('input[name="module_type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const mainLocationSection = document.getElementById('main_location_section');
-            const parentModuleSection = document.getElementById('parent_module_section');
-            
-            if (this.value === 'main') {
-                mainLocationSection.style.display = 'block';
-                parentModuleSection.style.display = 'none';
-                document.getElementById('parent_module').required = false;
-            } else {
-                mainLocationSection.style.display = 'none';
-                parentModuleSection.style.display = 'block';
-                document.getElementById('parent_module').required = true;
-            }
-        });
-    });
+{% block extra_styles %}
+<style>
+    .admin-dashboard {
+        padding: 1rem;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - var(--header-height));
+    }
 
-    // Auto-gerar URL prefix baseado no nome de exibição
-    document.getElementById('display_name').addEventListener('input', function() {
-        const urlPrefix = this.value
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, '-')
-            .trim();
-        document.getElementById('url_prefix').value = urlPrefix;
-    });
+    .admin-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
 
-    // Auto-gerar nome técnico baseado no nome de exibição
-    document.getElementById('display_name').addEventListener('input', function() {
-        const moduleName = this.value
-            .toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, '_')
-            .trim();
-        document.getElementById('module_name').value = moduleName;
-    });
+    .admin-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
 
-    // Preencher modal de edição
-    document.getElementById('editModuleModal').addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const moduleName = button.getAttribute('data-module-name');
-        const displayName = button.getAttribute('data-display-name');
-        const moduleType = button.getAttribute('data-module-type');
-        const icon = button.getAttribute('data-icon');
-        
-        document.getElementById('edit_module_name').value = moduleName;
-        document.getElementById('edit_display_name').value = displayName;
-        document.getElementById('edit_module_type').value = moduleType;
-        document.getElementById('edit_icon').value = icon;
-        
-        // Mostrar nome técnico (pasta física)
-        let technicalPath = '';
-        if (moduleType === 'submódulo') {
-            technicalPath = `ferramentas/${moduleName}/`;
-        } else if (moduleType === 'superior') {
-            technicalPath = `${moduleName}/`;
-        } else {
-            technicalPath = 'Container (sem pasta física)';
+    .admin-card {
+        background: var(--bg-elevated);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-elevated);
+        transition: var(--transition-base);
+        border: 2px solid transparent;
+    }
+
+    .admin-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-floating);
+        border-color: var(--primary-alpha);
+    }
+
+    .admin-card-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--primary-alpha);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .admin-card-icon i {
+        font-size: 1.5rem;
+        color: var(--primary);
+    }
+
+    .admin-card h3 {
+        margin: 0 0 0.5rem 0;
+        color: var(--text-primary);
+    }
+
+    .admin-card p {
+        margin: 0 0 1rem 0;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .admin-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .admin-card-link:hover {
+        color: var(--primary-dark);
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-card h2 {
+        margin: 0 0 0.5rem 0;
+    }
+
+    .welcome-card p {
+        margin: 0 0 1.5rem 0;
+        opacity: 0.9;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 2px solid transparent;
+        transition: var(--transition-base);
+    }
+
+    .btn-light {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-light:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn-outline-light {
+        background: transparent;
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-outline-light:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+        .admin-dashboard {
+            padding: 1rem;
         }
-        document.getElementById('edit_technical_name').value = technicalPath;
-        
-        const version = button.getAttribute('data-version') || '1.0.0';
-        document.getElementById('edit_version').value = version;
-        
-        // Mostrar/esconder seção de ícone baseado no tipo de módulo
-        const iconSection = document.getElementById('edit_icon_section');
-        iconSection.style.display = 'block'; // Mostrar para todos os módulos
-        
-        // Atualizar título do modal baseado no tipo
-        const modalTitle = document.querySelector('#editModuleModal .modal-title');
-        if (moduleName === 'admin') {
-            modalTitle.innerHTML = '<i class="bi bi-gear"></i> Configurar Admin';
-        } else if (moduleName === 'ferramentas') {
-            modalTitle.innerHTML = '<i class="bi bi-pencil"></i> Renomear Container';
-        } else {
-            modalTitle.textContent = `Editar ${moduleType}`;
+
+        .admin-cards {
+            grid-template-columns: 1fr;
         }
-    });
-    
-    // Modal de exclusão
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('[data-bs-target="#deleteModuleModal"]')) {
-            const button = e.target.closest('[data-bs-target="#deleteModuleModal"]');
-            const moduleName = button.getAttribute('data-module-name');
-            const displayName = button.getAttribute('data-display-name');
-            const moduleType = button.getAttribute('data-module-type');
-            
-            document.getElementById('delete_module_name').value = moduleName;
-            document.getElementById('delete_module_type').value = moduleType;
-            document.getElementById('delete_display_name').textContent = displayName;
-            document.getElementById('delete_technical_name').textContent = moduleName;
+
+        .btn-group {
+            flex-direction: column;
         }
-    });
-    
-    // Habilitar botão de exclusão apenas quando checkbox marcado
-    document.getElementById('confirmDelete').addEventListener('change', function() {
-        document.getElementById('deleteConfirmBtn').disabled = !this.checked;
-    });
-</script>
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-            <p class="text-muted">Monitore e gerencie módulos do sistema</p>
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1><i class="bi bi-shield-lock"></i> Painel Administrativo</h1>
+        <p class="text-muted">Gerencie e configure o sistema</p>
+    </div>
+
+    <div class="welcome-card admin-card">
+        <h2>Bem-vindo, {{ session.get('admin_username', 'Admin') }}!</h2>
+        <p>Acesse as ferramentas de administração para configurar e gerenciar o sistema.</p>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('main.index') }}" class="btn btn-light">
+                <i class="bi bi-house-door"></i> Voltar ao Site
+            </a>
+            <a href="{{ url_for('administrador.logout') }}" class="btn btn-outline-light">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </a>
         </div>
     </div>
 
-    <!-- Estatísticas do Sistema -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card tool-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-grid" style="font-size: 2rem; color: var(--accent-color);"></i>
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                    <small class="text-muted">Módulos Instalados</small>
-                </div>
+    <div class="admin-cards">
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-menu-button-wide"></i>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card tool-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-check-circle" style="font-size: 2rem; color: #28a745;"></i>
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                    <small class="text-muted">Módulos Ativos</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card tool-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-exclamation-triangle" style="font-size: 2rem; color: #ffc107;"></i>
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                    <small class="text-muted">Módulos Incompletos</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card tool-card">
-                <div class="card-body text-center">
-                    <i class="bi bi-person-check" style="font-size: 2rem; color: var(--primary-color);"></i>
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                    <small class="text-muted">Admin Logado</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Lista de Módulos -->
-        <div class="col-lg-8">
-            <div class="card tool-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createModuleModal">
-                        <i class="bi bi-plus-circle"></i> Novo Módulo
-                    </button>
-                </div>
-                <div class="card-body">
-                    {% if modules %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Hierarquia</th>
-                                        <th>Nome Técnico</th>
-                                        <th>Tipo</th>
-                                        <th>Status</th>
-                                        <th>Componentes</th>
-                                        <th>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for module in modules %}
-                                    <tr class="{{ 'table-primary' if module.type == 'superior' else ('table-info' if module.type == 'lateral_main' else '') }}">
-                                        <td>
-                                            {% if module.type == 'submódulo' %}
-                                                <span class="text-muted ms-3">└─</span>
-                                            {% endif %}
-                                            <i class="bi bi-{{ module.icon }}"></i>
-                                            <strong>{{ module.display_name }}</strong>
-                                            {% if module.parent %}
-                                                <br><small class="text-muted ms-4">↳ Dentro de: {{ module.parent|title }}</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <code class="text-primary">{{ module.name }}</code>
-                                            {% if module.type == 'submódulo' %}
-                                                <br><small class="text-muted">📁 ferramentas/{{ module.name }}/</small>
-                                            {% elif module.type == 'superior' %}
-                                                <br><small class="text-muted">📁 {{ module.name }}/</small>
-                                            {% else %}
-                                                <br><small class="text-muted">📂 Container</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if module.type == 'superior' %}
-                                                <span class="badge bg-primary">Menu Superior</span>
-                                            {% elif module.type == 'lateral_main' %}
-                                                <span class="badge bg-info">Menu Lateral</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">Submódulo</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if module.status == 'Completo' %}
-                                                <span class="badge bg-success">{{ module.status }}</span>
-                                            {% elif module.status == 'Container' %}
-                                                <span class="badge bg-info">{{ module.status }}</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">{{ module.status }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if module.status != 'Container' %}
-                                                <small>
-                                                    {% if module.has_routes %}
-                                                        <i class="bi bi-check-circle text-success"></i> Routes
-                                                    {% else %}
-                                                        <i class="bi bi-x-circle text-danger"></i> Routes
-                                                    {% endif %}
-                                                    
-                                                    {% if module.has_config %}
-                                                        <i class="bi bi-check-circle text-success"></i> Config
-                                                    {% else %}
-                                                        <i class="bi bi-x-circle text-danger"></i> Config
-                                                    {% endif %}
-                                                    
-                                                    {% if module.has_templates %}
-                                                        <i class="bi bi-check-circle text-success"></i> Templates
-                                                    {% else %}
-                                                        <i class="bi bi-x-circle text-danger"></i> Templates
-                                                    {% endif %}
-                                                </small>
-                                            {% else %}
-                                                <small class="text-muted">Container de submódulos</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#editModuleModal"
-                                                    data-module-name="{{ module.name }}"
-                                                    data-display-name="{{ module.display_name }}"
-                                                    data-module-type="{{ module.type }}"
-                                                    data-icon="{{ module.icon }}"
-                                                    data-version="{{ module.get('version', '1.0.0') }}">
-                                                <i class="bi bi-pencil"></i> Editar
-                                            </button>
-                                            {% if module.type == 'submódulo' %}
-                                            <button class="btn btn-sm btn-outline-danger" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#deleteModuleModal"
-                                                    data-module-name="{{ module.name }}"
-                                                    data-display-name="{{ module.display_name }}"
-                                                    data-module-type="{{ module.type }}">
-                                                <i class="bi bi-trash"></i> Excluir
-                                            </button>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
-                            <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                            <p class="text-muted">Crie seu primeiro módulo clicando no botão "Novo Módulo"</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+            <h3>Gerenciar Menus</h3>
+            <p>Configure a estrutura de navegação do sistema, adicione novos itens, altere níveis e organize a ordem dos menus.</p>
+            <a href="{{ url_for('administrador.menus') }}" class="admin-card-link">
+                Acessar <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
 
-        <!-- Ações Rápidas -->
-        <div class="col-lg-4">
-            <div class="card tool-card">
-                <div class="card-header">
-                    <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('administrador.content_manager') }}" class="btn btn-primary">
-                            <i class="bi bi-journal-text"></i> Gerenciar Conteúdo
-                        </a>
-                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createModuleModal">
-                            <i class="bi bi-plus-circle"></i> Criar Novo Módulo
-                        </button>
-                        <button class="btn btn-outline-secondary" disabled>
-                            <i class="bi bi-arrow-clockwise"></i> Recarregar Sistema
-                        </button>
-                        <button class="btn btn-outline-info" disabled>
-                            <i class="bi bi-graph-up"></i> Ver Estatísticas
-                        </button>
-                        <a href="{{ url_for('administrador.logout') }}" class="btn btn-outline-danger">
-                            <i class="bi bi-box-arrow-right"></i> Logout
-                        </a>
-                    </div>
-                </div>
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-gear"></i>
             </div>
-
-            <div class="card tool-card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informações do Sistema</h6>
-                </div>
-                <div class="card-body">
-                    <small class="text-muted">
-                        <strong>NEXUSRDR Admin Panel</strong><br>
-                        <strong>Versão:</strong> 2.1.0<br>
-                        <strong>Flask:</strong> Ativo<br>
-                        <strong>Admin:</strong> {{ session.admin_username }}<br>
-                        <strong>Status:</strong> <span class="text-success">Online</span><br>
-                        <strong>Desenvolvido por:</strong> Rudieri Machado
-                    </small>
-                </div>
-            </div>
+            <h3>Configurações</h3>
+            <p>Ajuste configurações gerais do sistema, temas, integrações e outras preferências administrativas.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
         </div>
-    </div>
-</div>
 
-<!-- Modal Criar Módulo -->
-<div class="modal fade" id="createModuleModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-people"></i>
             </div>
-            <form method="POST" action="{{ url_for('administrador.create_module') }}">
-                <div class="modal-body">
-                    <!-- Tipo de Módulo -->
-                    <div class="mb-4">
-                        <label class="form-label">Tipo de Módulo</label>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="module_type" id="module_type_main" value="main" checked>
-                                    <label class="form-check-label" for="module_type_main">
-                                        <strong>Módulo Principal</strong><br>
-                                        <small class="text-muted">Aparece diretamente no menu</small>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="module_type" id="module_type_sub" value="sub">
-                                    <label class="form-check-label" for="module_type_sub">
-                                        <strong>Submódulo</strong><br>
-                                        <small class="text-muted">Fica dentro de outro módulo</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Localização do Módulo Principal -->
-                    <div class="mb-4" id="main_location_section">
-                        <label class="form-label">Localização no Menu</label>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="menu_location" id="menu_superior" value="superior">
-                                    <label class="form-check-label" for="menu_superior">
-                                        <strong>Menu Superior</strong><br>
-                                        <small class="text-muted">Aparece na barra superior</small>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="menu_location" id="menu_lateral" value="lateral" checked>
-                                    <label class="form-check-label" for="menu_lateral">
-                                        <strong>Menu Lateral</strong><br>
-                                        <small class="text-muted">Aparece na barra lateral</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Módulo Pai (para submódulos) -->
-                    <div class="mb-4" id="parent_module_section" style="display: none;">
-                        <label for="parent_module" class="form-label">Módulo Pai</label>
-                        <select class="form-select" id="parent_module" name="parent_module">
-                            <option value="">Selecione o módulo pai...</option>
-                            <option value="ferramentas">Ferramentas</option>
-                            <!-- Outros módulos serão adicionados dinamicamente -->
-                        </select>
-                        <div class="form-text">Escolha em qual módulo este submódulo ficará.</div>
-                    </div>
-
-                    <!-- Informações Básicas -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="module_name" class="form-label">Nome do Módulo (técnico)</label>
-                                <input type="text" class="form-control" id="module_name" name="module_name" required
-                                       placeholder="ex: gerador_qr" pattern="[a-z_]+" 
-                                       title="Apenas letras minúsculas e underscore">
-                                <div class="form-text">Apenas letras minúsculas e underscore.</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="display_name" class="form-label">Nome de Exibição</label>
-                                <input type="text" class="form-control" id="display_name" name="display_name" required
-                                       placeholder="ex: Gerador QR Code">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="icon" class="form-label">Ícone Bootstrap</label>
-                                <input type="text" class="form-control" id="icon" name="icon" 
-                                       placeholder="ex: qr-code" value="gear">
-                                <div class="form-text">Nome do ícone Bootstrap Icons (sem 'bi-').</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="url_prefix" class="form-label">Prefixo da URL</label>
-                                <input type="text" class="form-control" id="url_prefix" name="url_prefix" required
-                                       placeholder="ex: gerador-qr">
-                                <div class="form-text">URL onde o módulo será acessível.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Descrição</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"
-                                  placeholder="Descreva a funcionalidade do módulo..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Criar Módulo
-                    </button>
-                </div>
-            </form>
+            <h3>Usuários</h3>
+            <p>Gerencie contas de usuário, permissões de acesso e controle de autenticação do sistema.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
         </div>
-    </div>
-</div>
 
-<!-- Modal Editar Módulo -->
-<div class="modal fade" id="editModuleModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="mb-3" style="color: var(--primary-color);"><i class="bi bi-shield-lock"></i> Administrador</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-bar-chart"></i>
             </div>
-            <form method="POST" action="{{ url_for('administrador.edit_module') }}">
-                <div class="modal-body">
-                    <input type="hidden" id="edit_module_name" name="module_name">
-                    <input type="hidden" id="edit_module_type" name="module_type">
-                    
-                    <div class="mb-3">
-                        <label for="edit_display_name" class="form-label">Nome de Exibição</label>
-                        <input type="text" class="form-control" id="edit_display_name" name="display_name" required>
-                        <div class="form-text">Este nome aparecerá nos menus (pasta física não muda).</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Nome Técnico (Pasta)</label>
-                        <input type="text" class="form-control" id="edit_technical_name" readonly style="background-color: #f8f9fa;">
-                        <div class="form-text text-muted">📁 Nome da pasta física (não pode ser alterado por segurança).</div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3" id="edit_icon_section">
-                                <label for="edit_icon" class="form-label">Ícone Bootstrap</label>
-                                <input type="text" class="form-control" id="edit_icon" name="icon" placeholder="ex: image">
-                                <div class="form-text">Nome do ícone Bootstrap Icons (sem 'bi-').</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="edit_version" class="form-label">Versão</label>
-                                <input type="text" class="form-control" id="edit_version" name="version" placeholder="ex: 1.2.1" pattern="[0-9]+\.[0-9]+\.[0-9]+">
-                                <div class="form-text">Formato: X.Y.Z (ex: 1.2.1)</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>SEGURO:</strong> Apenas o nome de exibição será alterado:
-                        <ul class="mb-0 mt-2">
-                            <li><strong>Interface</strong> (menus, títulos)</li>
-                            <li><strong>Configurações</strong> (JSON)</li>
-                            <li><strong>Rodapés</strong> (versões)</li>
-                        </ul>
-                        <small class="text-success mt-2 d-block">
-                            ✅ Pasta física e código permanecem intactos
-                        </small>
-                        <small class="text-info mt-1 d-block">
-                            ℹ️ Nome técnico da pasta mostrado para referência
-                        </small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> Salvar Alterações
-                    </button>
-                </div>
-            </form>
+            <h3>Relatórios</h3>
+            <p>Visualize estatísticas de uso, logs do sistema e relatórios de performance das ferramentas.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
         </div>
-    </div>
-</div>
 
-<!-- Modal Excluir Módulo -->
-<div class="modal fade" id="deleteModuleModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle"></i> Excluir Módulo
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-database"></i>
             </div>
-            <form method="POST" action="{{ url_for('administrador.delete_module') }}">
-                <div class="modal-body">
-                    <input type="hidden" id="delete_module_name" name="module_name">
-                    <input type="hidden" id="delete_module_type" name="module_type">
-                    
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <strong>ATENÇÃO:</strong> Esta ação é irreversível!
-                    </div>
-                    
-                    <p>Você tem certeza que deseja excluir o módulo <strong id="delete_display_name"></strong>?</p>
-                    
-                    <div class="alert alert-warning">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>O que será removido:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li><strong>Pasta física</strong> (ferramentas/<span id="delete_technical_name"></span>/)</li>
-                            <li><strong>Imports</strong> (global_blueprints.py)</li>
-                            <li><strong>Blueprints</strong> (registros)</li>
-                            <li><strong>Configurações</strong> (JSON)</li>
-                            <li><strong>Menu lateral</strong> (links)</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="confirmDelete" required>
-                        <label class="form-check-label text-danger" for="confirmDelete">
-                            <strong>Confirmo que desejo excluir este módulo permanentemente</strong>
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger" id="deleteConfirmBtn" disabled>
-                        <i class="bi bi-trash"></i> Excluir Permanentemente
-                    </button>
-                </div>
-            </form>
+            <h3>Banco de Dados</h3>
+            <p>Ferramentas para backup, restauração e manutenção do banco de dados do sistema.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-journal-text"></i>
+            </div>
+            <h3>Logs</h3>
+            <p>Monitore logs de sistema, erros, acessos e atividades para diagnóstico e segurança.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
         </div>
     </div>
 </div>

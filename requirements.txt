@@ -5,8 +5,8 @@ rembg==2.0.68
 onnxruntime==1.23.1
 qrcode==7.4.2
 gunicorn==23.0.0
-Werkzeug==2.3.7
-itsdangerous==2.1.2
+Werkzeug==3.0.1
+itsdangerous==2.2.0
 Jinja2==3.1.2
 pytubefix==6.10.2
 requests==2.31.0
@@ -19,5 +19,6 @@ python-socketio==5.8.0
 eventlet==0.33.3
 ffmpeg-python==0.2.0
 Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
 psycopg[binary]==3.2.13
 psycopg2-binary==2.9.10

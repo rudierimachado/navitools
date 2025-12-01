@@ -1,778 +1,741 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Conversor de Imagens - NEXUSRDR{% endblock %}
-
-{% block content %}
-<div class="min-vh-100 bg-light">
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-10 col-xl-8">
-                
-                <!-- Header Simples -->
-                <div class="text-center mb-5">
-                    <div class="d-inline-flex align-items-center justify-content-center mb-4 rounded-circle bg-primary shadow-lg" 
-                         style="width: 80px; height: 80px;">
-                        <i class="fas fa-images text-white" style="font-size: 2rem;"></i>
-                    </div>
-                    <h1 class="display-4 fw-bold text-dark mb-3">
-                        Conversor de Imagens
-                    </h1>
-                    <p class="lead text-muted mb-4">Converta suas imagens para qualquer formato</p>
-                    <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <span class="badge bg-primary text-white px-3 py-2 rounded-pill">
-                            <i class="fas fa-bolt me-1"></i>Rápido
-                        </span>
-                        <span class="badge bg-success text-white px-3 py-2 rounded-pill">
-                            <i class="fas fa-shield-alt me-1"></i>Seguro
-                        </span>
-                        <span class="badge bg-info text-white px-3 py-2 rounded-pill">
-                            <i class="fas fa-cloud me-1"></i>Gratuito
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Upload Card Simples -->
-                <div class="card border-0 mb-4 upload-card" id="uploadCard" style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);">
-                    <div class="card-body p-0">
-                        <div class="upload-area rounded-4 p-5 text-center position-relative overflow-hidden" 
-                             id="uploadArea" style="cursor: pointer; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border: 3px dashed #cbd5e1; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
-                            
-                            <!-- Animação de fundo -->
-                            <div class="upload-bg-animation position-absolute top-0 start-0 w-100 h-100 opacity-25"></div>
-                            
-                            <div class="position-relative z-1">
-                                <div class="upload-icon mb-4">
-                                    <i class="fas fa-cloud-upload-alt text-primary" style="font-size: 4rem; transition: all 0.3s ease;"></i>
-                                </div>
-                                
-                                <h3 class="h3 fw-bold mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                                    Arraste suas imagens aqui
-                                </h3>
-                                <p class="text-muted mb-4 fs-5">ou clique para selecionar do seu dispositivo</p>
-                                
-                                <button class="btn btn-lg px-5 py-3 fw-bold border-0 rounded-pill shadow-lg upload-btn" 
-                                        id="btnUpload" type="button"
-                                        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; transition: all 0.3s ease;">
-                                    <i class="fas fa-images me-2"></i>Selecionar Imagens
-                                </button>
-                                
-                                <input type="file" id="fileInput" multiple accept="image/*" class="d-none">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Files Selected Card -->
-                <div class="card shadow border-0 mb-4 d-none" id="filesCard">
-                    <div class="card-header bg-primary text-white">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-images me-2"></i>
-                                <span id="filesCount">0</span> arquivo(s) selecionado(s)
-                            </h5>
-                            <button class="btn btn-outline-light btn-sm" id="btnClear" type="button">
-                                <i class="fas fa-trash me-1"></i>Limpar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="filesGrid" class="mb-4"></div>
-                        
-                        <!-- Format Selection -->
-                        <div class="row align-items-end mb-4">
-                            <div class="col-md-8">
-                                <label class="form-label fw-bold text-dark">Converter para:</label>
-                                <select id="formatSelect" class="form-select form-select-lg">
-                                    <option value="jpg">JPG</option>
-                                    <option value="png">PNG</option>
-                                    <option value="webp">WEBP</option>
-                                    <option value="avif">AVIF</option>
-                                    {% for key, format_info in output_formats.items() %}
-                                    {% if key not in ['jpg', 'png', 'webp', 'avif'] %}
-                                    <option value="{{ key }}">{{ key.upper() }}</option>
-                                    {% endif %}
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <button class="btn btn-success btn-lg w-100 fw-bold" id="btnConvert" type="button" disabled>
-                                    <i class="fas fa-magic me-2"></i>Converter
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Loading Inline -->
-                        <div class="d-none" id="loadingInline">
-                            <div class="text-center py-4">
-                                <div class="spinner-border text-primary mb-3" role="status">
-                                    <span class="visually-hidden">Carregando...</span>
-                                </div>
-                                <h5 class="fw-bold text-primary" id="loadingTitle">Convertendo suas imagens...</h5>
-                                <p class="text-muted" id="loadingText">Aguarde, isso pode levar alguns segundos</p>
-                                <div class="progress mx-auto" style="height: 6px; max-width: 300px;">
-                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
-                                         style="width: 100%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Formatos Suportados -->
-                <div class="card shadow border-0 mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-file-image me-2"></i>Formatos Suportados
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6 class="fw-bold text-dark mb-3">Formatos de Entrada:</h6>
-                                <div class="d-flex flex-wrap gap-2 mb-3">
-                                    <span class="badge bg-primary">JPG</span>
-                                    <span class="badge bg-primary">JPEG</span>
-                                    <span class="badge bg-primary">PNG</span>
-                                    <span class="badge bg-primary">WEBP</span>
-                                    <span class="badge bg-primary">HEIC</span>
-                                    <span class="badge bg-primary">GIF</span>
-                                    <span class="badge bg-primary">BMP</span>
-                                    <span class="badge bg-primary">TIFF</span>
-                                    <span class="badge bg-primary">SVG</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="fw-bold text-dark mb-3">Formatos de Saída:</h6>
-                                <div class="d-flex flex-wrap gap-2 mb-3">
-                                    <span class="badge bg-success">JPG</span>
-                                    <span class="badge bg-success">PNG</span>
-                                    <span class="badge bg-success">WEBP</span>
-                                    <span class="badge bg-success">AVIF</span>
-                                    {% for key, format_info in output_formats.items() %}
-                                    {% if key not in ['jpg', 'png', 'webp', 'avif'] %}
-                                    <span class="badge bg-success">{{ key.upper() }}</span>
-                                    {% endif %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-center">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Conversão rápida e de alta qualidade entre todos os formatos
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Download Card -->
-                <div class="card shadow border-0 mb-4 d-none" id="downloadCard">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-download me-2"></i>Arquivos Convertidos
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center mb-4">
-                            <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                 style="width: 60px; height: 60px;">
-                                <i class="fas fa-check text-success" style="font-size: 1.5rem;"></i>
-                            </div>
-                            <h6 class="fw-bold text-success">Conversão Concluída!</h6>
-                            <p class="text-muted mb-0" id="downloadMessage">Seus arquivos estão prontos para download</p>
-                        </div>
-                        
-                        <div id="downloadGrid" class="mb-4"></div>
-                        
-                        <div class="text-center">
-                            <button class="btn btn-primary btn-lg me-2" id="btnDownloadAllFiles">
-                                <i class="fas fa-download me-2"></i>Baixar Tudo
-                            </button>
-                            <button class="btn btn-outline-secondary btn-lg" id="btnNewConversion">
-                                <i class="fas fa-redo me-2"></i>Nova Conversão
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Processing Modal -->
-                <div class="modal fade" id="modalProcessing" tabindex="-1">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-0 shadow">
-                            <div class="modal-body text-center p-5">
-                                <div class="spinner-border text-primary mb-4" style="width: 4rem; height: 4rem;"></div>
-                                <h4 class="fw-bold text-dark mb-3" id="modalTitle">Convertendo suas imagens...</h4>
-                                <p class="text-muted mb-4" id="modalText">Isso pode levar alguns segundos</p>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
-                                         style="width: 100%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Modal -->
-                <div class="modal fade" id="resultsModal" tabindex="-1">
-                    <div class="modal-dialog modal-lg modal-dialog-centered">
-                        <div class="modal-content border-0 shadow">
-                            <div class="modal-header bg-success text-white">
-                                <h5 class="modal-title">
-                                    <i class="fas fa-check-circle me-2"></i>Conversão Concluída!
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body p-4">
-                                <div class="text-center mb-4">
-                                    <div class="bg-success rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="width: 80px; height: 80px;">
-                                        <i class="fas fa-check text-white" style="font-size: 2rem;"></i>
-                                    </div>
-                                    <h4 class="text-success mb-2"> Sucesso!</h4>
-                                    <p class="text-muted" id="resultsMessage">Suas imagens foram convertidas com sucesso</p>
-                                </div>
-                                
-                                <!-- Stats -->
-                                <div class="row text-center mb-4">
-                                    <div class="col-3">
-                                        <div class="bg-primary bg-opacity-10 rounded p-3">
-                                            <i class="fas fa-images text-primary mb-2"></i>
-                                            <div class="fw-bold" id="statFiles">0</div>
-                                            <small class="text-muted">Arquivos</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="bg-success bg-opacity-10 rounded p-3">
-                                            <i class="fas fa-compress text-success mb-2"></i>
-                                            <div class="fw-bold" id="statSaved">0</div>
-                                            <small class="text-muted">Economizado</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="bg-info bg-opacity-10 rounded p-3">
-                                            <i class="fas fa-clock text-info mb-2"></i>
-                                            <div class="fw-bold" id="statTime">0s</div>
-                                            <small class="text-muted">Tempo</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-3">
-                                        <div class="bg-warning bg-opacity-10 rounded p-3">
-                                            <i class="fas fa-chart-line text-warning mb-2"></i>
-                                            <div class="fw-bold" id="statComp">0%</div>
-                                            <small class="text-muted">Compressão</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Files List -->
-                                <div id="resultsGrid"></div>
-                            </div>
-                            <div class="modal-footer">
-                                <button class="btn btn-primary" id="btnDownloadAll">
-                                    <i class="fas fa-download me-2"></i>Baixar Tudo
-                                </button>
-                                <button class="btn btn-outline-secondary" id="btnNew" data-bs-dismiss="modal">
-                                    <i class="fas fa-redo me-2"></i>Nova Conversão
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+{% block title %}Conversor de Imagens - Grátis{% endblock %}
 
 {% block styles %}
 <style>
-    /* Estilos Modernos */
-    .text-shadow {
-        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .conversor-wrapper {
+        padding: 1rem;
+        width: 100%;
+        margin: 0;
+        min-height: calc(100vh - var(--header-height));
     }
-    
-    .upload-card {
-        box-shadow: 0 20px 60px rgba(0,0,0,0.1) !important;
-        border-radius: 1.5rem !important;
-        transition: all 0.3s ease;
+
+    /* Header Compacto */
+    .conversor-header {
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        color: white;
     }
-    
-    .upload-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 30px 80px rgba(0,0,0,0.15) !important;
-    }
-    
-    .upload-area:hover {
-        border-color: #667eea !important;
-        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
-        transform: scale(1.02);
-    }
-    
-    .upload-area.dragover {
-        border-color: #667eea !important;
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
-        transform: scale(1.05);
-        box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
-    }
-    
-    .upload-area:hover .upload-icon-main {
-        transform: scale(1.1) !important;
-    }
-    
-    .upload-area:hover .upload-icon-inner {
-        transform: translateY(-3px);
-    }
-    
-    .upload-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4) !important;
-    }
-    
-    /* Animações */
-    @keyframes pulse {
-        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
-        50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.1; }
-    }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .upload-bg-animation {
-        background: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
-                    radial-gradient(circle at 40% 80%, rgba(102, 126, 234, 0.05) 0%, transparent 50%);
-        animation: float 6s ease-in-out infinite;
-    }
-    
-    .card {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
-    .card:nth-child(2) { animation-delay: 0.1s; }
-    .card:nth-child(3) { animation-delay: 0.2s; }
-    .card:nth-child(4) { animation-delay: 0.3s; }
-    
-    .file-item {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 8px;
+
+    .conversor-header-content {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 1rem;
     }
-    
-    .file-icon {
-        width: 40px;
-        height: 40px;
-        background: var(--bs-primary);
-        border-radius: 6px;
+
+    .conversor-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 0.75rem;
-        flex-shrink: 0;
+        font-size: 2rem;
     }
-    
+
+    .conversor-header-text h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .conversor-header-text p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    /* Layout Principal */
+    .conversor-main-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    /* Seção da Ferramenta */
+    .conversor-tool-section {
+        background: var(--bg-elevated);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: var(--shadow-elevated);
+        border: 1px solid var(--border-color);
+    }
+
+    /* Seção de Informações */
+    .conversor-info-section {
+        background: var(--bg-elevated);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-elevated);
+        border: 1px solid var(--border-color);
+        height: fit-content;
+        position: sticky;
+        top: 1rem;
+    }
+
+    /* Upload Area */
+    .upload-area {
+        border: 3px dashed var(--border-color);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition-base);
+        background: var(--bg-base);
+        margin-bottom: 2rem;
+    }
+
+    .upload-area:hover {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+    }
+
+    .upload-area.dragover {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+        transform: scale(1.02);
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--primary);
+        margin-bottom: 1rem;
+    }
+
+    .upload-text h4 {
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .upload-text p {
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    /* Formatos */
+    .format-selection {
+        margin-bottom: 2rem;
+    }
+
+    .format-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .format-option {
+        background: var(--bg-base);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition-base);
+    }
+
+    .format-option:hover {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+    }
+
+    .format-option.active {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+    }
+
+    .format-option i {
+        font-size: 1.5rem;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .format-option span {
+        display: block;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+    }
+
+    /* Arquivos Carregados */
+    .files-list {
+        margin-bottom: 2rem;
+        display: none;
+    }
+
+    .files-list.show {
+        display: block;
+    }
+
+    .file-item {
+        background: var(--bg-base);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .file-preview {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        object-fit: cover;
+        background: var(--bg-muted);
+    }
+
     .file-info {
         flex: 1;
-        min-width: 0;
     }
-    
+
     .file-name {
         font-weight: 600;
-        font-size: 0.875rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-bottom: 2px;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
     }
-    
+
     .file-size {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .file-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
         font-size: 0.75rem;
-        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .file-status.ready {
+        background: var(--warning-alpha);
+        color: var(--warning);
+    }
+
+    .file-status.converting {
+        background: var(--primary-alpha);
+        color: var(--primary);
+    }
+
+    .file-status.completed {
+        background: var(--success-alpha);
+        color: var(--success);
+    }
+
+    /* Botões */
+    .btn-convert {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-base);
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .btn-convert:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+    }
+
+    .btn-convert:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
     }
 
     .btn-download-all {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        background: var(--success);
         color: white;
         border: none;
-        padding: 1.125rem 2.75rem;
         border-radius: 12px;
-        font-size: 1.125rem;
-        font-weight: 700;
+        padding: 1rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
-        transition: all 0.3s;
+        transition: var(--transition-base);
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        display: none;
+    }
+
+    .btn-download-all.show {
+        display: flex;
     }
 
     .btn-download-all:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 14px 38px rgba(99, 102, 241, 0.5);
+        background: var(--success-dark);
+        transform: translateY(-1px);
     }
 
-    .new-convert {
+    /* Info Section */
+    .info-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .info-list li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .info-list li:last-child {
+        border-bottom: none;
+    }
+
+    .info-list i {
+        color: var(--primary);
+        width: 20px;
         text-align: center;
     }
 
-    .btn-new {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.75rem;
-        background: white;
-        border: 3px solid #6366f1;
-        color: #6366f1;
-        padding: 1rem 2.25rem;
-        border-radius: 12px;
-        font-size: 1.125rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.3s;
+    /* Progress Bar */
+    .progress-container {
+        margin: 1rem 0;
+        display: none;
     }
 
-    .btn-new:hover {
-        background: #6366f1;
-        color: white;
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+    .progress-container.show {
+        display: block;
     }
 
-    .hidden {
-        display: none !important;
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--bg-muted);
+        border-radius: 4px;
+        overflow: hidden;
     }
 
-    /* Responsive */
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .progress-text {
+        text-align: center;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    /* Responsivo */
     @media (max-width: 768px) {
-        .hero-title {
-            font-size: 2rem;
-        }
-
-        .step-box {
-            padding: 1.5rem;
-        }
-        .upload-inner {
-            padding: 2rem 1.5rem;
-        }
-        .simple-header h1 {
-            font-size: 2rem;
-        }
-
-        .converter-page {
-            padding: 2rem 1rem;
-        }
-
-        .btn-convert {
-            width: 100%;
-            min-width: auto;
-        }
-
-        .results-stats {
+        .conversor-main-layout {
             grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .conversor-info-section {
+            position: static;
+        }
+
+        .format-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .upload-area {
+            padding: 2rem 1rem;
         }
     }
 </style>
 {% endblock %}
 
-{% block scripts %}
+{% block content %}
+<div class="conversor-wrapper">
+    <!-- Header Compacto -->
+    <div class="conversor-header">
+        <div class="conversor-header-content">
+            <div class="conversor-icon">
+                <i class="fas fa-images"></i>
+            </div>
+            <div class="conversor-header-text">
+                <h1>Conversor de Imagens</h1>
+                <p>Converta suas imagens para qualquer formato com alta qualidade</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Principal: Ferramenta + Informações -->
+    <div class="conversor-main-layout">
+        <!-- Ferramenta (Lado Esquerdo/Principal) -->
+        <div class="conversor-tool-section">
+            <h3 style="margin-bottom: 1.5rem; color: var(--text-primary); font-weight: 700;">
+                <i class="fas fa-magic" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                Converter Imagens
+            </h3>
+
+            <!-- Upload Area -->
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">
+                    <h4>Arraste suas imagens aqui</h4>
+                    <p>ou clique para selecionar arquivos</p>
+                    <small style="color: var(--text-muted);">Suporta: JPG, PNG, GIF, BMP, WEBP, TIFF</small>
+                </div>
+                <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+            </div>
+
+            <!-- Seleção de Formato -->
+            <div class="format-selection">
+                <label style="font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; display: block;">
+                    <i class="fas fa-file-image" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    Converter para:
+                </label>
+                <div class="format-grid">
+                    <div class="format-option active" data-format="jpg">
+                        <i class="fas fa-image"></i>
+                        <span>JPG</span>
+                    </div>
+                    <div class="format-option" data-format="png">
+                        <i class="fas fa-image"></i>
+                        <span>PNG</span>
+                    </div>
+                    <div class="format-option" data-format="webp">
+                        <i class="fas fa-image"></i>
+                        <span>WEBP</span>
+                    </div>
+                    <div class="format-option" data-format="gif">
+                        <i class="fas fa-image"></i>
+                        <span>GIF</span>
+                    </div>
+                    <div class="format-option" data-format="bmp">
+                        <i class="fas fa-image"></i>
+                        <span>BMP</span>
+                    </div>
+                    <div class="format-option" data-format="tiff">
+                        <i class="fas fa-image"></i>
+                        <span>TIFF</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Arquivos -->
+            <div class="files-list" id="files-list">
+                <h4 style="color: var(--text-primary); margin-bottom: 1rem;">
+                    <i class="fas fa-list" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                    Arquivos Selecionados
+                </h4>
+                <div id="files-container"></div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-text" id="progress-text">Convertendo... 0%</div>
+            </div>
+
+            <!-- Botões -->
+            <button class="btn-convert" id="convert-btn" disabled>
+                <i class="fas fa-magic"></i>
+                Converter Imagens
+            </button>
+
+            <button class="btn-download-all" id="download-all-btn">
+                <i class="fas fa-download"></i>
+                Baixar Todas as Imagens
+            </button>
+        </div>
+
+        <!-- Informações (Lado Direito) -->
+        <div class="conversor-info-section">
+            <h4 class="info-title">
+                <i class="fas fa-info-circle"></i>
+                Sobre o Conversor
+            </h4>
+            <ul class="info-list">
+                <li>
+                    <i class="fas fa-bolt"></i>
+                    Conversão instantânea e automática
+                </li>
+                <li>
+                    <i class="fas fa-palette"></i>
+                    Suporte a todos os formatos modernos
+                </li>
+                <li>
+                    <i class="fas fa-compress"></i>
+                    Otimização automática de tamanho
+                </li>
+                <li>
+                    <i class="fas fa-shield-alt"></i>
+                    Processamento seguro no navegador
+                </li>
+                <li>
+                    <i class="fas fa-cloud"></i>
+                    Sem upload para servidores
+                </li>
+                <li>
+                    <i class="fas fa-download"></i>
+                    Download individual ou em lote
+                </li>
+            </ul>
+
+            <div style="margin-top: 2rem; padding: 1rem; background: var(--primary-alpha); border-radius: 8px;">
+                <h6 style="color: var(--primary); margin-bottom: 0.5rem; font-weight: 600;">
+                    <i class="fas fa-lightbulb"></i>
+                    Dica
+                </h6>
+                <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                    Para melhor qualidade, use PNG para imagens com transparência e JPG para fotos. WEBP oferece o melhor equilíbrio entre qualidade e tamanho!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-(function() {
-    'use strict';
+// Variáveis globais
+let selectedFiles = [];
+let currentFormat = 'jpg';
+let convertedFiles = [];
 
-    // Elements
-    const uploadArea = document.getElementById('uploadArea');
-    const btnUpload = document.getElementById('btnUpload');
-    const fileInput = document.getElementById('fileInput');
-    const uploadCard = document.getElementById('uploadCard');
-    const filesCard = document.getElementById('filesCard');
-    const filesGrid = document.getElementById('filesGrid');
-    const filesCount = document.getElementById('filesCount');
-    const btnClear = document.getElementById('btnClear');
-    const formatSelect = document.getElementById('formatSelect');
-    const btnConvert = document.getElementById('btnConvert');
-    const modalProcessing = new bootstrap.Modal(document.getElementById('modalProcessing'));
-    const resultsModal = new bootstrap.Modal(document.getElementById('resultsModal'));
-    const modalTitle = document.getElementById('modalTitle');
-    const modalText = document.getElementById('modalText');
-    const resultsMessage = document.getElementById('resultsMessage');
-    const statFiles = document.getElementById('statFiles');
-    const statSaved = document.getElementById('statSaved');
-    const statTime = document.getElementById('statTime');
-    const statComp = document.getElementById('statComp');
-    const resultsGrid = document.getElementById('resultsGrid');
-    const btnDownloadAll = document.getElementById('btnDownloadAll');
-    const btnNew = document.getElementById('btnNew');
-    const downloadCard = document.getElementById('downloadCard');
-    const downloadGrid = document.getElementById('downloadGrid');
-    const downloadMessage = document.getElementById('downloadMessage');
-    const btnDownloadAllFiles = document.getElementById('btnDownloadAllFiles');
-    const btnNewConversion = document.getElementById('btnNewConversion');
+// Elementos DOM
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+const filesList = document.getElementById('files-list');
+const filesContainer = document.getElementById('files-container');
+const formatOptions = document.querySelectorAll('.format-option');
+const convertBtn = document.getElementById('convert-btn');
+const downloadAllBtn = document.getElementById('download-all-btn');
+const progressContainer = document.getElementById('progress-container');
+const progressFill = document.getElementById('progress-fill');
+const progressText = document.getElementById('progress-text');
 
-    let files = [];
-    let selectedFormat = 'jpg';
-    let startTime;
+// Event listeners
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', handleDragOver);
+uploadArea.addEventListener('dragleave', handleDragLeave);
+uploadArea.addEventListener('drop', handleDrop);
+fileInput.addEventListener('change', handleFileSelect);
+convertBtn.addEventListener('click', convertImages);
+downloadAllBtn.addEventListener('click', downloadAll);
 
-    // Upload events
-    uploadArea.addEventListener('click', () => fileInput.click());
-    btnUpload.addEventListener('click', (e) => {
-        e.stopPropagation();
-        fileInput.click();
+// Format selection
+formatOptions.forEach(option => {
+    option.addEventListener('click', () => {
+        formatOptions.forEach(opt => opt.classList.remove('active'));
+        option.classList.add('active');
+        currentFormat = option.dataset.format;
     });
+});
 
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
+// Drag and drop handlers
+function handleDragOver(e) {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+}
 
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
+function handleDragLeave(e) {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+}
 
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        handleFiles(e.dataTransfer.files);
-    });
+function handleDrop(e) {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    addFiles(files);
+}
 
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
+function handleFileSelect(e) {
+    const files = Array.from(e.target.files);
+    addFiles(files);
+}
 
-    btnClear.addEventListener('click', () => {
-        files = [];
-        filesCard.classList.add('d-none');
-        uploadCard.classList.remove('d-none');
-        btnConvert.disabled = true;
-        fileInput.value = '';
-        // Esconder loading se estiver visível
-        const loadingInline = document.getElementById('loadingInline');
-        if (loadingInline) loadingInline.classList.add('d-none');
-    });
+// Add files to the list
+function addFiles(files) {
+    selectedFiles = [...selectedFiles, ...files];
+    updateFilesList();
+    updateConvertButton();
+}
 
-    function handleFiles(newFiles) {
-        // Validação de arquivos
-        const validFiles = Array.from(newFiles).filter(file => {
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/heic', 'image/avif'];
-            const maxSize = 50 * 1024 * 1024; // 50MB
-            
-            if (!validTypes.includes(file.type)) {
-                showNotification(`Arquivo ${file.name} não é uma imagem válida`, 'error');
-                return false;
-            }
-            
-            if (file.size > maxSize) {
-                showNotification(`Arquivo ${file.name} é muito grande (máx: 50MB)`, 'error');
-                return false;
-            }
-            
-            return true;
-        });
-
-        if (validFiles.length > 0) {
-            files = validFiles;
-            displayFiles();
-            uploadCard.classList.add('d-none');
-            filesCard.classList.remove('d-none');
-            btnConvert.disabled = false;
-            showNotification(`${validFiles.length} arquivo(s) selecionado(s)`, 'success');
-        } else if (newFiles.length > 0) {
-            showNotification('Nenhum arquivo válido foi selecionado', 'error');
-        }
+// Update files list display
+function updateFilesList() {
+    if (selectedFiles.length === 0) {
+        filesList.classList.remove('show');
+        return;
     }
 
-    function displayFiles() {
-        filesCount.textContent = files.length;
-        filesGrid.innerHTML = files.map((file, index) => `
-            <div class="file-item" style="animation: fadeInUp 0.3s ease-out ${index * 0.1}s both;">
-                <div class="file-icon">${file.name.split('.').pop().toUpperCase()}</div>
-                <div class="file-info">
-                    <div class="file-name" title="${file.name}">${file.name}</div>
-                    <div class="file-size">${formatBytes(file.size)}</div>
-                </div>
-                <button class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})" title="Remover arquivo">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `).join('');
-    }
+    filesList.classList.add('show');
+    filesContainer.innerHTML = '';
 
-    // Função para remover arquivo individual
-    window.removeFile = function(index) {
-        files.splice(index, 1);
-        if (files.length > 0) {
-            displayFiles();
-        } else {
-            btnClear.click();
-        }
-    }
-
-    // Função para mostrar notificações
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed`;
-        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        notification.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        document.body.appendChild(notification);
+    selectedFiles.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
         
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 5000);
-    }
-
-    // Format selection
-    formatSelect.addEventListener('change', function() {
-        selectedFormat = this.value;
+        const preview = document.createElement('img');
+        preview.className = 'file-preview';
+        preview.src = URL.createObjectURL(file);
+        
+        const fileInfo = document.createElement('div');
+        fileInfo.className = 'file-info';
+        
+        const fileName = document.createElement('div');
+        fileName.className = 'file-name';
+        fileName.textContent = file.name;
+        
+        const fileSize = document.createElement('div');
+        fileSize.className = 'file-size';
+        fileSize.textContent = formatFileSize(file.size);
+        
+        const fileStatus = document.createElement('div');
+        fileStatus.className = 'file-status ready';
+        fileStatus.textContent = 'Pronto';
+        
+        fileInfo.appendChild(fileName);
+        fileInfo.appendChild(fileSize);
+        
+        fileItem.appendChild(preview);
+        fileItem.appendChild(fileInfo);
+        fileItem.appendChild(fileStatus);
+        
+        filesContainer.appendChild(fileItem);
     });
+}
 
-    // Convert com loading inline
-    btnConvert.addEventListener('click', async function() {
-        if (files.length === 0 || this.disabled) return;
+// Update convert button state
+function updateConvertButton() {
+    convertBtn.disabled = selectedFiles.length === 0;
+}
 
-        // Prevenir múltiplos cliques
-        this.disabled = true;
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Convert images
+async function convertImages() {
+    if (selectedFiles.length === 0) return;
+    
+    convertBtn.disabled = true;
+    convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Convertendo...';
+    progressContainer.classList.add('show');
+    convertedFiles = [];
+    
+    const statusElements = document.querySelectorAll('.file-status');
+    
+    for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const statusElement = statusElements[i];
         
-        // Mostrar loading inline
-        const loadingInline = document.getElementById('loadingInline');
-        const loadingTitle = document.getElementById('loadingTitle');
-        const loadingText = document.getElementById('loadingText');
+        statusElement.className = 'file-status converting';
+        statusElement.textContent = 'Convertendo...';
         
-        loadingInline.classList.remove('d-none');
-        loadingTitle.textContent = `Convertendo ${files.length} arquivo(s)...`;
-        loadingText.textContent = `Para ${selectedFormat.toUpperCase()} - Aguarde...`;
-        
-        startTime = Date.now();
-
-        const formData = new FormData();
-        files.forEach((file, index) => {
-            formData.append('files[]', file);
-        });
-        formData.append('format', selectedFormat);
-        formData.append('quality', 85);
-
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutos timeout
-
-            const response = await fetch('/conversor-imagens/upload', {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                loadingInline.classList.add('d-none');
-                showResults(data);
-                showNotification('Conversão concluída com sucesso!', 'success');
-            } else {
-                throw new Error(data.error || 'Erro desconhecido na conversão');
-            }
-        } catch (error) {
-            loadingInline.classList.add('d-none');
-            this.disabled = false;
+            const convertedFile = await convertFile(file, currentFormat);
+            convertedFiles.push(convertedFile);
             
-            if (error.name === 'AbortError') {
-                showNotification('Tempo limite excedido. Tente novamente com menos arquivos.', 'error');
-            } else {
-                showNotification(`Erro na conversão: ${error.message}`, 'error');
-            }
+            statusElement.className = 'file-status completed';
+            statusElement.textContent = 'Concluído';
+        } catch (error) {
             console.error('Erro na conversão:', error);
+            statusElement.className = 'file-status error';
+            statusElement.textContent = 'Erro';
         }
-    });
-
-    function showResults(data) {
-        // Mostrar card de download ao invés do modal
-        downloadMessage.textContent = `${data.total_converted} arquivo(s) convertido(s) para ${selectedFormat.toUpperCase()}`;
         
-        downloadGrid.innerHTML = data.files.map(file => `
-            <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2">
-                <div class="d-flex align-items-center">
-                    <div class="bg-success rounded me-3 d-flex align-items-center justify-content-center" 
-                         style="width: 40px; height: 40px;">
-                        <span class="text-white fw-bold" style="font-size: 0.75rem;">${selectedFormat.toUpperCase()}</span>
-                    </div>
-                    <div>
-                        <div class="fw-bold">${file.original_name}</div>
-                        <small class="text-muted">${formatBytes(file.original_size)} → ${formatBytes(file.converted_size)}</small>
-                    </div>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" onclick="window.location.href='/conversor-imagens/download/${file.converted_name}'">
-                    <i class="fas fa-download me-1"></i>Baixar
-                </button>
-            </div>
-        `).join('');
+        const progress = ((i + 1) / selectedFiles.length) * 100;
+        progressFill.style.width = progress + '%';
+        progressText.textContent = `Convertendo... ${Math.round(progress)}%`;
+    }
+    
+    // Conversion completed
+    convertBtn.innerHTML = '<i class="fas fa-check"></i> Conversão Concluída!';
+    progressText.textContent = 'Conversão concluída!';
+    downloadAllBtn.classList.add('show');
+    
+    setTimeout(() => {
+        convertBtn.disabled = false;
+        convertBtn.innerHTML = '<i class="fas fa-magic"></i> Converter Imagens';
+    }, 2000);
+}
+
+// Convert single file
+function convertFile(file, format) {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
         
-        downloadCard.classList.remove('d-none');
-        downloadCard.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    btnDownloadAll.addEventListener('click', () => {
-        window.location.href = '/conversor-imagens/download-all';
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const mimeType = `image/${format === 'jpg' ? 'jpeg' : format}`;
+            const quality = format === 'jpg' ? 0.9 : undefined;
+            
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const fileName = file.name.replace(/\.[^/.]+$/, `.${format}`);
+                    resolve({
+                        blob: blob,
+                        name: fileName,
+                        originalName: file.name
+                    });
+                } else {
+                    reject(new Error('Falha na conversão'));
+                }
+            }, mimeType, quality);
+        };
+        
+        img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+        img.src = URL.createObjectURL(file);
     });
+}
 
-    btnDownloadAllFiles.addEventListener('click', () => {
-        window.location.href = '/conversor-imagens/download-all';
+// Download all files
+function downloadAll() {
+    if (convertedFiles.length === 0) return;
+    
+    convertedFiles.forEach(file => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file.blob);
+        link.download = file.name;
+        link.click();
     });
-
-    btnNew.addEventListener('click', () => {
-        files = [];
-        filesCard.classList.add('d-none');
-        uploadCard.classList.remove('d-none');
-        downloadCard.classList.add('d-none');
-        btnConvert.disabled = true;
-        fileInput.value = '';
-        resultsModal.hide();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    btnNewConversion.addEventListener('click', () => {
-        files = [];
-        filesCard.classList.add('d-none');
-        uploadCard.classList.remove('d-none');
-        downloadCard.classList.add('d-none');
-        btnConvert.disabled = true;
-        fileInput.value = '';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-
-    function formatBytes(bytes, decimals = 1) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
-    }
-
-})();
+}
 </script>
 {% endblock %}

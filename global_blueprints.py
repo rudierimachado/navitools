@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, abort, send_from_directory
 
 from administrador.routes import administrador_bp
 from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
-from modulos.youtub_downloader.routes import youtube_bp
+from modulos.ferramentas_web.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp

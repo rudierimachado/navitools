@@ -11,16 +11,7 @@ conversor_bp = Blueprint('conversor', __name__,
 @conversor_bp.route('/')
 def conversor_home():
     # Carregar configuração do módulo conversor
-    import json
-    import os
-    
-    config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'administrador', 'module_config.json')
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            module_config = json.load(f)
-        conversor_version = module_config.get('conversor_imagens', {}).get('version', '2.0.0')
-    except:
-        conversor_version = '2.0.0'  # Fallback
+    conversor_version = '2.0.0'  # Versão fixa
     
     return render_template('conversor_imagens.html', 
                          module_name='Conversor de Imagens',
