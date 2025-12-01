@@ -80,7 +80,7 @@ def build_sidebar_menu() -> dict:
             'location': 'lateral'
         },
         'gerenciamento_financeiro': {
-            'display_name': 'NEXUSRDR Hub Financeiro',
+            'display_name': 'Gestão Financeira Familiar',
             'icon': 'cash-coin',
             'url_prefix': 'gerenciamento-financeiro/login',
             'location': 'lateral'
