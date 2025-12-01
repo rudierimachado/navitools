@@ -3,11 +3,11 @@ import json
 from flask import Blueprint, render_template, abort, send_from_directory
 
 from administrador.routes import administrador_bp
+from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
 from modulos.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
-
 
 main_bp = Blueprint("main", __name__)
 
@@ -245,7 +245,10 @@ def register_blueprints(app):
     
     # Admin
     app.register_blueprint(administrador_bp)
-    
+
+    # Gerenciamento Financeiro
+    app.register_blueprint(gerenciamento_financeiro_bp, url_prefix="/gerenciamento-financeiro")
+
     # Conversor de imagens
 
     # Gerador De Qr Code

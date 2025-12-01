@@ -66,76 +66,78 @@ def build_sidebar_menu() -> dict:
             'location': 'superior'
         })
 
-    # Escanear pasta modulos/ para detectar módulos principais
+    special_main_defaults = {
+        'ferramentas_web': {
+            'display_name': 'Ferramentas Web',
+            'icon': 'tools',
+            'url_prefix': '#',
+            'location': 'lateral'
+        },
+        'youtub_downloader': {
+            'display_name': 'YouTube Downloader',
+            'icon': 'youtube',
+            'url_prefix': 'youtube-downloader',
+            'location': 'lateral'
+        },
+        'gerenciamento_financeiro': {
+            'display_name': 'NEXUSRDR Hub Financeiro',
+            'icon': 'cash-coin',
+            'url_prefix': 'gerenciamento-financeiro/login',
+            'location': 'lateral'
+        }
+    }
+
+    # Escanear pasta modulos/ para detectar módulos principais e filhos
     if MODULOS_DIR.exists():
-        for main_module_dir in sorted(MODULOS_DIR.iterdir()):
-            if not main_module_dir.is_dir() or main_module_dir.name.startswith('__'):
+        for main_dir in sorted(MODULOS_DIR.iterdir()):
+            if not main_dir.is_dir() or main_dir.name.startswith('__'):
                 continue
 
-            main_module_key = main_module_dir.name
-            
-            # Definir configurações específicas para cada módulo principal
-            if main_module_key == 'ferramentas_web':
-                main_module_info = {
-                    'display_name': 'Ferramentas Web',
-                    'icon': 'tools',
-                    'url_prefix': '#',
-                    'location': 'lateral'
-                }
-            elif main_module_key == 'youtub_downloader':
-                main_module_info = {
-                    'display_name': 'YouTube Downloader',
-                    'icon': 'youtube',
-                    'url_prefix': 'youtube-downloader',
-                    'location': 'lateral'
-                }
-            else:
-                main_module_info = {
-                    'display_name': main_module_key.replace('_', ' ').title(),
-                    'icon': 'gear',
-                    'url_prefix': main_module_key.replace('_', '-'),
-                    'location': 'lateral'
-                }
-            
-            modules[main_module_key] = _normalize_module(main_module_key, main_module_info)
-            
-            # Escanear submódulos dentro do módulo principal
-            # Só considera submódulos se forem pastas que contêm routes.py (módulos Flask)
-            for sub_module_dir in sorted(main_module_dir.iterdir()):
-                if not sub_module_dir.is_dir() or sub_module_dir.name.startswith('__'):
+            main_key = main_dir.name
+            default_info = special_main_defaults.get(main_key, {
+                'display_name': main_key.replace('_', ' ').title(),
+                'icon': 'gear',
+                'url_prefix': main_key.replace('_', '-'),
+                'location': 'lateral'
+            })
+            merged_info = {**default_info, **module_config.get(main_key, {})}
+            modules[main_key] = _normalize_module(main_key, merged_info)
+
+            # submódulos (apenas diretórios com routes.py)
+            for sub_dir in sorted(main_dir.iterdir()):
+                if not sub_dir.is_dir() or sub_dir.name.startswith('__'):
                     continue
-                
-                # Verificar se é realmente um submódulo (tem routes.py)
-                routes_file = sub_module_dir / 'routes.py'
+
+                routes_file = sub_dir / 'routes.py'
                 if not routes_file.exists():
                     continue
-                
-                sub_module_key = sub_module_dir.name
-                
-                # Definir configurações específicas para submódulos
-                if sub_module_key == 'gerador_de_qr_code':
-                    sub_module_info = {
+
+                sub_key = sub_dir.name
+                if sub_key == 'gerador_de_qr_code':
+                    sub_defaults = {
                         'display_name': 'Gerador de QR Code',
                         'icon': 'qr-code',
                         'url_prefix': 'gerador-de-qr-code'
                     }
-                elif sub_module_key == 'conversor_imagens':
-                    sub_module_info = {
+                elif sub_key == 'conversor_imagens':
+                    sub_defaults = {
                         'display_name': 'Conversor de Imagens',
                         'icon': 'image',
                         'url_prefix': 'conversor-imagens'
                     }
                 else:
-                    sub_module_info = {
-                        'display_name': sub_module_key.replace('_', ' ').title(),
+                    sub_defaults = {
+                        'display_name': sub_key.replace('_', ' ').title(),
                         'icon': 'gear',
-                        'url_prefix': sub_module_key.replace('_', '-')
+                        'url_prefix': sub_key.replace('_', '-')
                     }
-                
-                modules[sub_module_key] = _normalize_module(
-                    sub_module_key,
-                    sub_module_info,
-                    parent=main_module_key,
+
+                sub_overrides = module_config.get(f"{main_key}.{sub_key}", {})
+                sub_info = {**sub_defaults, **sub_overrides}
+                modules[sub_key] = _normalize_module(
+                    sub_key,
+                    sub_info,
+                    parent=main_key,
                     location='sub'
                 )
 
