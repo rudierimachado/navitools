@@ -1,6 +1,17 @@
 import os
 import json
-from flask import Blueprint, render_template, abort, send_from_directory, g
+import smtplib
+import ssl
+from email.message import EmailMessage
+from dotenv import load_dotenv
+from flask import (
+    Blueprint,
+    render_template,
+    abort,
+    send_from_directory,
+    g,
+    request,
+)
 
 from administrador.routes import administrador_bp
 from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
@@ -8,6 +19,8 @@ from modulos.ferramentas_web.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
+
+load_dotenv()
 
 main_bp = Blueprint("main", __name__)
 
@@ -141,6 +154,63 @@ def index():
 def ia_hub():
     content_data = load_content_data()
     return render_template('ia_hub.html', content_data=content_data)
+
+def send_contact_email(name: str, email: str, message: str) -> tuple[bool, str]:
+    gmail_user = os.getenv('GMAIL_USER') or os.getenv('CONTACT_EMAIL') or 'rudirimachado@gmail.com'
+    gmail_password = os.getenv('GMAIL_PASSWORD')
+    recipient = os.getenv('CONTACT_DEST_EMAIL', gmail_user)
+
+    if not gmail_password:
+        return False, 'Configuração de e-mail ausente. Defina GMAIL_USER e GMAIL_PASSWORD.'
+
+    email_message = EmailMessage()
+    email_message['Subject'] = f'[NEXUSRDR] Novo contato de {name}'
+    email_message['From'] = gmail_user
+    email_message['To'] = recipient
+    email_message.set_content(
+        f"Nome: {name}\nE-mail: {email}\n\nMensagem:\n{message}"
+    )
+
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as server:
+            server.login(gmail_user, gmail_password)
+            server.send_message(email_message)
+        return True, 'Mensagem enviada com sucesso. Vou responder em breve!'
+    except smtplib.SMTPException as exc:
+        return False, f'Não foi possível enviar o e-mail: {exc}'
+
+@main_bp.route("/contact", methods=["GET", "POST"])
+def contact():
+    form_status = None
+
+    if request.method == 'POST':
+        name = request.form.get('Nome', '').strip()
+        email = request.form.get('E-mail', '').strip()
+        message = request.form.get('Mensagem', '').strip()
+
+        if not all([name, email, message]):
+            form_status = {
+                'type': 'danger',
+                'message': 'Preencha nome, e-mail e mensagem antes de enviar.'
+            }
+        else:
+            success, feedback = send_contact_email(name, email, message)
+            form_status = {
+                'type': 'success' if success else 'danger',
+                'message': feedback
+            }
+
+    return render_template('contact.html', form_status=form_status)
+
+@main_bp.route("/privacy")
+def privacy():
+    return render_template('privacy.html')
+
+@main_bp.route("/terms")
+def terms():
+    from datetime import datetime
+    return render_template('terms.html', current_year=datetime.now().strftime('%Y'))
 
 @main_bp.route("/blog")
 def blog_list():
