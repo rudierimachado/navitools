@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Blueprint, render_template, abort, send_from_directory
+from flask import Blueprint, render_template, abort, send_from_directory, g
 
 from administrador.routes import administrador_bp
 from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
@@ -128,7 +128,10 @@ def index():
         reverse=True
     )
 
-    return render_template('home.html', 
+    # Decidir qual template usar baseado no dispositivo
+    template_name = 'home_mobile.html' if getattr(g, 'is_mobile', False) else 'home.html'
+
+    return render_template(template_name, 
                          novidades_posts=novidades_posts, 
                          dicas_posts=dicas_posts,
                          destaque_posts=destaque_posts,

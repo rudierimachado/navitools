@@ -354,23 +354,228 @@
         color: var(--text-secondary);
     }
 
-    /* Responsivo */
+    /* ========================================
+       RESPONSIVE DESIGN
+    ======================================== */
+    
+    /* Tablet portrait */
     @media (max-width: 768px) {
         .conversor-main-layout {
             grid-template-columns: 1fr;
-            gap: 1rem;
+            gap: 2rem;
+        }
+
+        .conversor-tool-section {
+            order: 1;
         }
 
         .conversor-info-section {
+            order: 2;
             position: static;
         }
 
         .format-grid {
             grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
         }
 
         .upload-area {
             padding: 2rem 1rem;
+        }
+
+        .upload-text h4 {
+            font-size: 1.1rem;
+        }
+
+        .upload-text p {
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 640px) {
+        .conversor-container {
+            padding: 1rem;
+        }
+        
+        .conversor-header h1 {
+            font-size: 2rem;
+        }
+        
+        .conversor-header p {
+            font-size: 0.95rem;
+        }
+        
+        .format-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .format-option {
+            padding: 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .upload-area {
+            padding: 1.5rem 0.75rem;
+        }
+        
+        .upload-icon i {
+            font-size: 2.5rem;
+        }
+        
+        .upload-text h4 {
+            font-size: 1rem;
+        }
+        
+        .upload-text p {
+            font-size: 0.85rem;
+        }
+        
+        .file-item {
+            padding: 0.75rem;
+        }
+        
+        .btn-convert, .btn-download-all {
+            padding: 0.875rem 1.5rem;
+            font-size: 1rem;
+        }
+    }
+    
+    /* Mobile portrait */
+    @media (max-width: 480px) {
+        .conversor-container {
+            padding: 0.75rem;
+        }
+        
+        .conversor-header h1 {
+            font-size: 1.75rem;
+        }
+        
+        .conversor-header p {
+            font-size: 0.9rem;
+        }
+        
+        .format-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .format-option {
+            padding: 0.625rem;
+            font-size: 0.85rem;
+        }
+        
+        .format-option i {
+            font-size: 1.1rem;
+        }
+        
+        .upload-area {
+            padding: 1.25rem 0.5rem;
+        }
+        
+        .upload-icon i {
+            font-size: 2rem;
+        }
+        
+        .upload-text h4 {
+            font-size: 0.95rem;
+        }
+        
+        .upload-text p {
+            font-size: 0.8rem;
+        }
+        
+        .upload-text small {
+            font-size: 0.75rem;
+        }
+        
+        .file-item {
+            padding: 0.625rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .file-info {
+            width: 100%;
+        }
+        
+        .file-name {
+            font-size: 0.9rem;
+        }
+        
+        .file-size {
+            font-size: 0.8rem;
+        }
+        
+        .file-status {
+            font-size: 0.8rem;
+        }
+        
+        .btn-convert, .btn-download-all {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress-container {
+            margin: 1rem 0;
+        }
+        
+        .progress-text {
+            font-size: 0.9rem;
+        }
+        
+        .info-title {
+            font-size: 1.1rem;
+        }
+        
+        .info-list li {
+            padding: 0.625rem 0;
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* Small mobile */
+    @media (max-width: 360px) {
+        .conversor-container {
+            padding: 0.5rem;
+        }
+        
+        .conversor-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .format-option {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .upload-area {
+            padding: 1rem 0.25rem;
+        }
+        
+        .upload-icon i {
+            font-size: 1.75rem;
+        }
+        
+        .upload-text h4 {
+            font-size: 0.9rem;
+        }
+        
+        .upload-text p {
+            font-size: 0.75rem;
+        }
+        
+        .file-item {
+            padding: 0.5rem;
+        }
+        
+        .btn-convert, .btn-download-all {
+            padding: 0.625rem 1rem;
+            font-size: 0.85rem;
         }
     }
 </style>

@@ -240,6 +240,49 @@
         text-align: center;
     }
 
+    /* Notificações */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 600;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s ease;
+    }
+
+    .notification.success {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .notification.error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Loading state */
+    .btn-generate:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
     /* Responsivo */
     @media (max-width: 768px) {
         .qr-main-layout {
@@ -253,6 +296,12 @@
 
         .qr-types {
             grid-template-columns: repeat(2, 1fr);
+        }
+
+        .notification {
+            right: 10px;
+            left: 10px;
+            min-width: auto;
         }
     }
 </style>
@@ -300,9 +349,9 @@
                     <i class="fab fa-whatsapp"></i>
                     <h6>WhatsApp</h6>
                 </div>
-                <div class="qr-type" data-type="email">
-                    <i class="fas fa-envelope"></i>
-                    <h6>Email</h6>
+                <div class="qr-type" data-type="vcard">
+                    <i class="fas fa-address-card"></i>
+                    <h6>vCard</h6>
                 </div>
             </div>
 
@@ -373,28 +422,42 @@
                     </div>
                 </div>
 
-                <!-- Email -->
-                <div id="form-email" class="form-type" style="display: none;">
+                <!-- vCard -->
+                <div id="form-vcard" class="form-type" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-user"></i>
+                            Nome completo
+                        </label>
+                        <input type="text" class="form-control" id="vcard-name" placeholder="João Silva">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-phone"></i>
+                            Telefone (opcional)
+                        </label>
+                        <input type="tel" class="form-control" id="vcard-phone" placeholder="11999999999">
+                    </div>
                     <div style="margin-bottom: 1rem;">
                         <label class="form-label">
                             <i class="fas fa-envelope"></i>
-                            Email de destino
+                            Email (opcional)
                         </label>
-                        <input type="email" class="form-control" id="email-to" placeholder="exemplo@email.com">
+                        <input type="email" class="form-control" id="vcard-email" placeholder="joao@exemplo.com">
                     </div>
                     <div style="margin-bottom: 1rem;">
                         <label class="form-label">
-                            <i class="fas fa-tag"></i>
-                            Assunto (opcional)
+                            <i class="fas fa-building"></i>
+                            Empresa (opcional)
                         </label>
-                        <input type="text" class="form-control" id="email-subject" placeholder="Assunto do email">
+                        <input type="text" class="form-control" id="vcard-organization" placeholder="Minha Empresa">
                     </div>
                     <div>
                         <label class="form-label">
-                            <i class="fas fa-comment"></i>
-                            Mensagem (opcional)
+                            <i class="fas fa-link"></i>
+                            Website (opcional)
                         </label>
-                        <textarea class="form-control" id="email-body" rows="3" placeholder="Corpo do email..."></textarea>
+                        <input type="url" class="form-control" id="vcard-url" placeholder="https://exemplo.com">
                     </div>
                 </div>
             </div>
@@ -415,11 +478,7 @@
                 <div>
                     <button class="btn-download" onclick="downloadQR('png')">
                         <i class="fas fa-download"></i>
-                        PNG
-                    </button>
-                    <button class="btn-download" onclick="downloadQR('svg')">
-                        <i class="fas fa-download"></i>
-                        SVG
+                        Baixar PNG
                     </button>
                 </div>
             </div>
@@ -467,10 +526,10 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 // Variáveis globais
 let currentType = 'text';
+let currentQRFilename = null;
 
 // Elementos DOM
 const qrTypes = document.querySelectorAll('.qr-type');
@@ -507,112 +566,185 @@ qrTypes.forEach(type => {
 
 // Event listener para gerar QR Code
 generateBtn.addEventListener('click', () => {
-    const data = getQRData();
-    if (data) {
-        generateQRCode(data);
-    }
+    generateQRCode();
 });
 
 // Função para obter dados baseado no tipo
 function getQRData() {
     switch (currentType) {
         case 'text':
-            return document.getElementById('text-input').value.trim();
+            const text = document.getElementById('text-input').value.trim();
+            return text ? { text: text } : null;
         
         case 'url':
-            const url = document.getElementById('url-input').value.trim();
-            return url.startsWith('http') ? url : `https://${url}`;
+            const urlValue = document.getElementById('url-input').value.trim();
+            return urlValue ? { url: urlValue } : null;
         
         case 'wifi':
             const ssid = document.getElementById('wifi-ssid').value.trim();
-            const password = document.getElementById('wifi-password').value;
+            const wifiPassword = document.getElementById('wifi-password').value;
             const security = document.getElementById('wifi-security').value;
             
             if (!ssid) return null;
             
-            return `WIFI:T:${security};S:${ssid};P:${password};H:false;;`;
+            return {
+                ssid: ssid,
+                password: wifiPassword,
+                security: security,
+                hidden: false
+            };
         
         case 'whatsapp':
-            const phone = document.getElementById('whatsapp-phone').value.trim();
+            const whatsappPhone = document.getElementById('whatsapp-phone').value.trim();
             const message = document.getElementById('whatsapp-message').value.trim();
             
-            if (!phone) return null;
+            if (!whatsappPhone) return null;
             
-            const cleanPhone = phone.replace(/\D/g, '');
-            const whatsappUrl = `https://wa.me/${cleanPhone}`;
-            return message ? `${whatsappUrl}?text=${encodeURIComponent(message)}` : whatsappUrl;
+            return {
+                phone: whatsappPhone,
+                message: message
+            };
         
-        case 'email':
-            const email = document.getElementById('email-to').value.trim();
-            const subject = document.getElementById('email-subject').value.trim();
-            const body = document.getElementById('email-body').value.trim();
+        case 'vcard':
+            const vcardName = document.getElementById('vcard-name').value.trim();
+            const vcardPhone = document.getElementById('vcard-phone').value.trim();
+            const vcardEmail = document.getElementById('vcard-email').value.trim();
+            const vcardOrganization = document.getElementById('vcard-organization').value.trim();
+            const vcardUrl = document.getElementById('vcard-url').value.trim();
             
-            if (!email) return null;
+            if (!vcardName) return null;
             
-            let mailto = `mailto:${email}`;
-            const params = [];
-            if (subject) params.push(`subject=${encodeURIComponent(subject)}`);
-            if (body) params.push(`body=${encodeURIComponent(body)}`);
-            
-            return params.length > 0 ? `${mailto}?${params.join('&')}` : mailto;
+            return {
+                name: vcardName,
+                phone: vcardPhone,
+                email: vcardEmail,
+                organization: vcardOrganization,
+                url: vcardUrl
+            };
         
         default:
             return null;
     }
 }
 
-// Função para gerar QR Code
-function generateQRCode(data) {
+// Função para gerar QR Code via backend
+async function generateQRCode() {
+    const data = getQRData();
     if (!data) {
-        alert('Por favor, preencha os dados necessários!');
+        showError('Por favor, preencha os dados necessários!');
         return;
     }
     
-    // Limpa QR anterior
-    qrCodeDiv.innerHTML = '';
+    // Mostra loading
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
     
-    // Gera novo QR Code
-    QRCode.toCanvas(qrCodeDiv, data, {
-        width: 256,
-        height: 256,
-        margin: 2,
-        color: {
-            dark: '#0f172a',
-            light: '#ffffff'
-        }
-    }, (error) => {
-        if (error) {
-            console.error('Erro ao gerar QR Code:', error);
-            alert('Erro ao gerar QR Code. Tente novamente.');
-        } else {
+    try {
+        const response = await fetch('/gerador-de-qr-code/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: currentType,
+                data: data,
+                fillColor: '#0f172a',
+                backColor: '#ffffff',
+                size: 'medium'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Mostra o QR Code
+            qrCodeDiv.innerHTML = `<img src="${result.qr_image}" alt="QR Code" style="max-width: 100%; border-radius: 8px;">`;
+            currentQRFilename = result.filename;
             qrResult.classList.add('show');
             qrResult.scrollIntoView({ behavior: 'smooth' });
+            
+            showSuccess('QR Code gerado com sucesso!');
+        } else {
+            showError(result.error || 'Erro ao gerar QR Code');
         }
-    });
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        showError('Erro de conexão. Tente novamente.');
+    } finally {
+        // Remove loading
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-magic"></i> Gerar QR Code';
+    }
 }
 
 // Função para download
-function downloadQR(format) {
-    const canvas = qrCodeDiv.querySelector('canvas');
-    if (!canvas) return;
-    
-    if (format === 'png') {
-        const link = document.createElement('a');
-        link.download = `qrcode-${currentType}.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-    } else if (format === 'svg') {
-        // Para SVG, recriar com biblioteca SVG
-        QRCode.toString(getQRData(), { type: 'svg' }, (err, string) => {
-            if (err) throw err;
-            
-            const blob = new Blob([string], { type: 'image/svg+xml' });
-            const link = document.createElement('a');
-            link.download = `qrcode-${currentType}.svg`;
-            link.href = URL.createObjectURL(blob);
-            link.click();
-        });
+async function downloadQR(format) {
+    if (!currentQRFilename) {
+        showError('Nenhum QR Code para download');
+        return;
     }
+    
+    try {
+        const response = await fetch(`/gerador-de-qr-code/download/${currentQRFilename}`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `qrcode-${currentType}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } else {
+            showError('Erro ao fazer download');
+        }
+    } catch (error) {
+        console.error('Erro no download:', error);
+        showError('Erro ao fazer download');
+    }
+}
+
+// Funções de feedback
+function showError(message) {
+    // Remove notificações anteriores
+    removeNotifications();
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification error';
+    notification.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+function showSuccess(message) {
+    // Remove notificações anteriores
+    removeNotifications();
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification success';
+    notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+function removeNotifications() {
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach(n => n.remove());
 }
 </script>
 {% endblock %}

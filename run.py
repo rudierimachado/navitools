@@ -9,6 +9,9 @@ from extensions import db, migrate, get_current_db_url, init_database
 from dotenv import load_dotenv
 from jinja2 import ChoiceLoader, FileSystemLoader
 
+# Importar detecção de dispositivo
+from device_detector import device_detection_middleware, device_helper
+
 # Carregar variáveis de ambiente
 load_dotenv()
 
@@ -57,9 +60,18 @@ def create_app():
     # Registrar todos os blueprints da aplicação
     register_blueprints(app)
 
+    # Adicionar middleware de detecção de dispositivo
+    app = device_detection_middleware(app)
+
     @app.context_processor
     def inject_sidebar_menu():
         return {'sidebar_menu': build_sidebar_menu()}
+
+    @app.context_processor
+    def inject_device_info():
+        """Injetar informações de dispositivo nos templates"""
+        from device_detector import get_device_context
+        return get_device_context()
 
     @app.cli.command('init-db')
     def init_db_command():

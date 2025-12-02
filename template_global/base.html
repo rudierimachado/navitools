@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="light" class="{{ device_classes }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}NEXUSRDR{% endblock %}</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}NEXUSRDR - Ferramentas Web{% endblock %}</title>
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -12,7 +12,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
+
+    <!-- Mobile Fix CSS -->
+    <link href="{{ url_for('static', filename='css/mobile-fix.css') }}" rel="stylesheet">
+
     <style>
         :root {
             /* Light Theme */
@@ -474,7 +477,7 @@
             color: white;
         }
         
-        .mobile-menu-toggle {
+        .mobile-menu-btn {
             display: none;
             width: 44px;
             height: 44px;
@@ -482,84 +485,56 @@
             border: 1px solid var(--border-glass);
             border-radius: 12px;
             color: var(--text-primary);
-            font-size: 1.2rem;
             cursor: pointer;
-            align-items: center;
-            justify-content: flex-start;
+            position: relative;
+            z-index: 1001;
             transition: var(--transition-base);
+            padding: 0;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            overflow: hidden;
         }
 
-        .mobile-menu-toggle:hover {
+        .mobile-menu-btn:hover {
             background: var(--primary);
             color: white;
+            transform: scale(1.05);
         }
 
-        .mobile-nav {
-            position: fixed;
-            top: var(--header-height);
-            left: 0;
-            right: 0;
-            background: var(--bg-elevated);
-            border-bottom: 1px solid var(--border-glass);
-            box-shadow: var(--shadow-lg);
-            transform: translateY(-100%);
-            transition: var(--transition-base);
-            z-index: 999;
-            max-height: calc(100vh - var(--header-height));
-            overflow-y: auto;
+        .mobile-menu-btn:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.3);
         }
 
-        .mobile-nav.show {
-            transform: translateY(0);
+        .hamburger-line {
+            width: 18px;
+            height: 2px;
+            background: currentColor;
+            border-radius: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+            margin: 2px 0;
         }
 
-        .mobile-nav-section {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
+        .hamburger-line:nth-child(1) {
+            transform-origin: top left;
         }
 
-        .mobile-nav-title {
-            font-size: 0.8rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            margin-bottom: 1rem;
+        .hamburger-line:nth-child(3) {
+            transform-origin: bottom left;
         }
 
-        .mobile-nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.875rem 0;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: var(--transition-base);
-            border-bottom: 1px solid var(--border-color);
+        .mobile-menu-btn.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(2px, -2px);
         }
 
-        .mobile-nav-item:last-child {
-            border-bottom: none;
+        .mobile-menu-btn.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+            transform: translateX(-20px);
         }
 
-        .group-item:hover {
-            background: var(--bg-elevated);
-            color: var(--primary);
-            transform: translateX(4px);
-        }
-
-        .group-item i {
-            font-size: 1rem;
-        }
-        
-        /* ========================================
-           MAIN CONTENT
-        ======================================== */
-        .app-main {
-            flex: 1;
-            margin-top: var(--header-height);
+        .mobile-menu-btn.active .hamburger-line:nth-child(3) {
             min-height: calc(100vh - var(--header-height));
             transition: margin-left 0.4s ease;
             display: flex;
@@ -594,21 +569,43 @@
         /* ========================================
            RESPONSIVE
         ======================================== */
+        
+        /* Tablet landscape */
+        @media (max-width: 1024px) {
+            .header-container {
+                padding: 0 1.5rem;
+            }
+            
+            .main-content {
+                padding: 1.5rem;
+            }
+        }
+        
+        /* Tablet portrait */
         @media (max-width: 768px) {
-            .mobile-menu-toggle {
-                display: flex;
+            .mobile-menu-btn {
+                display: flex !important;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                margin-right: 0.5rem;
             }
 
             .header-nav {
-                display: none;
+                display: none !important;
             }
 
             .header-container {
                 padding: 0 1rem;
+                height: 70px;
+            }
+            
+            .app-header {
+                height: 70px;
             }
 
             .header-search {
-                display: none;
+                display: none !important;
             }
 
             .header-actions .header-btn span {
@@ -619,14 +616,109 @@
                 padding: 0.625rem;
                 width: 44px;
                 height: 44px;
-                justify-content: flex-start;
+                justify-content: center;
+                min-width: 44px;
             }
 
             .header-right {
-                display: none;
+                display: none !important;
             }
+            
             .main-content {
                 padding: 1rem;
+                margin-top: 70px;
+            }
+            
+            .app-main {
+                min-height: calc(100vh - 70px);
+                margin-top: 70px;
+            }
+
+            .mobile-nav {
+                display: block !important;
+                top: 70px;
+                z-index: 1000;
+            }
+
+            .mobile-nav-item:hover {
+                background: var(--bg-elevated);
+                color: var(--primary);
+                transform: translateX(4px);
+            }
+        }
+        
+        /* Mobile landscape */
+        @media (max-width: 640px) {
+            .header-container {
+                padding: 0 0.75rem;
+            }
+            
+            .main-content {
+                padding: 0.75rem;
+            }
+            
+            .header-actions {
+                gap: 0.25rem;
+            }
+        }
+        
+        /* Mobile portrait */
+        @media (max-width: 480px) {
+            .header-container {
+                padding: 0 0.5rem;
+                height: 60px;
+            }
+            
+            .app-header {
+                height: 60px;
+                --header-height: 60px;
+            }
+            
+            .main-content {
+                padding: 0.5rem;
+                margin-top: 60px;
+            }
+            
+            .app-main {
+                min-height: calc(100vh - 60px);
+                margin-top: 60px;
+            }
+            
+            .app-logo {
+                font-size: 1.25rem;
+            }
+            
+            .header-actions .header-btn {
+                width: 40px;
+                height: 40px;
+                padding: 0.5rem;
+                min-width: 40px;
+            }
+            
+            .mobile-menu-btn {
+                width: 40px;
+                height: 40px;
+                padding: 0.5rem;
+                display: flex !important;
+            }
+
+            .mobile-nav {
+                top: 60px;
+            }
+        }
+        
+        /* Small mobile */
+        @media (max-width: 360px) {
+            .header-container {
+                padding: 0 0.25rem;
+            }
+            
+            .main-content {
+                padding: 0.25rem;
+            }
+            
+            .app-logo {
+                font-size: 1.1rem;
             }
         }
 
@@ -721,10 +813,13 @@
                             {% endif %}
                         {% endfor %}
                     {% endif %}
+                </nav>
 
-
-                <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleMobileNav()">
-                    <i class="bi bi-list"></i>
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="handleHamburgerClick(event)" aria-label="Toggle Mobile Menu">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
                 </button>
 
                 <div class="header-actions">
@@ -763,37 +858,80 @@
 
         <!-- Mobile Navigation -->
         <nav class="mobile-nav" id="mobileNav">
-            {% if side_groups %}
-                {% for group in side_groups %}
-                    <div class="mobile-nav-section">
-                        <div class="mobile-nav-title">{{ group.display_name }}</div>
-                        {% if group.children %}
-                            {% for module in group.children %}
-                            <a href="{{ module.url }}" class="mobile-nav-item" {% if 'financeiro' in module.display_name.lower() %}target="_blank" rel="noopener"{% endif %}>
-                                <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                <span>{{ module.display_name }}</span>
-                            </a>
-                            {% endfor %}
-                        {% else %}
-                            <a href="{{ group.url }}" class="mobile-nav-item">
-                                <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
-                                <span>{{ group.display_name }}</span>
-                            </a>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            {% endif %}
+            <div class="mobile-nav-header">
+                <div class="mobile-nav-logo">
+                    <div class="logo-icon">NR</div>
+                    <span class="logo-text">NEXUSRDR</span>
+                </div>
+                <button class="mobile-nav-close" onclick="closeMobileMenu()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
 
-            <div class="mobile-nav-section">
-                <div class="mobile-nav-title">Outros</div>
-                <a href="/blog" class="mobile-nav-item">
-                    <i class="bi bi-journal-richtext"></i>
-                    <span>Blog</span>
-                </a>
-                <a href="/administrador" class="mobile-nav-item">
-                    <i class="bi bi-shield-lock"></i>
-                    <span>Admin</span>
-                </a>
+            <div class="mobile-nav-content">
+                {% if side_groups %}
+                    {% for group in side_groups %}
+                        <div class="mobile-nav-section">
+                            <div class="mobile-nav-title">
+                                <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                {{ group.display_name }}
+                            </div>
+                            {% if group.children %}
+                                <div class="mobile-nav-items">
+                                    {% for module in group.children %}
+                                    <a href="{{ module.url }}" class="mobile-nav-item" {% if 'financeiro' in module.display_name.lower() %}target="_blank" rel="noopener"{% endif %}>
+                                        <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                        <span>{{ module.display_name }}</span>
+                                        <i class="bi bi-chevron-right item-arrow"></i>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <a href="{{ group.url }}" class="mobile-nav-item">
+                                    <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                    <span>{{ group.display_name }}</span>
+                                    <i class="bi bi-chevron-right item-arrow"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="mobile-nav-section">
+                    <div class="mobile-nav-title">
+                        <i class="bi bi-three-dots"></i>
+                        Outros
+                    </div>
+                    <div class="mobile-nav-items">
+                        <a href="/blog" class="mobile-nav-item">
+                            <i class="bi bi-journal-richtext"></i>
+                            <span>Blog</span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                        <a href="/contact" class="mobile-nav-item">
+                            <i class="bi bi-envelope"></i>
+                            <span>Contato</span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                        <a href="/administrador" class="mobile-nav-item">
+                            <i class="bi bi-shield-lock"></i>
+                            <span>Admin</span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mobile-nav-footer">
+                    <div class="mobile-nav-theme">
+                        <button class="theme-toggle-mobile" id="themeToggleMobile">
+                            <i class="bi bi-moon-stars"></i>
+                            <span>Tema</span>
+                        </button>
+                    </div>
+                    <div class="mobile-nav-version">
+                        <small>v3.0.0</small>
+                    </div>
+                </div>
             </div>
         </nav>
 
@@ -827,86 +965,107 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    {% block extra_scripts %}{% endblock %}
+
     <script>
-        // Theme Toggle
+        // ========================================
+        // MOBILE NAVIGATION & THEME SYSTEM
+        // ========================================
+        
+        // Declarar variáveis globais primeiro
         const themeToggle = document.getElementById('themeToggle');
         const html = document.documentElement;
-        const themeIcon = themeToggle.querySelector('i');
+        const themeIcon = themeToggle?.querySelector('i');
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileNav = document.getElementById('mobileNav');
+        const themeToggleMobile = document.getElementById('themeToggleMobile');
 
+        // Declarar funções primeiro
+        function openMobileMenu() {
+            if (mobileNav) {
+                mobileNav.classList.add('show');
+                if (mobileMenuBtn) mobileMenuBtn.classList.add('active');
+                document.body.classList.add('mobile-nav-open');
+            }
+        }
+
+        function closeMobileMenu() {
+            if (mobileNav) {
+                mobileNav.classList.remove('show');
+                if (mobileMenuBtn) mobileMenuBtn.classList.remove('active');
+                document.body.classList.remove('mobile-nav-open');
+            }
+        }
+
+        function updateThemeIcons(theme) {
+            // Atualizar ícone desktop
+            if (themeIcon) {
+                themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+            }
+
+            // Atualizar ícone mobile
+            const mobileIcon = themeToggleMobile?.querySelector('i');
+            if (mobileIcon) {
+                mobileIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+            }
+        }
+
+        function handleHamburgerClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (mobileNav) {
+                const isOpen = mobileNav.classList.contains('show');
+                
+                if (isOpen) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            }
+        }
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        
         // Load saved theme
         const savedTheme = localStorage.getItem('theme') || 'light';
         html.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
+        updateThemeIcons(savedTheme);
 
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-
-        function updateThemeIcon(theme) {
-            themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
-        }
-
-        // Toggle mobile navigation
-        function toggleMobileNav() {
-            const mobileNav = document.getElementById('mobileNav');
-            const toggle = document.getElementById('mobileMenuToggle');
-            const icon = toggle.querySelector('i');
-            
-            mobileNav.classList.toggle('show');
-            
-            if (mobileNav.classList.contains('show')) {
-                icon.className = 'bi bi-x-lg';
-                document.body.style.overflow = 'hidden';
-            } else {
-                icon.className = 'bi bi-list';
-                document.body.style.overflow = '';
-            }
-        }
-
-        // Close mobile nav on click outside
-        document.addEventListener('click', function(e) {
-            const mobileNav = document.getElementById('mobileNav');
-            const toggle = document.getElementById('mobileMenuToggle');
-            
-            if (window.innerWidth <= 768 && 
-                !mobileNav.contains(e.target) && 
-                !toggle.contains(e.target) &&
-                mobileNav.classList.contains('show')) {
-                toggleMobileNav();
-            }
-        });
-
-        // Mark active navigation items
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentPath = window.location.pathname;
-            const navLinks = document.querySelectorAll('.nav-dropdown-toggle, .nav-dropdown-item, .mobile-nav-item');
-            
-            navLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                }
+        // Theme Toggle Desktop
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateThemeIcons(newTheme);
             });
-        });
+        }
+
+        // Tema mobile
+        if (themeToggleMobile) {
+            themeToggleMobile.addEventListener('click', function() {
+                const html = document.documentElement;
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+
+                updateThemeIcons(newTheme);
+            });
+        }
 
         // Resize handler
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {
-                const mobileNav = document.getElementById('mobileNav');
-                const toggle = document.getElementById('mobileMenuToggle');
-                const icon = toggle.querySelector('i');
-                
-                mobileNav.classList.remove('show');
-                icon.className = 'bi bi-list';
-                document.body.style.overflow = '';
+                closeMobileMenu();
             }
         });
-
-        console.log(' NEXUSRDR Glass Premium v3 ULTRA loaded!');
 
         // ========================================
         // NAVEGAÇÃO PARCIAL - SPA-LIKE
@@ -931,7 +1090,7 @@
                 const url = link.getAttribute('href');
                 
                 if (!url || !isInternalLink(url) || url.startsWith('#')) {
-                    return; // deixa navegaÃ§Ã£o normal
+                    return; // deixa navegação normal
                 }
 
                 event.preventDefault();
@@ -951,18 +1110,18 @@
                         const newContent = doc.getElementById('mainContent');
                         
                         if (!newContent) {
-                            // Se nÃ£o encontrar mainContent, faz navegaÃ§Ã£o normal
+                            // Se não encontrar mainContent, faz navegação normal
                             window.location.href = url;
                             return;
                         }
 
-                        // Remove estilos antigos da pÃ¡gina anterior
+                        // Remove estilos antigos da página anterior
                         removePageStyles();
                         
-                        // Adiciona novos estilos da pÃ¡gina
+                        // Adiciona novos estilos da página
                         addPageStyles(doc);
                         
-                        // Substitui apenas o conteÃºdo central
+                        // Substitui apenas o conteúdo central
                         mainContent.innerHTML = newContent.innerHTML;
                         
                         // Atualiza URL sem recarregar
@@ -971,15 +1130,15 @@
                         // Atualiza links ativos
                         updateActiveLinks(url);
                         
-                        // Scroll para o topo do conteÃºdo
+                        // Scroll para o topo do conteúdo
                         mainContent.scrollTop = 0;
                         
-                        // Executa scripts do novo conteÃºdo se houver
+                        // Executa scripts do novo conteúdo se houver
                         executeScripts(mainContent);
                     })
                     .catch(error => {
-                        console.error('Erro na navegaÃ§Ã£o parcial:', error);
-                        // Fallback para navegaÃ§Ã£o normal
+                        console.error('Erro na navegação parcial:', error);
+                        // Fallback para navegação normal
                         window.location.href = url;
                     })
                     .finally(() => {
@@ -998,7 +1157,7 @@
                     if (link.getAttribute('href') === currentPath) {
                         link.classList.add('active');
                         
-                        // Expande grupo pai se necessÃ¡rio
+                        // Expande grupo pai se necessário
                         const group = link.closest('.tool-group');
                         if (group) {
                             group.classList.add('expanded');
@@ -1008,13 +1167,13 @@
             }
 
             function removePageStyles() {
-                // Remove estilos especÃ­ficos da pÃ¡gina anterior
+                // Remove estilos específicos da página anterior
                 const pageStyles = document.querySelectorAll('style[data-page-style]');
                 pageStyles.forEach(style => style.remove());
             }
 
             function addPageStyles(doc) {
-                // Adiciona estilos especÃ­ficos da nova pÃ¡gina
+                // Adiciona estilos específicos da nova página
                 const newStyles = doc.querySelectorAll('style');
                 newStyles.forEach(style => {
                     if (style.textContent.trim()) {
@@ -1063,14 +1222,13 @@
                 attachPartialNavigation();
             }
 
-            // Gerencia botÃ£o Voltar/AvanÃ§ar do navegador
+            // Gerencia botão Voltar/Avançar do navegador
             window.addEventListener('popstate', function(event) {
-                // Recarrega a pÃ¡gina quando usar botÃµes do navegador
-                // Para uma implementaÃ§Ã£o mais avanÃ§ada, poderia fazer fetch da URL atual
+                // Recarrega a página quando usar botões do navegador
+                // Para uma implementação mais avançada, poderia fazer fetch da URL atual
                 window.location.reload();
             });
 
-            console.log('ðŸš€ NavegaÃ§Ã£o parcial ativada - mÃ³dulos trocam sem recarregar!');
         })();
     </script>
     
