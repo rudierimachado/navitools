@@ -97,14 +97,17 @@ def upload_image():
         return jsonify({'error': 'Erro interno no upload'}), 500
 
 
+# Na função process_image, substitua por:
+
 @removedor_de_fundo_bp.route('/process', methods=['POST'])
 @limiter.limit("10/minute")
 def process_image():
-    """Processa imagem removendo o fundo"""
+    """Processa imagem com rembg super otimizado"""
     try:
         data = request.json
         filename = data.get('filename')
         model = data.get('model', 'isnet-general-use')
+        quality = data.get('quality', 'alta')
         
         bg_type = data.get('bg_type', 'transparent')
         custom_color = data.get('custom_color')
@@ -116,40 +119,45 @@ def process_image():
         if not input_path.exists():
             return jsonify({'error': 'Arquivo não encontrado'}), 404
         
-        # Processa imagem
-        remover = BackgroundRemover(model)
-        processed_image = remover.remove_background(input_path)
+        logger.info(f"Processando {filename} com {model} em qualidade {quality}")
         
-        # Converte cor customizada se fornecida
+        # Usar processador super otimizado
+        from .image_processor import SuperRembgProcessor
+        processor = SuperRembgProcessor(model)
+        
+        # Remover fundo com qualidade ultra
+        processed_image = processor.remove_background(input_path, quality)
+        
+        # Aplicar fundo se necessário
         if custom_color and bg_type == 'custom':
             custom_color = tuple(int(custom_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
         
-        # Aplica novo fundo
-        final_image = remover.apply_background(processed_image, bg_type, custom_color)
+        final_image = processor.apply_background(processed_image, bg_type, custom_color)
         
-        # Melhora bordas
-        final_image = remover.enhance_edges(final_image)
-        
-        # Salva resultado
-        output_filename = f"processed_{filename}"
+        # Salvar resultado
+        output_filename = f"processed_{filename.rsplit('.', 1)[0]}.png"
         output_path = Config.PROCESSED_DIR / output_filename
         
-        if bg_type == 'transparent':
-            final_image.save(output_path, 'PNG')
-        else:
-            final_image = final_image.convert('RGB')
-            final_image.save(output_path, 'JPEG', quality=95)
+        # Sempre PNG para preservar qualidade
+        final_image.save(output_path, 'PNG', optimize=True, compress_level=6)
+        
+        file_size = output_path.stat().st_size
+        
+        logger.info(f"Processamento concluído: {output_path} ({file_size} bytes)")
         
         return jsonify({
             'success': True,
             'output_filename': output_filename,
-            'preview_url': f'/removedor-de-fundo/preview/{output_filename}'
+            'preview_url': f'/removedor-de-fundo/preview/{output_filename}',
+            'model_used': model,
+            'quality_used': quality,
+            'file_size': file_size,
+            'message': 'Fundo removido com sucesso!'
         })
         
     except Exception as e:
         logger.exception("Erro ao processar imagem")
-        return jsonify({'error': 'Erro interno no processamento'}), 500
-
+        return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
 
 @removedor_de_fundo_bp.route('/batch-upload', methods=['POST'])
 @limiter.limit("6/minute")

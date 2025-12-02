@@ -15,6 +15,9 @@ from device_detector import device_detection_middleware, device_helper
 # Carregar variáveis de ambiente
 load_dotenv()
 
+# Desabilita ops OneDNN do TensorFlow para evitar incompatibilidades locais
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+
 def create_app():
 
     # Configurar pastas de templates e static
