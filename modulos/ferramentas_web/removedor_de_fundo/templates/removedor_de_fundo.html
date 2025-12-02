@@ -143,6 +143,16 @@
         text-align: center;
     }
 
+    .preview-item .empty-state {
+        margin-top: 1rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        border: 1px dashed var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        background: var(--bg-base);
+    }
+
     .preview-label {
         font-weight: 600;
         color: var(--text-primary);
@@ -322,6 +332,19 @@
         text-align: center;
     }
 
+    .alert-message {
+        display: none;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .alert-message.show { display: block; }
+    .alert-message.info { background: var(--primary-alpha); color: var(--primary); }
+    .alert-message.success { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .alert-message.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
     /* File Info */
     .file-info {
         background: var(--bg-base);
@@ -452,6 +475,8 @@
                 <div class="processing-subtext">Isso pode levar alguns segundos</div>
             </div>
 
+            <div class="alert-message" id="status-message"></div>
+
             <!-- Preview Area -->
             <div class="preview-area" id="preview-area">
                 <div class="preview-container">
@@ -467,7 +492,10 @@
                             <i class="fas fa-cut"></i>
                             Sem Fundo
                         </div>
-                        <img id="processed-preview" class="preview-image" alt="Imagem sem fundo" style="background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                        <img id="processed-preview" class="preview-image" alt="Imagem sem fundo" style="display:none; background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                        <div class="empty-state" id="processed-empty">
+                            Processe a imagem para visualizar o resultado
+                        </div>
                     </div>
                 </div>
             </div>
@@ -538,7 +566,11 @@
 <script>
 // Variáveis globais
 let selectedFile = null;
-let processedImageData = null;
+let uploadedFilename = null;
+let processedFilename = null;
+let originalObjectUrl = null;
+let processedObjectUrl = null;
+const allowedExtensions = ['png','jpg','jpeg','webp','bmp'];
 
 // Elementos DOM
 const uploadArea = document.getElementById('upload-area');
@@ -555,6 +587,8 @@ const processingArea = document.getElementById('processing-area');
 const previewArea = document.getElementById('preview-area');
 const originalPreview = document.getElementById('original-preview');
 const processedPreview = document.getElementById('processed-preview');
+const processedEmpty = document.getElementById('processed-empty');
+const statusMessage = document.getElementById('status-message');
 
 // Event listeners
 uploadArea.addEventListener('click', () => fileInput.click());
@@ -594,15 +628,31 @@ function handleFileSelect(e) {
 }
 
 // Handle file selection
-function handleFile(file) {
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-        alert('Arquivo muito grande! Máximo permitido: 10MB');
+async function handleFile(file) {
+    if (file.size > 16 * 1024 * 1024) {
+        alert('Arquivo muito grande! Máximo permitido: 16MB');
+        resetTool(false);
+        return;
+    }
+
+    const extension = file.name.split('.').pop().toLowerCase();
+    if (!allowedExtensions.includes(extension)) {
+        setStatus('error', 'Formato de arquivo não suportado. Use PNG, JPG, JPEG, WEBP ou BMP.');
+        resetTool(false);
         return;
     }
 
     selectedFile = file;
-    
+    uploadedFilename = null;
+    processedFilename = null;
+    downloadBtn.classList.remove('show');
+    newBtn.classList.remove('show');
+    processedPreview.style.display = 'none';
+    processedEmpty.style.display = 'block';
+    previewArea.classList.remove('show');
+    processedObjectUrl && URL.revokeObjectURL(processedObjectUrl);
+    processedObjectUrl = null;
+
     // Show file info
     fileName.textContent = file.name;
     fileSize.textContent = formatFileSize(file.size);
@@ -614,16 +664,47 @@ function handleFile(file) {
         fileDimensions.textContent = `${this.width} × ${this.height}px`;
         
         // Show original preview
-        originalPreview.src = URL.createObjectURL(file);
+        if (originalObjectUrl) {
+            URL.revokeObjectURL(originalObjectUrl);
+        }
+        originalObjectUrl = URL.createObjectURL(file);
+        originalPreview.src = originalObjectUrl;
         
         // Show file info and enable process button
         fileInfo.classList.add('show');
-        processBtn.disabled = false;
+        processBtn.disabled = true;
+        previewArea.classList.add('show');
+        processedPreview.style.display = 'none';
+        processedEmpty.style.display = 'block';
         
         // Hide upload area
         uploadArea.style.display = 'none';
+        uploadToServer(file);
     };
     img.src = URL.createObjectURL(file);
+}
+
+async function uploadToServer(file) {
+    try {
+        setStatus('info', 'Enviando imagem...');
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch('/removedor-de-fundo/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Falha ao enviar imagem');
+        }
+        uploadedFilename = result.filename;
+        processBtn.disabled = false;
+        setStatus('success', 'Imagem pronta! Clique em "Remover Fundo".');
+    } catch (error) {
+        setStatus('error', error.message);
+        processBtn.disabled = true;
+        resetTool(false);
+    }
 }
 
 // Format file size
@@ -637,86 +718,66 @@ function formatFileSize(bytes) {
 
 // Process image (simulate background removal)
 async function processImage() {
-    if (!selectedFile) return;
-    
-    // Show processing state
-    processBtn.disabled = true;
-    processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
-    processingArea.classList.add('show');
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Create processed image (this is a simulation - in real implementation you'd use an AI service)
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        // Draw original image
-        ctx.drawImage(img, 0, 0);
-        
-        // Simulate background removal by making it transparent
-        // In a real implementation, this would be done by an AI service
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Simple edge detection simulation (not real background removal)
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            
-            // Simple background detection (this is just for demo)
-            if (r > 200 && g > 200 && b > 200) {
-                data[i + 3] = 0; // Make transparent
-            }
+    if (!uploadedFilename) {
+        setStatus('error', 'Envie uma imagem antes de processar.');
+        return;
+    }
+    try {
+        processBtn.disabled = true;
+        processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+        processingArea.classList.add('show');
+        setStatus('info', 'Removendo fundo...');
+
+        const response = await fetch('/removedor-de-fundo/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: uploadedFilename })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Não foi possível processar a imagem');
         }
-        
-        ctx.putImageData(imageData, 0, 0);
-        
-        // Convert to blob
-        canvas.toBlob((blob) => {
-            processedImageData = blob;
-            
-            // Show processed preview
-            processedPreview.src = URL.createObjectURL(blob);
-            
-            // Hide processing, show result
-            processingArea.classList.remove('show');
-            previewArea.classList.add('show');
-            downloadBtn.classList.add('show');
-            newBtn.classList.add('show');
-            
-            processBtn.innerHTML = '<i class="fas fa-check"></i> Processamento Concluído!';
-            
-            setTimeout(() => {
-                processBtn.disabled = false;
-                processBtn.innerHTML = '<i class="fas fa-magic"></i> Remover Fundo';
-            }, 2000);
-        }, 'image/png');
-    };
-    
-    img.src = URL.createObjectURL(selectedFile);
+
+        processedFilename = result.output_filename;
+        const previewUrl = `${result.preview_url}?v=${Date.now()}`;
+        if (processedObjectUrl) {
+            URL.revokeObjectURL(processedObjectUrl);
+            processedObjectUrl = null;
+        }
+        processedPreview.src = previewUrl;
+        processedPreview.style.display = 'block';
+        processedEmpty.style.display = 'none';
+        previewArea.classList.add('show');
+        downloadBtn.classList.add('show');
+        newBtn.classList.add('show');
+        setStatus('success', 'Pronto! Veja o resultado e faça o download.');
+    } catch (error) {
+        setStatus('error', error.message);
+        resetTool(false);
+    } finally {
+        processingArea.classList.remove('show');
+        processBtn.disabled = false;
+        processBtn.innerHTML = '<i class="fas fa-magic"></i> Remover Fundo';
+    }
 }
 
-// Download processed image
 function downloadImage() {
-    if (!processedImageData) return;
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(processedImageData);
-    link.download = selectedFile.name.replace(/\.[^/.]+$/, '_sem_fundo.png');
-    link.click();
+    if (!processedFilename) {
+        setStatus('error', 'Nada para baixar ainda.');
+        return;
+    }
+    window.open(`/removedor-de-fundo/download/${processedFilename}`, '_blank');
 }
 
 // Reset tool
-function resetTool() {
+function resetTool(clearStatus = true) {
     selectedFile = null;
-    processedImageData = null;
+    uploadedFilename = null;
+    processedFilename = null;
+    originalObjectUrl && URL.revokeObjectURL(originalObjectUrl);
+    processedObjectUrl && URL.revokeObjectURL(processedObjectUrl);
+    originalObjectUrl = null;
+    processedObjectUrl = null;
     
     // Reset UI
     uploadArea.style.display = 'block';
@@ -725,12 +786,27 @@ function resetTool() {
     processingArea.classList.remove('show');
     downloadBtn.classList.remove('show');
     newBtn.classList.remove('show');
+    processedPreview.style.display = 'none';
+    processedEmpty.style.display = 'block';
+    originalPreview.src = '';
     
     processBtn.disabled = true;
     processBtn.innerHTML = '<i class="fas fa-magic"></i> Remover Fundo';
     
     // Clear file input
     fileInput.value = '';
+
+    if (clearStatus) {
+        statusMessage.classList.remove('show', 'info', 'error', 'success');
+        statusMessage.textContent = '';
+    }
+}
+
+function setStatus(type, message) {
+    statusMessage.classList.remove('show', 'info', 'error', 'success');
+    if (!message) return;
+    statusMessage.textContent = message;
+    statusMessage.classList.add('show', type);
 }
 </script>
 {% endblock %}

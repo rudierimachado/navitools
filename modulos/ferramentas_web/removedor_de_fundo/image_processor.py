@@ -11,14 +11,28 @@ class BackgroundRemover:
         self.model_name = model_name
         self.session = rembg.new_session(model_name)
     
-    def remove_background(self, image_path: Union[str, Path]) -> Image.Image:
+    def remove_background(self, image_path: Union[str, Path], *, high_quality: bool = True) -> Image.Image:
         """Remove o fundo da imagem usando IA"""
         try:
             with open(image_path, 'rb') as f:
                 input_data = f.read()
             
-            # Processa com rembg
-            output_data = rembg.remove(input_data, session=self.session)
+            remove_kwargs = {
+                "session": self.session,
+                "only_mask": False,
+                "post_process_mask": True,
+            }
+
+            if high_quality:
+                remove_kwargs.update({
+                    "alpha_matting": True,
+                    "alpha_matting_foreground_threshold": 240,
+                    "alpha_matting_background_threshold": 10,
+                    "alpha_matting_erode_structure_size": 10,
+                    "alpha_matting_base_size": 1000,
+                })
+
+            output_data = rembg.remove(input_data, **remove_kwargs)
             
             # Converte para PIL Image
             output_image = Image.open(io.BytesIO(output_data))
@@ -83,7 +97,7 @@ class BackgroundRemover:
         
         # Suaviza bordas
         alpha = image.split()[-1]
-        alpha = alpha.filter(ImageFilter.GaussianBlur(0.5))
+        alpha = alpha.filter(ImageFilter.GaussianBlur(1.2))
         
         # Reconstrói imagem
         r, g, b, _ = image.split()

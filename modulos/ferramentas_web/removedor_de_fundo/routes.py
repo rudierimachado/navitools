@@ -1,15 +1,21 @@
 import os
 import json
 import zipfile
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+import logging
+from flask import Blueprint, render_template, request, jsonify, send_file
+
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import tempfile
 from threading import Thread
 import uuid
+from PIL import Image, UnidentifiedImageError
 
 from .config import Config, allowed_file, get_unique_filename
 from .image_processor import BackgroundRemover, BatchProcessor
+
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Inicializar diretórios
 Config.create_directories()
@@ -24,13 +30,46 @@ removedor_de_fundo_bp = Blueprint(
 
 # Armazenamento de sessões de processamento
 processing_sessions = {}
+logger = logging.getLogger(__name__)
+
+MAX_BATCH_FILES = Config.MAX_FILES_PER_BATCH
+
+limiter = Limiter(key_func=get_remote_address)
+limiter.limit(f"{Config.MAX_REQUESTS_PER_IP}/hour")(removedor_de_fundo_bp)
+
+
+def _validate_image_upload(file):
+    if not file or file.filename == '':
+        return False, 'Nenhum arquivo selecionado'
+    if not allowed_file(file.filename):
+        return False, 'Formato de arquivo não suportado'
+
+    # Garantir tamanho máximo
+    file.stream.seek(0, os.SEEK_END)
+    file_size = file.stream.tell()
+    file.stream.seek(0)
+    if file_size > Config.MAX_CONTENT_LENGTH:
+        return False, 'Arquivo excede o limite de 16MB'
+
+    # Validar assinatura real da imagem
+    try:
+        Image.open(file.stream).verify()
+    except (UnidentifiedImageError, OSError):
+        file.stream.seek(0)
+        return False, 'Arquivo de imagem inválido'
+
+    file.stream.seek(0)
+    return True, None
+
 
 @removedor_de_fundo_bp.route('/')
 def index():
     """Página principal do Removedor De Fundo"""
     return render_template('removedor_de_fundo.html')
 
+
 @removedor_de_fundo_bp.route('/upload', methods=['POST'])
+@limiter.limit("10/minute")
 def upload_image():
     """Upload de imagem única"""
     try:
@@ -38,11 +77,9 @@ def upload_image():
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-        
-        if not allowed_file(file.filename):
-            return jsonify({'error': 'Formato de arquivo não suportado'}), 400
+        is_valid, error_message = _validate_image_upload(file)
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
         
         # Salva arquivo
         filename = get_unique_filename(file.filename)
@@ -56,15 +93,19 @@ def upload_image():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Erro no upload: {str(e)}'}), 500
+        logger.exception("Erro no upload de imagem única")
+        return jsonify({'error': 'Erro interno no upload'}), 500
+
 
 @removedor_de_fundo_bp.route('/process', methods=['POST'])
+@limiter.limit("10/minute")
 def process_image():
     """Processa imagem removendo o fundo"""
     try:
         data = request.json
         filename = data.get('filename')
-        model = data.get('model', 'u2net')
+        model = data.get('model', 'isnet-general-use')
+        
         bg_type = data.get('bg_type', 'transparent')
         custom_color = data.get('custom_color')
         
@@ -106,9 +147,12 @@ def process_image():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
+        logger.exception("Erro ao processar imagem")
+        return jsonify({'error': 'Erro interno no processamento'}), 500
+
 
 @removedor_de_fundo_bp.route('/batch-upload', methods=['POST'])
+@limiter.limit("6/minute")
 def batch_upload():
     """Upload de múltiplas imagens"""
     try:
@@ -116,19 +160,27 @@ def batch_upload():
             return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
         files = request.files.getlist('files[]')
+        if not files:
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        if len(files) > MAX_BATCH_FILES:
+            return jsonify({'error': f'Limite de {MAX_BATCH_FILES} arquivos excedido'}), 400
+
         uploaded_files = []
         
         for file in files:
-            if file.filename and allowed_file(file.filename):
-                filename = get_unique_filename(file.filename)
-                filepath = Config.UPLOAD_DIR / filename
-                file.save(filepath)
-                
-                uploaded_files.append({
-                    'filename': filename,
-                    'original_name': file.filename
-                })
-        
+            is_valid, error_message = _validate_image_upload(file)
+            if not is_valid:
+                continue
+
+            filename = get_unique_filename(file.filename)
+            filepath = Config.UPLOAD_DIR / filename
+            file.save(filepath)
+            
+            uploaded_files.append({
+                'filename': filename,
+                'original_name': file.filename
+            })
+
         return jsonify({
             'success': True,
             'files': uploaded_files,
@@ -136,9 +188,12 @@ def batch_upload():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Erro no upload: {str(e)}'}), 500
+        logger.exception("Erro no upload em lote")
+        return jsonify({'error': 'Erro interno no upload'}), 500
+
 
 @removedor_de_fundo_bp.route('/batch-process', methods=['POST'])
+@limiter.limit("4/minute")
 def batch_process():
     """Processa múltiplas imagens em lote"""
     try:
@@ -150,6 +205,8 @@ def batch_process():
         
         if not filenames:
             return jsonify({'error': 'Nenhum arquivo para processar'}), 400
+        if len(filenames) > MAX_BATCH_FILES:
+            return jsonify({'error': f'Processamento limitado a {MAX_BATCH_FILES} arquivos por vez'}), 400
         
         # Gera ID único para a sessão
         session_id = str(uuid.uuid4())
@@ -201,7 +258,9 @@ def batch_process():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
+        logger.exception("Erro ao processar em lote")
+        return jsonify({'error': 'Erro interno no processamento'}), 500
+
 
 @removedor_de_fundo_bp.route('/batch-status/<session_id>')
 def batch_status(session_id):
@@ -219,7 +278,9 @@ def batch_status(session_id):
         'error': session.get('error')
     })
 
+
 @removedor_de_fundo_bp.route('/download-batch/<session_id>')
+@limiter.limit("8/minute")
 def download_batch(session_id):
     """Download do lote processado em ZIP"""
     try:
@@ -250,9 +311,12 @@ def download_batch(session_id):
         )
         
     except Exception as e:
-        return jsonify({'error': f'Erro no download: {str(e)}'}), 500
+        logger.exception("Erro ao gerar download em lote")
+        return jsonify({'error': 'Erro interno no download'}), 500
+
 
 @removedor_de_fundo_bp.route('/preview/<filename>')
+@limiter.limit("20/minute")
 def preview_image(filename):
     """Visualiza imagem processada"""
     try:
@@ -263,9 +327,12 @@ def preview_image(filename):
         return send_file(file_path)
         
     except Exception as e:
-        return jsonify({'error': f'Erro ao carregar imagem: {str(e)}'}), 500
+        logger.exception("Erro ao carregar preview")
+        return jsonify({'error': 'Erro interno ao carregar imagem'}), 500
+
 
 @removedor_de_fundo_bp.route('/download/<filename>')
+@limiter.limit("20/minute")
 def download_image(filename):
     """Download da imagem processada"""
     try:
@@ -280,7 +347,9 @@ def download_image(filename):
         )
         
     except Exception as e:
-        return jsonify({'error': f'Erro no download: {str(e)}'}), 500
+        logger.exception("Erro ao baixar imagem")
+        return jsonify({'error': 'Erro interno no download'}), 500
+
 
 @removedor_de_fundo_bp.route('/models')
 def get_models():
@@ -290,29 +359,37 @@ def get_models():
         'output_formats': Config.OUTPUT_FORMATS
     })
 
+
+def _cleanup_fs():
+    import time
+    import shutil
+    current_time = time.time()
+    max_age = Config.MAX_LIFETIME_SECONDS
+    removed = 0
+
+    for file_path in Config.UPLOAD_DIR.glob('*'):
+        if current_time - file_path.stat().st_mtime > max_age:
+            file_path.unlink(missing_ok=True)
+            removed += 1
+
+    for file_path in Config.PROCESSED_DIR.glob('*'):
+        if file_path.is_file() and current_time - file_path.stat().st_mtime > max_age:
+            file_path.unlink(missing_ok=True)
+            removed += 1
+        elif file_path.is_dir() and current_time - file_path.stat().st_mtime > max_age:
+            shutil.rmtree(file_path, ignore_errors=True)
+            removed += 1
+    return removed
+
+
 @removedor_de_fundo_bp.route('/cleanup', methods=['POST'])
+@limiter.limit("2/minute")
 def cleanup_files():
     """Limpa arquivos antigos"""
     try:
-        import time
-        import shutil
-        
-        current_time = time.time()
-        max_age = 24 * 60 * 60  # 24 horas
-        
-        # Limpa uploads antigos
-        for file_path in Config.UPLOAD_DIR.glob('*'):
-            if current_time - file_path.stat().st_mtime > max_age:
-                file_path.unlink()
-        
-        # Limpa processados antigos
-        for file_path in Config.PROCESSED_DIR.glob('*'):
-            if file_path.is_file() and current_time - file_path.stat().st_mtime > max_age:
-                file_path.unlink()
-            elif file_path.is_dir() and current_time - file_path.stat().st_mtime > max_age:
-                shutil.rmtree(file_path)
-        
-        return jsonify({'success': True, 'message': 'Limpeza realizada'})
+        removed = _cleanup_fs()
+        return jsonify({'success': True, 'message': f'Limpeza realizada ({removed} itens).'})
         
     except Exception as e:
-        return jsonify({'error': f'Erro na limpeza: {str(e)}'}), 500
+        logger.exception("Erro ao limpar arquivos")
+        return jsonify({'error': 'Erro interno na limpeza'}), 500

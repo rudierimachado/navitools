@@ -12,6 +12,10 @@ class Config:
     
     # Configurações de upload
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    MAX_FILES_PER_BATCH = 20
+    MAX_REQUESTS_PER_IP = 30  # por hora
+    MAX_LIFETIME_SECONDS = 10 * 60  # 10 minutos
+    
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'bmp'}
     
     # Modelos AI disponíveis

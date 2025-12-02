@@ -10,6 +10,12 @@ import logging
 import shutil
 import re
 import ffmpeg
+from urllib.parse import urlparse
+
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 # Logger do módulo (herda configuração global do app)
 logger = logging.getLogger(__name__)
@@ -17,6 +23,8 @@ logger = logging.getLogger(__name__)
 youtube_bp = Blueprint('youtube_downloader', __name__, 
                       template_folder='templates',
                       static_folder='static')
+
+limiter.limit("10/minute")(youtube_bp)
 
 # Armazenar downloads em andamento
 downloads = {}
@@ -36,6 +44,28 @@ def convert_to_mp3(source_path):
         logger.warning(f"Falha ao converter para MP3: {exc}")
         return source_path
 
+def is_safe_youtube_url(url: str) -> bool:
+    """Valida o domínio e estrutura básica de URLs do YouTube."""
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"}:
+            return False
+        host = parsed.netloc.lower()
+        allowed_hosts = {
+            "www.youtube.com",
+            "youtube.com",
+            "m.youtube.com",
+            "youtu.be"
+        }
+        if host not in allowed_hosts:
+            return False
+        if len(parsed.geturl()) > 2048:
+            return False
+        return True
+    except ValueError:
+        return False
+
+
 def extract_video_id(url):
     """Extrai ID do vídeo YouTube"""
     patterns = [
@@ -43,6 +73,9 @@ def extract_video_id(url):
         r'youtube\.com/embed/([a-zA-Z0-9_-]{11})',
     ]
     
+    if not is_safe_youtube_url(url):
+        return None
+
     for pattern in patterns:
         match = re.search(pattern, url)
         if match:
@@ -55,7 +88,7 @@ def get_video_info(url):
     
     try:
         # Validar URL
-        if not url or not ('youtube.com' in url or 'youtu.be' in url):
+        if not url or not is_safe_youtube_url(url):
             return {
                 'success': False,
                 'error': 'URL deve ser do YouTube (youtube.com ou youtu.be)'
@@ -202,11 +235,13 @@ def download_video_simple(url, quality='best', audio_only=False):
         return {'success': False, 'error': error_msg}
 
 @youtube_bp.route('/')
+@limiter.limit("30/minute")
 def youtube_home():
     """Página inicial"""
     return render_template('youtub_downloader.html')
 
 @youtube_bp.route('/analyze', methods=['POST'])
+@limiter.limit("15/minute")
 def analyze_video():
     """Analisar vídeo e baixar diretamente"""
     try:
@@ -218,7 +253,7 @@ def analyze_video():
         if not url:
             return jsonify({'success': False, 'error': 'URL é obrigatória'}), 400
             
-        if not ('youtube.com' in url or 'youtu.be' in url):
+        if not is_safe_youtube_url(url):
             return jsonify({'success': False, 'error': 'URL deve ser do YouTube'}), 400
         
         # Gerar ID único para este download
