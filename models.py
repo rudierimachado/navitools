@@ -1,5 +1,7 @@
+import json
 from datetime import datetime
 
+from flask import url_for
 from werkzeug.security import generate_password_hash
 
 from extensions import db
@@ -70,3 +72,68 @@ class MenuItem(db.Model):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<MenuItem {self.id} {self.nome} (nivel={self.nivel})>"
+
+
+class BlogPost(db.Model):
+    __tablename__ = "blog_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    subtitle = db.Column(db.String(255))
+    slug = db.Column(db.String(255), unique=True, nullable=False)
+    category = db.Column(db.String(100))
+    section = db.Column(db.String(100))
+    tags = db.Column(db.Text)
+    cover = db.Column(db.Text)
+    cta_text = db.Column(db.String(255))
+    cta_link = db.Column(db.String(255))
+    summary = db.Column(db.Text)
+    content = db.Column(db.Text)
+    priority = db.Column(db.String(20), default="normal")
+    active = db.Column(db.Boolean, default=False, nullable=False)
+    views = db.Column(db.Integer, default=0, nullable=False)
+    reading_time = db.Column(db.String(50))
+    meta_description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<BlogPost {self.id} {self.slug}>"
+
+    @property
+    def tags_list(self) -> list[str]:
+        try:
+            return json.loads(self.tags or "[]")
+        except json.JSONDecodeError:
+            return []
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "subtitle": self.subtitle,
+            "slug": self.slug,
+            "category": self.category,
+            "section": self.section,
+            "tags": self.tags_list,
+            "cover": self.cover,
+            "cta_text": self.cta_text,
+            "cta_link": self.cta_link,
+            "summary": self.summary,
+            "content": self.content,
+            "priority": self.priority,
+            "active": self.active,
+            "views": self.views,
+            "reading_time": self.reading_time,
+            "meta_description": self.meta_description,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @property
+    def cover_url(self) -> str | None:
+        if not self.cover:
+            return None
+        if self.cover.startswith('http') or self.cover.startswith('data:'):
+            return self.cover
+        return url_for('static', filename=self.cover)

@@ -1,8 +1,8 @@
 import os
-import json
 import smtplib
 import ssl
 from email.message import EmailMessage
+
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
@@ -12,28 +12,46 @@ from flask import (
     g,
     request,
 )
+from sqlalchemy import case, or_
 
 from administrador.routes import administrador_bp
+from extensions import db
 from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
 from modulos.ferramentas_web.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
+from models import BlogPost
 
 load_dotenv()
 
 main_bp = Blueprint("main", __name__)
 
-def load_content_data():
-    """Carrega dados de conteúdo do arquivo JSON"""
-    content_file = os.path.join(os.path.dirname(__file__), 'administrador', 'content_data.json')
-    try:
-        with open(content_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {
-            "posts": []
-        }
+BLOG_CATEGORIES = [
+    ("tecnologia", "Tecnologia & Ferramentas"),
+    ("inteligencia-artificial", "Inteligência Artificial"),
+    ("tutoriais", "Tutoriais & Guias"),
+    ("produtividade", "Produtividade"),
+    ("design", "Design & Criatividade"),
+    ("marketing", "Marketing Digital"),
+    ("programacao", "Programação"),
+    ("novidades", "Novidades & Updates"),
+    ("dicas", "Dicas & Truques"),
+]
+
+BLOG_SECTIONS = [
+    ("novidades", "Novidades"),
+    ("dicas", "Dicas"),
+    ("destaque", "Destaques"),
+    ("geral", "Geral"),
+]
+
+def _priority_order():
+    return case(
+        (BlogPost.priority == 'pinned', 3),
+        (BlogPost.priority == 'featured', 2),
+        else_=1
+    )
 
 def get_category_info(category):
     """Helper para informações das categorias"""
@@ -114,46 +132,41 @@ def serve_logo(filename):
 
 @main_bp.route("/")
 def index():
-    content_data = load_content_data()
-    posts = [post for post in content_data.get('posts', []) if post.get('active', False)]
-
-    # Ordenar por prioridade e data
-    def post_sort_key(post):
-        priority_order = {'pinned': 3, 'featured': 2, 'normal': 1}
-        priority = priority_order.get(post.get('priority', 'normal'), 1)
-        date = post.get('date', '')
-        return (priority, date)
-
-    # Separar posts por seção
-    novidades_posts = sorted(
-        [p for p in posts if p.get('section') == 'novidades'],
-        key=post_sort_key,
-        reverse=True
-    )
-    dicas_posts = sorted(
-        [p for p in posts if p.get('section') == 'dicas'],
-        key=post_sort_key,
-        reverse=True
-    )
-    destaque_posts = sorted(
-        [p for p in posts if p.get('section') == 'destaque' or p.get('priority') in ['featured', 'pinned']],
-        key=post_sort_key,
-        reverse=True
+    priority_order = _priority_order()
+    active_posts = (
+        BlogPost.query
+        .filter_by(active=True)
+        .order_by(priority_order.desc(), BlogPost.created_at.desc())
+        .all()
     )
 
-    # Decidir qual template usar baseado no dispositivo
+    novidades_posts = [p for p in active_posts if p.section == 'novidades']
+    dicas_posts = [p for p in active_posts if p.section == 'dicas']
+    destaque_posts = [
+        p for p in active_posts
+        if p.section == 'destaque' or p.priority in ('featured', 'pinned')
+    ]
+
     template_name = 'home_mobile.html' if getattr(g, 'is_mobile', False) else 'home.html'
 
-    return render_template(template_name, 
-                         novidades_posts=novidades_posts, 
-                         dicas_posts=dicas_posts,
-                         destaque_posts=destaque_posts,
-                         get_category_info=get_category_info)
+    return render_template(
+        template_name,
+        novidades_posts=novidades_posts,
+        dicas_posts=dicas_posts,
+        destaque_posts=destaque_posts,
+        get_category_info=get_category_info,
+    )
 
 @main_bp.route("/ia-hub")
 def ia_hub():
-    content_data = load_content_data()
-    return render_template('ia_hub.html', content_data=content_data)
+    posts = (
+        BlogPost.query
+        .filter_by(active=True)
+        .order_by(BlogPost.created_at.desc())
+        .limit(6)
+        .all()
+    )
+    return render_template('ia_hub.html', posts=posts)
 
 def send_contact_email(name: str, email: str, message: str) -> tuple[bool, str]:
     gmail_user = os.getenv('GMAIL_USER') or os.getenv('CONTACT_EMAIL') or 'rudirimachado@gmail.com'
@@ -214,102 +227,68 @@ def terms():
 
 @main_bp.route("/blog")
 def blog_list():
-    from flask import request
-    content_data = load_content_data()
-    posts = [post for post in content_data.get('posts', []) if post.get('active', False)]
-    
-    # Filtros
     section_filter = request.args.get('section')
     category_filter = request.args.get('category')
     search_query = request.args.get('search', '').strip()
-    
-    # Aplicar filtros
+
+    query = BlogPost.query.filter(BlogPost.active.is_(True))
+
     if section_filter:
-        posts = [p for p in posts if p.get('section') == section_filter]
-    
+        query = query.filter(BlogPost.section == section_filter)
+
     if category_filter:
-        posts = [p for p in posts if p.get('category') == category_filter]
-    
+        query = query.filter(BlogPost.category == category_filter)
+
     if search_query:
-        search_lower = search_query.lower()
-        posts = [p for p in posts if 
-                search_lower in p.get('title', '').lower() or 
-                search_lower in p.get('summary', '').lower() or 
-                search_lower in p.get('content', '').lower() or
-                any(search_lower in tag.lower() for tag in p.get('tags', []))]
-    
-    # Ordenar por prioridade e data
-    def post_sort_key(post):
-        priority_order = {'pinned': 3, 'featured': 2, 'normal': 1}
-        priority = priority_order.get(post.get('priority', 'normal'), 1)
-        date = post.get('date', '')
-        return (priority, date)
-    
-    posts = sorted(posts, key=post_sort_key, reverse=True)
-    
-    # Obter categorias únicas para filtros
-    all_posts = content_data.get('posts', [])
-    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
-    categories.sort()
-    
-    return render_template('blog_list.html', 
-                         posts=posts, 
-                         categories=categories,
-                         get_category_info=get_category_info,
-                         current_section=section_filter,
-                         current_category=category_filter,
-                         search_query=search_query)
+        like_pattern = f"%{search_query}%"
+        query = query.filter(
+            or_(
+                BlogPost.title.ilike(like_pattern),
+                BlogPost.summary.ilike(like_pattern),
+                BlogPost.content.ilike(like_pattern),
+                BlogPost.tags.ilike(like_pattern),
+            )
+        )
+
+    posts = query.order_by(_priority_order().desc(), BlogPost.created_at.desc()).all()
+
+    return render_template(
+        'blog.html',
+        posts=posts,
+        categories=BLOG_CATEGORIES,
+        sections=BLOG_SECTIONS,
+        get_category_info=get_category_info,
+        current_section=section_filter,
+        current_category=category_filter,
+        search_query=search_query,
+    )
 
 @main_bp.route("/blog/<int:post_id>")
 def blog_detail_by_id(post_id):
-    content_data = load_content_data()
-    posts = content_data.get('posts', [])
-    post = next((p for p in posts if p.get('id') == post_id and p.get('active', False)), None)
-
-    if not post:
-        abort(404)
-    
-    # Incrementar visualizações
-    post['views'] = post.get('views', 0) + 1
-    
-    # Salvar dados atualizados
-    with open(os.path.join(os.path.dirname(__file__), 'administrador', 'content_data.json'), 'w', encoding='utf-8') as f:
-        json.dump(content_data, f, indent=4, ensure_ascii=False)
-
-    # Obter categorias para o menu
-    all_posts = content_data.get('posts', [])
-    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
-    categories.sort()
-    
-    return render_template('blog_detail.html', post=post, get_category_info=get_category_info, render_markdown=render_markdown, categories=categories)
+    post = BlogPost.query.filter_by(id=post_id, active=True).first_or_404()
+    return blog_detail(post.slug)
 
 @main_bp.route("/blog/<slug>")
-def blog_detail_by_slug(slug):
-    content_data = load_content_data()
-    posts = content_data.get('posts', [])
-    post = next((p for p in posts if p.get('slug') == slug and p.get('active', False)), None)
+def blog_detail(slug):
+    post = BlogPost.query.filter_by(slug=slug, active=True).first_or_404()
+    post.views = (post.views or 0) + 1
+    db.session.commit()
 
-    if not post:
-        # Tentar encontrar por ID se slug não funcionar (compatibilidade)
-        try:
-            post_id = int(slug)
-            return blog_detail_by_id(post_id)
-        except ValueError:
-            abort(404)
-    
-    # Incrementar visualizações
-    post['views'] = post.get('views', 0) + 1
-    
-    # Salvar dados atualizados
-    with open(os.path.join(os.path.dirname(__file__), 'administrador', 'content_data.json'), 'w', encoding='utf-8') as f:
-        json.dump(content_data, f, indent=4, ensure_ascii=False)
+    related_posts = (
+        BlogPost.query
+        .filter(BlogPost.active.is_(True), BlogPost.id != post.id)
+        .order_by(_priority_order().desc(), BlogPost.created_at.desc())
+        .limit(3)
+        .all()
+    )
 
-    # Obter categorias para o menu
-    all_posts = content_data.get('posts', [])
-    categories = list(set(p.get('category') for p in all_posts if p.get('category')))
-    categories.sort()
-    
-    return render_template('blog_detail.html', post=post, get_category_info=get_category_info, render_markdown=render_markdown, categories=categories)
+    return render_template(
+        'blog_detail.html',
+        post=post,
+        related_posts=related_posts,
+        get_category_info=get_category_info,
+        render_markdown=render_markdown,
+    )
 
 def register_blueprints(app):
     """Registra todos os blueprints globais da aplicação."""

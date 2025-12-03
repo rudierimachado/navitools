@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Blog - Admin{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .blog-manager-container {
+        padding: 1rem;
+        width: 100%;
+        min-height: calc(100vh - var(--header-height));
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    .blog-panel,
+    .blog-form-panel {
+        background: var(--bg-elevated);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-elevated);
+    }
+
+    .blog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .blog-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--bg-base);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 0.35rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .posts-table-wrapper {
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--bg-base);
+    }
+
+    table.posts-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .posts-table thead {
+        background: var(--bg-glass);
+    }
+
+    .posts-table th,
+    .posts-table td {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .posts-table tbody tr:hover {
+        background: var(--bg-elevated);
+    }
+
+    .status-pill {
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .status-pill.active {
+        background: var(--success-bg);
+        color: var(--success);
+    }
+
+    .status-pill.draft {
+        background: var(--warning-bg, rgba(251, 191, 36, 0.15));
+        color: var(--warning, #d97706);
+    }
+
+    .priority-pill {
+        padding: 0.15rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-color);
+    }
+
+    .post-actions {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+
+    .post-actions form,
+    .post-actions button {
+        display: inline;
+    }
+
+    .btn-link {
+        border: none;
+        background: none;
+        color: var(--primary);
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    .blog-form-panel h2 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+
+    .form-section-title {
+        font-size: 0.95rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin: 1.5rem 0 0.5rem;
+        font-weight: 600;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        color: var(--text-primary);
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 0.65rem 0.75rem;
+        border-radius: 10px;
+        border: 2px solid var(--border-color);
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+
+    .form-group textarea {
+        min-height: 90px;
+        resize: vertical;
+    }
+
+    .tags-helper {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+
+    .tag-chip {
+        background: var(--primary-alpha);
+        color: var(--primary);
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+    }
+
+    .form-footer {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-top: 1.25rem;
+    }
+
+    .form-footer .btn-primary {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    @media (max-width: 1024px) {
+        .blog-manager-container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .posts-table thead {
+            display: none;
+        }
+
+        .posts-table tr {
+            display: block;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .posts-table td {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .posts-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="blog-manager-container">
+    <div class="blog-panel">
+        <div class="blog-header">
+            <div>
+                <h1><i class="bi bi-journal-richtext"></i> Gerenciar Blog</h1>
+                <p class="text-muted">Controle publicações, categorias, seções e status dos conteúdos.</p>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total</div>
+                <div class="stat-value">{{ stats.total }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Publicados</div>
+                <div class="stat-value">{{ stats.published }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Rascunhos</div>
+                <div class="stat-value">{{ stats.drafts }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Destaques</div>
+                <div class="stat-value">{{ stats.featured }}</div>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="posts-table-wrapper">
+            {% if posts %}
+            <table class="posts-table">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Categoria</th>
+                        <th>Seção</th>
+                        <th>Prioridade</th>
+                        <th>Status</th>
+                        <th>Views</th>
+                        <th>Atualizado</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                    <tr>
+                        <td data-label="Título">
+                            <strong>{{ post.title }}</strong>
+                            <div class="text-muted" style="font-size: 0.85rem;">
+                                /blog/{{ post.slug }}
+                            </div>
+                            {% if post.summary %}
+                                <small class="text-muted">{{ post.summary[:80] ~ ('…' if post.summary|length > 80 else '') }}</small>
+                            {% endif %}
+                        </td>
+                        <td data-label="Categoria">
+                            {% if post.category %}
+                                <span class="priority-pill">{{ post.category }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Seção">
+                            {% if post.section %}
+                                <span class="priority-pill">{{ post.section }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Prioridade">
+                            <span class="priority-pill">{{ post.priority|capitalize }}</span>
+                        </td>
+                        <td data-label="Status">
+                            <span class="status-pill {{ 'active' if post.active else 'draft' }}">
+                                <i class="bi bi-{{ 'check-circle' if post.active else 'pause-circle' }}"></i>
+                                {{ 'Publicado' if post.active else 'Rascunho' }}
+                            </span>
+                        </td>
+                        <td data-label="Views">{{ post.views }}</td>
+                        <td data-label="Atualizado">{{ post.updated_at.strftime('%d/%m/%Y') if post.updated_at else '—' }}</td>
+                        <td data-label="Ações">
+                            <div class="post-actions">
+                                <a href="{{ url_for('administrador.blog_manager', edit=post.id) }}" class="btn-link">
+                                    Editar
+                                </a>
+                                <form method="POST" action="{{ url_for('administrador.toggle_blog_status', post_id=post.id) }}">
+                                    <button type="submit" class="btn-link">
+                                        {{ 'Desativar' if post.active else 'Publicar' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('administrador.delete_blog_post', post_id=post.id) }}" onsubmit="return confirm('Deseja remover este post?');">
+                                    <button type="submit" class="btn-link" style="color: var(--error);">
+                                        Excluir
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-journal-x"></i>
+                    <p>Nenhum post ainda. Crie o primeiro conteúdo usando o formulário ao lado.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="blog-form-panel">
+        <h2>
+            <i class="bi bi-{{ 'pencil-square' if editing_post else 'plus-circle' }}"></i>
+            {{ 'Editar Conteúdo' if editing_post else 'Novo Conteúdo' }}
+        </h2>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="post_id" value="{{ editing_post.id if editing_post else '' }}">
+            <div class="form-section-title">Informações básicas</div>
+            <div class="form-group">
+                <label for="title">Título *</label>
+                <input type="text" id="title" name="title" placeholder="Ex: 5 Dicas para turbinar sua produtividade" required value="{{ editing_post.title if editing_post else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="subtitle">Subtítulo</label>
+                <input type="text" id="subtitle" name="subtitle" placeholder="Resumo curto para destaque" value="{{ editing_post.subtitle if editing_post else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="slug">Slug (URL)</label>
+                <input type="text" id="slug" name="slug" placeholder="ex: dicas-produtividade" value="{{ editing_post.slug if editing_post else '' }}">
+                <small class="text-muted">Deixe vazio para gerar automaticamente.</small>
+            </div>
+
+            <div class="form-section-title">Classificação</div>
+            <div class="form-group">
+                <label for="category">Categoria</label>
+                <select id="category" name="category">
+                    <option value="">Selecione</option>
+                    {% for value, label in categories %}
+                        <option value="{{ value }}" {{ 'selected' if editing_post and editing_post.category == value else '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="section">Seção</label>
+                <select id="section" name="section">
+                    <option value="">Selecione</option>
+                    {% for value, label in sections %}
+                        <option value="{{ value }}" {{ 'selected' if editing_post and editing_post.section == value else '' }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tags">Tags (separadas por vírgula)</label>
+                <input type="text" id="tags" name="tags" placeholder="tutorial, dicas, IA" value="{{ editing_post.tags_list|join(', ') if editing_post else '' }}">
+            </div>
+
+            <div class="form-section-title">Imagem de capa</div>
+            <div class="form-group">
+                <label for="cover_file">Upload da capa</label>
+                <input type="file" id="cover_file" name="cover_file" accept="image/*">
+                {% if editing_post and editing_post.cover_url %}
+                <div class="form-text" style="margin-top:0.5rem;">
+                    <img src="{{ editing_post.cover_url }}" alt="Capa atual" style="max-width:100%; border-radius:12px; border:1px solid var(--border-color);">
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="form-section-title">Conteúdo</div>
+            <div class="form-group">
+                <label for="summary">Resumo</label>
+                <textarea id="summary" name="summary" placeholder="Breve descrição para cards e previews">{{ editing_post.summary if editing_post else '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="content">Texto completo *</label>
+                <textarea id="content" name="content" placeholder="Suporta Markdown básico" required style="min-height: 180px;">{{ editing_post.content if editing_post else '' }}</textarea>
+            </div>
+
+            <div class="form-section-title">Meta & Status</div>
+            <div class="form-group">
+                <label for="priority">Prioridade</label>
+                <select id="priority" name="priority">
+                    <option value="normal" {{ 'selected' if (editing_post and editing_post.priority == 'normal') or not editing_post else '' }}>Normal</option>
+                    <option value="featured" {{ 'selected' if editing_post and editing_post.priority == 'featured' else '' }}>Destaque</option>
+                    <option value="pinned" {{ 'selected' if editing_post and editing_post.priority == 'pinned' else '' }}>Fixo</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="reading_time">Tempo de leitura</label>
+                <input type="text" id="reading_time" name="reading_time" placeholder="Ex: 5 min" value="{{ editing_post.reading_time if editing_post else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="meta_description">Meta description</label>
+                <textarea id="meta_description" name="meta_description" maxlength="155" placeholder="Descrição curta para SEO">{{ editing_post.meta_description if editing_post else '' }}</textarea>
+                <small class="text-muted" id="meta-counter">{{ (editing_post.meta_description|length if editing_post and editing_post.meta_description else 0) }} / 155</small>
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="active" name="active" {{ 'checked' if (editing_post and editing_post.active) or not editing_post else '' }}>
+                <label for="active" style="margin: 0; font-weight: 500;">Publicar imediatamente</label>
+            </div>
+
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> {{ 'Atualizar Post' if editing_post else 'Salvar Post' }}
+                </button>
+                {% if editing_post %}
+                <a href="{{ url_for('administrador.blog_manager') }}" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:0.35rem;">
+                    <i class="bi bi-x-circle"></i> Cancelar edição
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const titleInput = document.getElementById('title');
+        const slugInput = document.getElementById('slug');
+        const metaInput = document.getElementById('meta_description');
+        const metaCounter = document.getElementById('meta-counter');
+
+        function slugify(value) {
+            return value
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        if (titleInput && slugInput) {
+            titleInput.addEventListener('input', () => {
+                if (!slugInput.value) {
+                    slugInput.value = slugify(titleInput.value);
+                }
+            });
+        }
+
+        if (metaInput && metaCounter) {
+            const updateMetaCount = () => {
+                metaCounter.textContent = `${metaInput.value.length} / 155`;
+            };
+            metaInput.addEventListener('input', updateMetaCount);
+            updateMetaCount();
+        }
+    });
+</script>
+{% endblock %}
