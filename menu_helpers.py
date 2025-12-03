@@ -2,6 +2,63 @@ from collections import defaultdict
 
 from models import MenuItem
 
+DEFAULT_SIDE_GROUPS = [
+    {
+        "key": "default_tools",
+        "display_name": "Ferramentas Web",
+        "icon": "grid-3x3-gap",
+        "url": "/",
+        "is_direct_link": False,
+        "children": [
+            {
+                "key": "default_qr",
+                "display_name": "Gerador de QR Code",
+                "icon": "qr-code",
+                "url": "/gerador-de-qr-code",
+            },
+            {
+                "key": "default_converter",
+                "display_name": "Conversor de Imagens",
+                "icon": "images",
+                "url": "/conversor-imagens",
+            },
+            {
+                "key": "default_remove_bg",
+                "display_name": "Removedor de Fundo",
+                "icon": "eraser",
+                "url": "/removedor-de-fundo",
+            },
+            {
+                "key": "default_youtube",
+                "display_name": "YouTube Downloader",
+                "icon": "play-btn",
+                "url": "/youtube-downloader",
+            },
+        ],
+    },
+    {
+        "key": "default_extra",
+        "display_name": "Outros Recursos",
+        "icon": "stars",
+        "url": "/",
+        "is_direct_link": False,
+        "children": [
+            {
+                "key": "default_blog",
+                "display_name": "Blog",
+                "icon": "journal-richtext",
+                "url": "/blog",
+            },
+            {
+                "key": "default_contact",
+                "display_name": "Contato",
+                "icon": "envelope",
+                "url": "/contact",
+            },
+        ],
+    },
+]
+
 
 def build_sidebar_menu() -> dict:
     """Monta o menu usando a tabela menu_items.
@@ -60,6 +117,9 @@ def build_sidebar_menu() -> dict:
         # Ordenar filhos por nome
         grupo['children'] = sorted(grupo['children'], key=lambda c: c['display_name'].lower())
         side_groups.append(grupo)
+
+    if not side_groups:
+        side_groups = DEFAULT_SIDE_GROUPS
 
     return {
         'top_menu': [],

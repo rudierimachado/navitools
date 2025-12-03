@@ -238,7 +238,7 @@
             border-radius: 14px;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             font-weight: 900;
             font-size: 1.4rem;
             color: white;
@@ -275,6 +275,54 @@
             background-clip: text;
         }
         
+        /* Mobile Menu Button */
+        .mobile-menu-btn {
+            display: none;
+            flex-direction: column;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            z-index: 1001;
+            transition: var(--transition-base);
+            padding: 8px;
+        }
+
+        .mobile-menu-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .hamburger-line {
+            width: 18px;
+            height: 2px;
+            background: var(--text-primary);
+            border-radius: 1px;
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .mobile-menu-btn:hover .hamburger-line {
+            background: white;
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+        
         /* Header Navigation */
         .header-nav {
             display: flex;
@@ -282,7 +330,8 @@
             gap: 1rem;
             flex: 1;
             justify-content: flex-start;
-            margin-left: 2rem;margin-right: 1rem;
+            margin-left: 2rem;
+            margin-right: 1rem;
         }
 
         .nav-dropdown {
@@ -455,7 +504,7 @@
             border-radius: 12px;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             cursor: pointer;
             transition: var(--transition-base);
             color: var(--text-primary);
@@ -479,7 +528,7 @@
             font-size: 1.2rem;
             cursor: pointer;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             transition: var(--transition-base);
         }
 
@@ -488,75 +537,8 @@
             color: white;
         }
         
-        .mobile-menu-btn {
-            display: none;
-            width: 44px;
-            height: 44px;
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: 12px;
-            color: var(--text-primary);
-            cursor: pointer;
-            position: relative;
-            z-index: 1001;
-            transition: var(--transition-base);
-            padding: 0;
-            align-items: center;
-            justify-content: center;
-            gap: 0;
-            overflow: hidden;
-        }
-
-        .mobile-menu-btn:hover {
-            background: var(--primary);
-            color: white;
-            transform: scale(1.05);
-        }
-
-        .mobile-menu-btn:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.3);
-        }
-
-        .hamburger-line {
-            width: 18px;
-            height: 2px;
-            background: currentColor;
-            border-radius: 1px;
-            position: relative;
-            transition: all 0.3s ease;
-            margin: 2px 0;
-        }
-
-        .hamburger-line:nth-child(1) {
-            transform-origin: top left;
-        }
-
-        .hamburger-line:nth-child(3) {
-            transform-origin: bottom left;
-        }
-
-        .mobile-menu-btn.active .hamburger-line:nth-child(1) {
-            transform: rotate(45deg) translate(2px, -2px);
-        }
-
-        .mobile-menu-btn.active .hamburger-line:nth-child(2) {
-            opacity: 0;
-            transform: translateX(-20px);
-        }
-
-        .mobile-menu-btn.active .hamburger-line:nth-child(3) {
-            min-height: calc(100vh - var(--header-height));
-            transition: margin-left 0.4s ease;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            padding-bottom: 160px;
-        }
-
-        /* Mobile drawer base state (hidden on desktop) */
+        /* Mobile Drawer Navigation */
         .mobile-nav {
-            display: none;
             position: fixed;
             top: var(--header-height);
             left: 0;
@@ -569,10 +551,280 @@
             transition: var(--transition-base);
             z-index: 1000;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .mobile-nav.show {
             transform: translateX(0);
+        }
+
+        .mobile-nav-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 999;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .mobile-nav-backdrop.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mobile Nav Header */
+        .mobile-nav-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 2px solid var(--border-color);
+            background: var(--bg-muted);
+            flex-shrink: 0;
+        }
+
+        .mobile-nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mobile-nav-logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .mobile-nav-logo .logo-text {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .mobile-nav-close {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-glass);
+            border: none;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            transition: background 0.2s ease;
+        }
+
+        .mobile-nav-close:hover {
+            background: var(--bg-elevated);
+        }
+
+        /* Mobile Nav Content */
+        .mobile-nav-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .mobile-nav-section {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mobile-nav-section:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-nav-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--bg-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mobile-nav-title i {
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .mobile-nav-items {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mobile-nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .mobile-nav-item:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--primary);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+
+        .mobile-nav-item:hover::before,
+        .mobile-nav-item:focus::before {
+            transform: scaleY(1);
+        }
+
+        .mobile-nav-item:hover,
+        .mobile-nav-item:focus {
+            background: var(--bg-glass);
+            color: var(--primary);
+            padding-left: 25px;
+        }
+
+        .mobile-nav-item:active {
+            background: var(--bg-muted);
+            transform: scale(0.98);
+        }
+
+        .mobile-nav-item i {
+            margin-right: 12px;
+            color: var(--primary);
+            width: 16px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .item-arrow {
+            margin-right: 0 !important;
+            margin-left: auto !important;
+            width: auto !important;
+            color: var(--text-muted) !important;
+            font-size: 0.8rem !important;
+        }
+
+        /* Mobile Nav Footer */
+        .mobile-nav-footer {
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-muted);
+            padding: 16px 20px;
+            flex-shrink: 0;
+        }
+
+        .mobile-nav-theme {
+            margin-bottom: 8px;
+        }
+
+        .theme-toggle-mobile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-glass);
+            border-radius: 6px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .theme-toggle-mobile:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .theme-toggle-mobile i {
+            font-size: 0.9rem;
+        }
+
+        .mobile-nav-version {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+            
+            .header-nav {
+                display: none !important;
+            }
+            
+            .header-search {
+                display: none !important;
+            }
+            
+            .header-actions .header-btn {
+                display: none !important;
+            }
+
+            .app-header {
+                height: 60px;
+                --header-height: 60px;
+            }
+
+            .mobile-nav {
+                top: 60px;
+                height: calc(100vh - 60px);
+            }
+
+            .app-main {
+                margin-top: 60px;
+                padding: 1rem;
+            }
+
+            .header-container {
+                padding: 0 1rem;
+            }
+
+            .app-logo {
+                font-size: 1.25rem;
+            }
+
+            .logo-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
         }
         
         /* ========================================
@@ -584,18 +836,84 @@
             left: 0;
             right: 0;
             background: var(--bg-glass);
-            backdrop-filter: blur(30px) saturate(180%);
+            backdrop-filter: blur(18px) saturate(140%);
             color: var(--text-primary);
-            padding: 1.5rem;
-            text-align: center;
+            padding: 0.75rem 1.5rem;
             border-top: 1px solid var(--border-glass);
             z-index: 997;
+            transition: var(--transition-base);
+        }
+        .app-footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            width: 100%;
         }
         .app-footer strong {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+        .footer-toggle {
+            display: none;
+            width: 100%;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: inherit;
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            font-weight: 600;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            cursor: pointer;
+        }
+        .footer-toggle i {
+            transition: transform 0.2s ease;
+        }
+        .app-footer[data-collapsed="true"] .footer-toggle i {
+            transform: rotate(0deg);
+        }
+        .app-footer[data-collapsed="false"] .footer-toggle i {
+            transform: rotate(180deg);
+        }
+        .footer-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            font-size: 0.85rem;
+        }
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            width: 100%;
+        }
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            justify-content: flex-end;
+            font-size: 0.85rem;
+        }
+        .footer-links span {
+            opacity: 0.4;
+        }
+        .footer-links a {
+            color: inherit;
+            text-decoration: none;
+            opacity: 0.75;
+        }
+        .footer-links a:hover {
+            opacity: 1;
         }
         
         /* ========================================
@@ -607,78 +925,43 @@
             .header-container {
                 padding: 0 1.5rem;
             }
-            
+            .app-footer {
+                padding: 0.75rem 1rem;
+            }
+            .app-footer-inner {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
             .main-content {
                 padding: 1.5rem;
             }
         }
-        
+
         /* Tablet portrait */
         @media (max-width: 768px) {
-            .mobile-menu-btn {
-                display: flex !important;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                margin-right: 0.5rem;
-            }
-
-            .header-nav {
-                display: none !important;
-            }
-
-            .header-container {
-                padding: 0 1rem;
-                height: 70px;
-            }
-            
-            .app-header {
-                height: 70px;
-            }
-
-            .header-search {
-                display: none !important;
-            }
-
-            .header-actions .header-btn span {
-                display: none;
-            }
-
-            .header-actions .header-btn {
-                padding: 0.625rem;
-                width: 44px;
-                height: 44px;
-                justify-content: center;
-                min-width: 44px;
-            }
-
-            .header-right {
-                display: none !important;
-            }
-            
             .main-content {
-                padding: 1rem;
-                margin-top: 70px;
+                padding: 0.75rem;
             }
             
             .app-main {
-                min-height: calc(100vh - 70px);
-                margin-top: 70px;
+                min-height: calc(100vh - 60px);
+                margin-top: 60px;
             }
 
-            .mobile-nav {
-                display: block !important;
-                top: 70px;
-                z-index: 1000;
+            .app-logo {
+                font-size: 1.25rem;
             }
 
-            .mobile-nav-item:hover {
-                background: var(--bg-elevated);
-                color: var(--primary);
-                transform: translateX(4px);
+            .app-footer-inner {
+                gap: 0.35rem;
+                text-align: center;
             }
         }
-        
+
         /* Mobile landscape */
         @media (max-width: 640px) {
             .header-container {
@@ -717,21 +1000,13 @@
             }
             
             .app-logo {
-                font-size: 1.25rem;
-            }
-            
-            .header-actions .header-btn {
-                width: 40px;
-                height: 40px;
-                padding: 0.5rem;
-                min-width: 40px;
+                font-size: 1.1rem;
             }
             
             .mobile-menu-btn {
                 width: 40px;
                 height: 40px;
-                padding: 0.5rem;
-                display: flex !important;
+                padding: 6px;
             }
 
             .mobile-nav {
@@ -788,6 +1063,14 @@
         .tool-group:nth-child(4) { animation-delay: 0.4s; }
         .tool-card:nth-child(5),
         .tool-group:nth-child(5) { animation-delay: 0.5s; }
+        
+        /* Body scroll lock */
+        body.mobile-nav-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
     </style>
     
     {% block extra_styles %}{% endblock %}
@@ -814,6 +1097,13 @@
                     <div class="logo-icon">NR</div>
                     <span class="logo-text">NEXUSRDR</span>
                 </a>
+
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" id="mobileMenuBtn" type="button">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
 
                 <!-- Navigation Menu -->
                 <nav class="header-nav">
@@ -846,13 +1136,6 @@
                         {% endfor %}
                     {% endif %}
                 </nav>
-
-                <!-- Mobile Menu Button -->
-                <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="handleHamburgerClick(event)" aria-label="Toggle Mobile Menu">
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                </button>
 
                 <div class="header-actions">
                     <div class="header-search">
@@ -911,19 +1194,25 @@
                             {% if group.children %}
                                 <div class="mobile-nav-items">
                                     {% for module in group.children %}
-                                    <a href="{{ module.url }}" class="mobile-nav-item" {% if 'financeiro' in module.display_name.lower() %}target="_blank" rel="noopener"{% endif %}>
-                                        <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                        <span>{{ module.display_name }}</span>
+                                    <a href="{{ module.url }}" class="mobile-nav-item">
+                                        <span>
+                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                            {{ module.display_name }}
+                                        </span>
                                         <i class="bi bi-chevron-right item-arrow"></i>
                                     </a>
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                <a href="{{ group.url }}" class="mobile-nav-item">
-                                    <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
-                                    <span>{{ group.display_name }}</span>
-                                    <i class="bi bi-chevron-right item-arrow"></i>
-                                </a>
+                                <div class="mobile-nav-items">
+                                    <a href="{{ group.url }}" class="mobile-nav-item">
+                                        <span>
+                                            <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                            {{ group.display_name }}
+                                        </span>
+                                        <i class="bi bi-chevron-right item-arrow"></i>
+                                    </a>
+                                </div>
                             {% endif %}
                         </div>
                     {% endfor %}
@@ -936,18 +1225,24 @@
                     </div>
                     <div class="mobile-nav-items">
                         <a href="/blog" class="mobile-nav-item">
-                            <i class="bi bi-journal-richtext"></i>
-                            <span>Blog</span>
+                            <span>
+                                <i class="bi bi-journal-richtext"></i>
+                                Blog
+                            </span>
                             <i class="bi bi-chevron-right item-arrow"></i>
                         </a>
                         <a href="/contact" class="mobile-nav-item">
-                            <i class="bi bi-envelope"></i>
-                            <span>Contato</span>
+                            <span>
+                                <i class="bi bi-envelope"></i>
+                                Contato
+                            </span>
                             <i class="bi bi-chevron-right item-arrow"></i>
                         </a>
                         <a href="/administrador" class="mobile-nav-item">
-                            <i class="bi bi-shield-lock"></i>
-                            <span>Admin</span>
+                            <span>
+                                <i class="bi bi-shield-lock"></i>
+                                Admin
+                            </span>
                             <i class="bi bi-chevron-right item-arrow"></i>
                         </a>
                     </div>
@@ -967,31 +1262,40 @@
             </div>
         </nav>
 
+        <!-- Mobile Menu Backdrop -->
+        <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+
         <!-- MAIN -->
         <main class="app-main" id="appMain">
             <div class="main-content" id="mainContent">
-
                 {% block top_banner %}{% endblock %}
                 {% block content %}{% endblock %}
                 {% block bottom_banner %}{% endblock %}
             </div>
             
             <!-- FOOTER -->
-            <footer class="app-footer">
-                <small>
-                    <strong>NEXUSRDR</strong>
-                    v3.0.0 · Sistema de Ferramentas Web<br>
-                    Desenvolvido por <strong>Rudieri Machado</strong> · 2025
-                </small>
-                <nav class="mt-3 d-flex flex-wrap gap-3 justify-content-center align-items-center">
-                    <a href="{{ url_for('main.contact') }}" class="text-decoration-none text-muted">Contato</a>
-                    <span class="text-muted">&bull;</span>
-                    <a href="{{ url_for('main.privacy') }}" class="text-decoration-none text-muted">Política de Privacidade</a>
-                    <span class="text-muted">&bull;</span>
-                    <a href="{{ url_for('main.terms') }}" class="text-decoration-none text-muted">Termos de Uso</a>
-                    <span class="text-muted">&bull;</span>
-                    <a href="{{ url_for('main.blog_list') }}" class="text-decoration-none text-muted">Blog</a>
-                </nav>
+            <footer class="app-footer" data-collapsed="false">
+                <div class="app-footer-inner">
+                    <button class="footer-toggle" id="footerToggle" type="button" aria-expanded="true">
+                        <span>Informações do site</span>
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <div class="footer-content">
+                        <div class="footer-brand">
+                            <strong>NEXUSRDR</strong> v3.0.0 · Sistema de Ferramentas Web
+                            <span>Desenvolvido por Rudieri Machado · 2025</span>
+                        </div>
+                        <nav class="footer-links">
+                            <a href="{{ url_for('main.contact') }}">Contato</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.terms') }}">Termos de Uso</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.blog_list') }}">Blog</a>
+                        </nav>
+                    </div>
+                </div>
             </footer>
         </main>
     </div>
@@ -1005,265 +1309,159 @@
         // ========================================
         // MOBILE NAVIGATION & THEME SYSTEM
         // ========================================
-        
-        // Declarar variáveis globais primeiro
-        const themeToggle = document.getElementById('themeToggle');
-        const html = document.documentElement;
-        const themeIcon = themeToggle?.querySelector('i');
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mobileNav = document.getElementById('mobileNav');
-        const themeToggleMobile = document.getElementById('themeToggleMobile');
 
-        // Declarar funções primeiro
-        function openMobileMenu() {
-            if (mobileNav) {
-                mobileNav.classList.add('show');
-                if (mobileMenuBtn) mobileMenuBtn.classList.add('active');
-                document.body.classList.add('mobile-nav-open');
-            }
-        }
-
-        function closeMobileMenu() {
-            if (mobileNav) {
-                mobileNav.classList.remove('show');
-                if (mobileMenuBtn) mobileMenuBtn.classList.remove('active');
-                document.body.classList.remove('mobile-nav-open');
-            }
-        }
-
-        function updateThemeIcons(theme) {
-            // Atualizar ícone desktop
-            if (themeIcon) {
-                themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
-            }
-
-            // Atualizar ícone mobile
-            const mobileIcon = themeToggleMobile?.querySelector('i');
-            if (mobileIcon) {
-                mobileIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
-            }
-        }
-
-        function handleHamburgerClick(event) {
-            event.preventDefault();
-            event.stopPropagation();
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando sistema de navegação...');
             
-            if (mobileNav) {
-                const isOpen = mobileNav.classList.contains('show');
-                
-                if (isOpen) {
-                    closeMobileMenu();
-                } else {
-                    openMobileMenu();
+            // Elementos
+            const themeToggle = document.getElementById('themeToggle');
+            const html = document.documentElement;
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+            const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+            // ========================================
+            // FUNÇÕES
+            // ========================================
+            
+            function openMobileMenu() {
+                console.log('📱 Abrindo menu mobile...');
+                if (mobileNav && mobileMenuBtn) {
+                    mobileNav.classList.add('show');
+                    mobileMenuBtn.classList.add('active');
+                    if (mobileNavBackdrop) mobileNavBackdrop.classList.add('show');
+                    document.body.classList.add('mobile-nav-open');
                 }
             }
-        }
 
-        // ========================================
-        // INITIALIZATION
-        // ========================================
-        
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        html.setAttribute('data-theme', savedTheme);
-        updateThemeIcons(savedTheme);
-
-        // Theme Toggle Desktop
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const currentTheme = html.getAttribute('data-theme');
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                
-                html.setAttribute('data-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
-                updateThemeIcons(newTheme);
-            });
-        }
-
-        // Tema mobile
-        if (themeToggleMobile) {
-            themeToggleMobile.addEventListener('click', function() {
-                const html = document.documentElement;
-                const currentTheme = html.getAttribute('data-theme');
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-
-                html.setAttribute('data-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
-
-                updateThemeIcons(newTheme);
-            });
-        }
-
-        // Resize handler
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                closeMobileMenu();
+            function closeMobileMenu() {
+                console.log('📱 Fechando menu mobile...');
+                if (mobileNav && mobileMenuBtn) {
+                    mobileNav.classList.remove('show');
+                    mobileMenuBtn.classList.remove('active');
+                    if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('show');
+                    document.body.classList.remove('mobile-nav-open');
+                }
             }
+
+            function updateThemeIcons(theme) {
+                // Desktop
+                const themeIcon = themeToggle?.querySelector('i');
+                if (themeIcon) {
+                    themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+                }
+
+                // Mobile
+                const mobileIcon = themeToggleMobile?.querySelector('i');
+                if (mobileIcon) {
+                    mobileIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+                }
+            }
+
+            // ========================================
+            // EVENT LISTENERS
+            // ========================================
+            
+            // Botão hambúrguer
+            if (mobileMenuBtn) {
+                console.log('✅ Botão hambúrguer encontrado!');
+                
+                mobileMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('🔄 Clique no hambúrguer detectado!');
+                    
+                    if (mobileNav && mobileNav.classList.contains('show')) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+                
+                // Touch events para melhor compatibilidade mobile
+                mobileMenuBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (mobileNav && mobileNav.classList.contains('show')) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+            } else {
+                console.error('❌ Botão hambúrguer NÃO encontrado!');
+            }
+
+            // Backdrop
+            if (mobileNavBackdrop) {
+                mobileNavBackdrop.addEventListener('click', closeMobileMenu);
+            }
+
+            // Theme toggle desktop
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    const currentTheme = html.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateThemeIcons(newTheme);
+                });
+            }
+
+            // Theme toggle mobile
+            if (themeToggleMobile) {
+                themeToggleMobile.addEventListener('click', function() {
+                    const currentTheme = html.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateThemeIcons(newTheme);
+                });
+            }
+
+            // Fechar menu ao redimensionar
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    closeMobileMenu();
+                }
+            });
+
+            // Fechar menu ao clicar em links
+            const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+            mobileNavItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    setTimeout(closeMobileMenu, 100);
+                });
+            });
+
+            // ========================================
+            // INICIALIZAÇÃO
+            // ========================================
+            
+            // Carregar tema salvo
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+            
+            console.log('✅ Sistema inicializado!');
         });
 
-        // ========================================
-        // NAVEGAÇÃO PARCIAL - SPA-LIKE
-        // ========================================
-        (function() {
-            'use strict';
-
-            const mainContent = document.getElementById('mainContent');
-            if (!mainContent) return;
-
-            function isInternalLink(url) {
-                try {
-                    const urlObj = new URL(url, window.location.origin);
-                    return urlObj.origin === window.location.origin;
-                } catch {
-                    return false;
-                }
+        // Função global para fechar menu (backup)
+        window.closeMobileMenu = function() {
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+            
+            if (mobileNav && mobileMenuBtn) {
+                mobileNav.classList.remove('show');
+                mobileMenuBtn.classList.remove('active');
+                if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('show');
+                document.body.classList.remove('mobile-nav-open');
             }
-
-            function handlePartialNavigation(event) {
-                const link = event.currentTarget;
-                const url = link.getAttribute('href');
-                
-                if (!url || !isInternalLink(url) || url.startsWith('#')) {
-                    return; // deixa navegação normal
-                }
-
-                event.preventDefault();
-
-                // Indicador visual de carregamento
-                mainContent.style.opacity = '0.6';
-                mainContent.style.pointerEvents = 'none';
-
-                fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Network error');
-                        return response.text();
-                    })
-                    .then(html => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const newContent = doc.getElementById('mainContent');
-                        
-                        if (!newContent) {
-                            // Se não encontrar mainContent, faz navegação normal
-                            window.location.href = url;
-                            return;
-                        }
-
-                        // Remove estilos antigos da página anterior
-                        removePageStyles();
-                        
-                        // Adiciona novos estilos da página
-                        addPageStyles(doc);
-                        
-                        // Substitui apenas o conteúdo central
-                        mainContent.innerHTML = newContent.innerHTML;
-                        
-                        // Atualiza URL sem recarregar
-                        window.history.pushState({}, '', url);
-                        
-                        // Atualiza links ativos
-                        updateActiveLinks(url);
-                        
-                        // Scroll para o topo do conteúdo
-                        mainContent.scrollTop = 0;
-                        
-                        // Executa scripts do novo conteúdo se houver
-                        executeScripts(mainContent);
-                    })
-                    .catch(error => {
-                        console.error('Erro na navegação parcial:', error);
-                        // Fallback para navegação normal
-                        window.location.href = url;
-                    })
-                    .finally(() => {
-                        // Remove indicador de carregamento
-                        mainContent.style.opacity = '';
-                        mainContent.style.pointerEvents = '';
-                    });
-            }
-
-            function updateActiveLinks(currentUrl) {
-                const currentPath = new URL(currentUrl, window.location.origin).pathname;
-                const navLinks = document.querySelectorAll('.nav-link, .group-item, .tool-card');
-                
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === currentPath) {
-                        link.classList.add('active');
-                        
-                        // Expande grupo pai se necessário
-                        const group = link.closest('.tool-group');
-                        if (group) {
-                            group.classList.add('expanded');
-                        }
-                    }
-                });
-            }
-
-            function removePageStyles() {
-                // Remove estilos específicos da página anterior
-                const pageStyles = document.querySelectorAll('style[data-page-style]');
-                pageStyles.forEach(style => style.remove());
-            }
-
-            function addPageStyles(doc) {
-                // Adiciona estilos específicos da nova página
-                const newStyles = doc.querySelectorAll('style');
-                newStyles.forEach(style => {
-                    if (style.textContent.trim()) {
-                        const newStyleElement = document.createElement('style');
-                        newStyleElement.textContent = style.textContent;
-                        newStyleElement.setAttribute('data-page-style', 'true');
-                        document.head.appendChild(newStyleElement);
-                    }
-                });
-            }
-
-            function executeScripts(container) {
-                const scripts = container.querySelectorAll('script');
-                scripts.forEach(script => {
-                    if (script.src) {
-                        // Script externo - cria novo elemento
-                        const newScript = document.createElement('script');
-                        newScript.src = script.src;
-                        document.head.appendChild(newScript);
-                    } else {
-                        // Script inline - executa
-                        try {
-                            eval(script.textContent);
-                        } catch (e) {
-                            console.warn('Erro ao executar script:', e);
-                        }
-                    }
-                });
-            }
-
-            function attachPartialNavigation() {
-                // Intercepta cliques nos links das ferramentas
-                const toolLinks = document.querySelectorAll('.group-item, .tool-card');
-                toolLinks.forEach(link => {
-                    // Remove listener anterior se existir
-                    link.removeEventListener('click', handlePartialNavigation);
-                    // Adiciona novo listener
-                    link.addEventListener('click', handlePartialNavigation);
-                });
-            }
-
-            // Inicializa quando DOM estiver pronto
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', attachPartialNavigation);
-            } else {
-                attachPartialNavigation();
-            }
-
-            // Gerencia botão Voltar/Avançar do navegador
-            window.addEventListener('popstate', function(event) {
-                // Recarrega a página quando usar botões do navegador
-                // Para uma implementação mais avançada, poderia fazer fetch da URL atual
-                window.location.reload();
-            });
-
-        })();
+        };
     </script>
     
     {% block scripts %}{% endblock %}
