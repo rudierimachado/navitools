@@ -147,10 +147,8 @@ def index():
         if p.section == 'destaque' or p.priority in ('featured', 'pinned')
     ]
 
-    template_name = 'home_mobile.html' if getattr(g, 'is_mobile', False) else 'home.html'
-
     return render_template(
-        template_name,
+        'home.html',
         novidades_posts=novidades_posts,
         dicas_posts=dicas_posts,
         destaque_posts=destaque_posts,
