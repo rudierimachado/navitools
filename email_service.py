@@ -12,13 +12,19 @@ load_dotenv()
 mail = Mail()
 
 def init_mail(app: Flask):
-    """Inicializa o serviço de email"""
-    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    """Inicializa o serviço de email com Brevo"""
+    # Configuração padrão para Brevo
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp-relay.brevo.com')
     app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
     app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', True)
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', False)
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@nexusrdr.com')
+    
+    # Timeout aumentado para evitar problemas de conexão
+    app.config['MAIL_TIMEOUT'] = int(os.getenv('MAIL_TIMEOUT', 120))
+    
     # Base da URL da aplicação para montar links de convite
     # Ex.: APP_BASE_URL=http://localhost:5000 ou https://nexusrdr.com
     app.config['APP_BASE_URL'] = os.getenv('APP_BASE_URL', '').rstrip('/')
