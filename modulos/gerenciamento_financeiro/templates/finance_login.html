@@ -194,9 +194,22 @@
             </button>
         </form>
 
+        <div class="text-center mt-3">
+            <a href="{{ url_for('gerenciamento_financeiro.forgot_password') }}" 
+               class="text-decoration-none" 
+               style="color: #38bdf8; font-size: 0.9rem;">
+                Esqueci minha senha
+            </a>
+        </div>
+
         <div class="finance-helper">
             <span>Primeira vez por aqui?</span>
-            <a href="{{ url_for('gerenciamento_financeiro.register') }}">Criar conta</a>
+            {%- set accept_id = request.args.get('accept_share_id') -%}
+            {% if accept_id %}
+                <a href="{{ url_for('gerenciamento_financeiro.register', accept_share_id=accept_id) }}">Criar conta</a>
+            {% else %}
+                <a href="{{ url_for('gerenciamento_financeiro.register') }}">Criar conta</a>
+            {% endif %}
         </div>
     </div>
 </section>

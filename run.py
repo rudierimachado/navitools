@@ -5,6 +5,7 @@ from modulos.ferramentas_web.conversor_imagens.config import Config
 from global_blueprints import register_blueprints
 from menu_helpers import build_sidebar_menu
 from extensions import db, migrate, get_current_db_url, init_database
+from email_service import init_mail
 
 from dotenv import load_dotenv
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -52,6 +53,7 @@ def create_app():
     # Inicializar extensões
     db.init_app(app)
     migrate.init_app(app, db)
+    init_mail(app)
 
     # Configurações Supabase (removido - não usado)
     # app.config['SUPABASE_URL'] = os.getenv('SUPABASE_URL', 'https://wimpmajjgqgehsxspzgv.supabase.co')

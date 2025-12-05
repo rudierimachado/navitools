@@ -1,0 +1,1551 @@
+{% extends 'finance_base.html' %}
+
+{% block title %}Dashboard Financeiro · NEXUSRDR{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Header Dashboard -->
+    <div class="col-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+            <div class="flex-grow-1">
+                <h1 class="h2 mb-1">Dashboard Financeiro</h1>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-person-circle me-1"></i>
+                    {{ user.email.split('@')[0] if user }} · 
+                    <i class="bi bi-calendar me-1"></i>
+                    {{ now.strftime('%B %Y') if now }}
+                </p>
+                <p class="mb-0 mt-2">
+                    <span class="badge rounded-pill" style="font-size: 0.85rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #3b82f6, #1e40af);">
+                        <i class="bi bi-folder-fill me-2"></i>
+                        <span id="currentWorkspaceName">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
+                    </span>
+                </p>
+            </div>
+            
+            <!-- Quick Actions - Desktop -->
+            <div class="d-none d-md-flex gap-2">
+                <button class="btn btn-success" onclick="showAddTransaction('income')">
+                    <i class="bi bi-plus-circle me-1"></i> Nova Entrada
+                </button>
+                <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+                    <i class="bi bi-dash-circle me-1"></i> Nova Despesa
+                </button>
+                <button class="btn btn-warning" onclick="showMonthlyHistory()">
+                    <i class="bi bi-calendar-check me-1"></i> Histórico
+                </button>
+                <button class="btn btn-info" id="closeMonthBtn" onclick="closeMonthConfirm()">
+                    <i class="bi bi-lock me-1"></i> Fechar Mês
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Status -->
+    <div class="col-12">
+        <div class="row g-3 g-md-4 mb-4">
+            <!-- Saldo Total -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card value-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="card-subtitle mb-1 opacity-75">Saldo Atual</h6>
+                                <h3 class="card-title mb-1">R$ {{ "{:,.2f}".format(balance or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <small class="opacity-75">
+                                    <i class="bi bi-arrow-up me-1"></i>
+                                    Atualizado agora
+                                </small>
+                            </div>
+                            <div class="opacity-50">
+                                <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Entradas do Mês -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card income-card h-100">
+                    <div class="card-body text-white">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="card-subtitle mb-1 opacity-75">Entradas do Mês</h6>
+                                <h4 class="card-title mb-1">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h4>
+                                <small class="opacity-75">{{ income_count }} transações</small>
+                            </div>
+                            <div class="opacity-25">
+                                <i class="bi bi-arrow-up-circle" style="font-size: 2.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gastos do Mês -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card expense-card h-100">
+                    <div class="card-body text-white">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="card-subtitle mb-1 opacity-75">Gastos do Mês</h6>
+                                <h4 class="card-title mb-1">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h4>
+                                <small class="opacity-75">{{ expense_count }} transações</small>
+                            </div>
+                            <div class="opacity-25">
+                                <i class="bi bi-arrow-down-circle" style="font-size: 2.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Taxa de Economia -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card h-100 border-info border-2">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="card-subtitle mb-1 text-info">Taxa de Economia</h6>
+                                <h4 class="card-title mb-1 text-info">{{ "{:.1f}".format(savings_rate or 0) }}%</h4>
+                                <small class="text-muted">
+                                    R$ {{ "{:,.2f}".format(savings or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} economizado
+                                </small>
+                            </div>
+                            <div class="text-info opacity-25">
+                                <i class="bi bi-piggy-bank" style="font-size: 2.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transações Recentes -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center bg-transparent">
+                <div class="mb-2 mb-md-0">
+                    <h5 class="card-title mb-1">Transações Recentes</h5>
+                    <small class="text-muted">Últimas movimentações da conta</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="abrirModalTransacoes()">
+                        <i class="bi bi-list-ul me-1"></i> Ver Todas
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="d-none d-md-table-cell">Data</th>
+                                    <th>Descrição</th>
+                                    <th class="d-none d-lg-table-cell">Categoria</th>
+                                    <th class="text-center">Fixo</th>
+                                    <th class="text-end">Valor</th>
+                                    <th width="60" class="d-none d-md-table-cell">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in recent_transactions %}
+                                <tr onclick="showTransactionDetails({{ t.id }})" style="cursor: pointer; background-color: {% if t.is_recurring %}#f0f0f0{% else %}transparent{% endif %};">
+                                    <td class="d-none d-md-table-cell">
+                                        <div class="fw-semibold">{{ t.transaction_date.strftime('%d/%m') }}</div>
+                                        <small class="text-muted">{{ t.transaction_date.strftime('%Y') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">{{ t.description }}</div>
+                                        <small class="text-muted d-md-none">
+                                            {{ t.transaction_date.strftime('%d/%m/%Y') }}
+                                            {% if t.category %} · {{ t.category.name }}{% endif %}
+                                        </small>
+                                        {% if t.is_fixed %}
+                                            <small class="badge bg-info ms-2">Fixo</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="d-none d-lg-table-cell">
+                                        {% if t.category %}
+                                            <span class="badge rounded-pill" style="background-color: {{ t.category.color }}20; color: {{ t.category.color }};">
+                                                {{ t.category.icon }} {{ t.category.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if t.is_fixed %}
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-pin-fill me-1"></i>Sim
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Não</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold text-{{ 'success' if t.type == 'income' else 'danger' }}">
+                                            {{ '+' if t.type == 'income' else '-' }}R$ {{ "{:,.2f}".format(t.amount).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                        </span>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary btn-sm" onclick="editTransaction({{ t.id }}); event.stopPropagation();" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction({{ t.id }}); event.stopPropagation();" title="Excluir">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
+                        <h6 class="text-muted mt-3">Nenhuma transação registrada</h6>
+                        <p class="text-muted mb-3">Comece adicionando sua primeira transação</p>
+                        <button class="btn btn-primary" onclick="showAddTransaction('income')">
+                            <i class="bi bi-plus me-1"></i> Primeira Transação
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions Mobile -->
+<div class="d-md-none quick-actions">
+    <button class="btn btn-success" onclick="showAddTransaction('income')">
+        <i class="bi bi-plus-circle"></i> Entrada
+    </button>
+    <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+        <i class="bi bi-dash-circle"></i> Despesa
+    </button>
+    <button class="btn btn-warning" onclick="showMonthlyHistory()">
+        <i class="bi bi-calendar-check"></i> Histórico
+    </button>
+    <button class="btn btn-info" id="closeMonthBtnMobile" onclick="closeMonthConfirm()">
+        <i class="bi bi-lock"></i> Fechar
+    </button>
+</div>
+
+<!-- Modal Adicionar Transação -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTransactionTitle">Nova Transação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addTransactionForm">
+                <div class="modal-body">
+                    <input type="hidden" id="transactionType">
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Categoria *</label>
+                        <select class="form-select" id="category" required>
+                            <option value="">Selecione uma categoria</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="descriptionField" style="display: none;">
+                        <label for="description" class="form-label">Nome da Despesa *</label>
+                        <input type="text" class="form-control" id="description" placeholder="Ex: Almoço, Gasolina, Conta de água...">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">Valor (R$) *</label>
+                                <input type="number" class="form-control" id="amount" step="0.01" min="0" required placeholder="0,00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transactionDate" class="form-label" id="dateLabel">Dt de entrada do dinheiro na conta *</label>
+                                <input type="date" class="form-control" id="transactionDate" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isFixed">
+                        <label class="form-check-label" for="isFixed">
+                            Marcar como fixo
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveButton">
+                        <span class="spinner-border spinner-border-sm d-none me-2"></span>
+                        Salvar Transação
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Histórico Mensal -->
+<div class="modal fade" id="monthlyHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-calendar-check me-2"></i>Histórico Mensal
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="monthlyHistoryContent" style="max-height: 500px; overflow-y: auto;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhes do Mês -->
+<div class="modal fade" id="monthDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="monthDetailsTitle">Detalhes do Mês</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="monthDetailsContent" style="max-height: 600px; overflow-y: auto;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Fechamento -->
+<div class="modal fade" id="closeMonthModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Fechamento de Mês
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Você está prestes a fechar o mês atual. Esta ação:</p>
+                <ul>
+                    <li>✅ Registrará todos os totais do mês</li>
+                    <li>✅ Criará um novo mês</li>
+                    <li>✅ Carregará automaticamente as despesas fixas</li>
+                </ul>
+                <p class="text-muted mb-0"><small>Esta ação não pode ser desfeita. Deseja continuar?</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="executeCloseMonth()">
+                    <i class="bi bi-lock me-1"></i>Fechar Mês
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Boas-vindas (Primeiro Acesso) -->
+<div class="modal fade" id="welcomeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-hand-wave me-2"></i>Bem-vindo ao Sistema Financeiro!
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div id="welcomeContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Workspaces -->
+<div class="modal fade" id="workspacesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-folder me-2"></i>Gerenciar Workspaces
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Abas -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="my-workspaces-tab" data-bs-toggle="tab" data-bs-target="#my-workspaces" type="button" role="tab" onclick="loadWorkspacesInModal()">
+                            <i class="bi bi-folder me-1"></i>Meus Workspaces
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="new-workspace-tab" data-bs-toggle="tab" data-bs-target="#new-workspace" type="button" role="tab">
+                            <i class="bi bi-plus-circle me-1"></i>Novo Workspace
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Conteúdo das Abas -->
+                <div class="tab-content">
+                    <!-- Aba: Meus Workspaces -->
+                    <div class="tab-pane fade show active" id="my-workspaces" role="tabpanel">
+                        <div id="workspacesListContent">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aba: Novo Workspace -->
+                    <div class="tab-pane fade" id="new-workspace" role="tabpanel">
+                        <div class="mb-3">
+                            <label for="newWsName" class="form-label">Nome do Workspace *</label>
+                            <input type="text" class="form-control" id="newWsName" placeholder="Ex: Família, Negócio...">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newWsDesc" class="form-label">Descrição (opcional)</label>
+                            <input type="text" class="form-control" id="newWsDesc" placeholder="Descrição do workspace">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newWsColor" class="form-label">Cor</label>
+                            <div class="d-flex gap-2">
+                                <input type="color" class="form-control" id="newWsColor" value="#3b82f6" style="width: 60px;">
+                                <input type="text" class="form-control" id="newWsColorText" value="#3b82f6" readonly>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="createWorkspaceFromModal()">
+                            <i class="bi bi-check me-1"></i>Criar Workspace
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Compartilhamentos Completo -->
+<div class="modal fade" id="shareSystemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-share me-2"></i>Gerenciar Compartilhamentos
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Abas -->
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pending-invites-tab" data-bs-toggle="tab" data-bs-target="#pending-invites" type="button" role="tab" onclick="loadPendingInvites()">
+                            <i class="bi bi-envelope me-1"></i>Convites Recebidos
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="new-share-tab" data-bs-toggle="tab" data-bs-target="#new-share" type="button" role="tab">
+                            <i class="bi bi-plus-circle me-1"></i>Novo Compartilhamento
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="list-shares-tab" data-bs-toggle="tab" data-bs-target="#list-shares" type="button" role="tab" onclick="loadShares()">
+                            <i class="bi bi-list-ul me-1"></i>Meus Compartilhamentos
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Conteúdo das Abas -->
+                <div class="tab-content">
+                    <!-- Aba: Convites Recebidos -->
+                    <div class="tab-pane fade" id="pending-invites" role="tabpanel">
+                        <div id="pendingInvitesContent">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aba: Novo Compartilhamento -->
+                    <div class="tab-pane fade show active" id="new-share" role="tabpanel">
+                <div class="mb-3">
+                    <label for="shareEmail" class="form-label">Email do usuário *</label>
+                    <input type="email" class="form-control" id="shareEmail" placeholder="usuario@exemplo.com" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Compartilhamento *</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="shareType" id="shareTypeFamily" value="family" checked>
+                        <label class="btn btn-outline-primary" for="shareTypeFamily">
+                            <i class="bi bi-people me-2"></i>Membro da Família
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="shareType" id="shareTypeAccountant" value="accountant">
+                        <label class="btn btn-outline-primary" for="shareTypeAccountant">
+                            <i class="bi bi-briefcase me-2"></i>Contador/Consultor
+                        </label>
+                    </div>
+                </div>
+
+                <div id="familyOptions" class="mb-3">
+                    <label for="familyRole" class="form-label">Papel na Família *</label>
+                    <select class="form-select" id="familyRole">
+                        <option value="">Selecione o papel</option>
+                        <option value="spouse">Cônjuge</option>
+                        <option value="child">Filho(a)</option>
+                        <option value="parent">Pai/Mãe</option>
+                        <option value="other">Outro</option>
+                    </select>
+                </div>
+
+                <div id="accountantOptions" class="mb-3" style="display: none;">
+                    <label for="accessLevel" class="form-label">Nível de Acesso *</label>
+                    <select class="form-select" id="accessLevel">
+                        <option value="viewer">Visualizador (apenas leitura)</option>
+                        <option value="editor" selected>Editor (pode editar)</option>
+                        <option value="admin">Administrador (controle total)</option>
+                    </select>
+                </div>
+
+                        <div id="shareInfo" class="alert alert-info d-none">
+                            <small id="shareInfoText"></small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-primary" onclick="executeShare()">
+                                <i class="bi bi-check me-1"></i>Enviar Convite
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Aba: Lista de Compartilhamentos -->
+                    <div class="tab-pane fade" id="list-shares" role="tabpanel">
+                        <div id="sharesListContent">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Hover effect para cards de workspace */
+    .hover-card {
+        transition: all 0.3s ease !important;
+    }
+    
+    .hover-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    /* Responsividade mobile */
+    @media (max-width: 768px) {
+        .hover-card .btn-group {
+            flex-direction: column;
+        }
+        
+        .hover-card .btn-group .btn {
+            margin-bottom: 0.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Variables
+let currentEditingId = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+});
+
+// Show add transaction modal
+function showAddTransaction(type) {
+    const modal = new bootstrap.Modal(document.getElementById('addTransactionModal'));
+    const title = document.getElementById('addTransactionTitle');
+    const typeInput = document.getElementById('transactionType');
+    const saveButton = document.getElementById('saveButton');
+    
+    // Reset form
+    document.getElementById('addTransactionForm').reset();
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    currentEditingId = null;
+    
+    // Configure for type
+    typeInput.value = type;
+    
+    if (type === 'income') {
+        title.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
+        saveButton.className = 'btn btn-success';
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Entrada';
+        document.getElementById('dateLabel').textContent = 'Dt de entrada do dinheiro na conta *';
+    } else {
+        title.innerHTML = '<i class="bi bi-dash-circle text-danger me-2"></i>Nova Despesa';
+        saveButton.className = 'btn btn-danger';
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Despesa';
+        document.getElementById('dateLabel').textContent = 'Data da Despesa *';
+    }
+    
+    // Load categories
+    loadCategories(type);
+    
+    modal.show();
+}
+
+// Load categories
+async function loadCategories(type) {
+    try {
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
+        const data = await response.json();
+        
+        const select = document.getElementById('category');
+        select.innerHTML = '<option value="">Selecione uma categoria</option>';
+        
+        if (data.categories && Array.isArray(data.categories)) {
+            data.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = `${cat.icon || '💰'} ${cat.name}`;
+                select.appendChild(option);
+            });
+        }
+        
+        // Add event listener to show/hide description field
+        select.addEventListener('change', function() {
+            const descriptionField = document.getElementById('descriptionField');
+            const transactionType = document.getElementById('transactionType').value;
+            
+            // Show description field only for expenses (type = 'expense')
+            if (this.value && transactionType === 'expense') {
+                descriptionField.style.display = 'block';
+                document.getElementById('description').required = true;
+            } else {
+                descriptionField.style.display = 'none';
+                document.getElementById('description').required = false;
+                document.getElementById('description').value = '';
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+        showToast('Erro ao carregar categorias', 'error');
+    }
+}
+
+// Handle form submission
+document.getElementById('addTransactionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const button = document.getElementById('saveButton');
+    const spinner = button.querySelector('.spinner-border');
+    
+    button.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    const transactionType = document.getElementById('transactionType').value;
+    let description = document.getElementById('category').options[document.getElementById('category').selectedIndex].text || 'Transação';
+    
+    // For expenses, use the user-provided description
+    if (transactionType === 'expense' && document.getElementById('description').value) {
+        description = document.getElementById('description').value;
+    }
+    
+    const formData = {
+        type: transactionType,
+        description: description,
+        amount: parseFloat(document.getElementById('amount').value),
+        transaction_date: document.getElementById('transactionDate').value,
+        category_id: document.getElementById('category').value,
+        frequency: 'once',
+        is_recurring: false,
+        is_fixed: document.getElementById('isFixed').checked
+    };
+    
+    try {
+        let url = '{{ url_for('gerenciamento_financeiro.api_transactions') }}';
+        let method = 'POST';
+        
+        if (currentEditingId) {
+            url += `/${currentEditingId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
+            showToast(
+                currentEditingId 
+                    ? 'Transação atualizada com sucesso! 🎉'
+                    : `${formData.type === 'income' ? 'Entrada' : 'Despesa'} registrada com sucesso! 🎉`, 
+                'success'
+            );
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.error || 'Erro ao salvar transação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        showToast('Erro ao salvar transação', 'error');
+    } finally {
+        button.disabled = false;
+        spinner.classList.add('d-none');
+    }
+});
+
+// Edit transaction
+async function editTransaction(id) {
+    try {
+        // Get transaction data
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?page=1&per_page=1000`);
+        const data = await response.json();
+        const transaction = data.transactions?.find(t => t.id === id);
+        
+        if (!transaction) {
+            showToast('Transação não encontrada', 'error');
+            return;
+        }
+        
+        // Set editing mode
+        currentEditingId = id;
+        
+        // Open modal with data
+        showAddTransaction(transaction.type);
+        
+        // Fill form after modal loads
+        setTimeout(() => {
+            document.getElementById('amount').value = transaction.amount;
+            document.getElementById('transactionDate').value = transaction.transaction_date;
+            document.getElementById('isFixed').checked = transaction.is_fixed || false;
+            
+            if (transaction.category && transaction.category.id) {
+                document.getElementById('category').value = transaction.category.id;
+            }
+            
+            // For expenses, show description field and load the description
+            if (transaction.type === 'expense') {
+                document.getElementById('descriptionField').style.display = 'block';
+                document.getElementById('description').value = transaction.description || '';
+                document.getElementById('description').required = true;
+            }
+            
+            // Update title
+            const title = document.getElementById('addTransactionTitle');
+            title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${transaction.type === 'income' ? 'Entrada' : 'Despesa'}`;
+        }, 500);
+        
+    } catch (error) {
+        console.error('Erro ao carregar transação:', error);
+        showToast('Erro ao carregar transação', 'error');
+    }
+}
+
+// Delete transaction
+async function deleteTransaction(id) {
+    if (!confirm('Deseja realmente excluir esta transação?')) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Transação excluída com sucesso!', 'success');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showToast(result.error || 'Erro ao excluir transação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        showToast('Erro ao excluir transação', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Show transaction details (mobile)
+function showTransactionDetails(id) {
+    if (window.isMobile()) {
+        // On mobile, show details in a toast or modal
+        showToast('Toque nos ícones de ação para editar ou excluir', 'info');
+    }
+}
+
+// ============================================================================
+// FUNÇÕES DE FECHAMENTO MENSAL
+// ============================================================================
+
+// Mostrar histórico mensal
+async function showMonthlyHistory() {
+    const modal = new bootstrap.Modal(document.getElementById('monthlyHistoryModal'));
+    const content = document.getElementById('monthlyHistoryContent');
+    
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_monthly_history") }}');
+        const data = await response.json();
+        
+        if (data.closures && data.closures.length > 0) {
+            let html = '<div class="list-group">';
+            
+            data.closures.forEach(closure => {
+                const monthYear = `${closure.month_name} ${closure.year}`;
+                const balance = parseFloat(closure.balance);
+                const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
+                
+                html += `
+                    <button type="button" class="list-group-item list-group-item-action" onclick="showMonthDetails(${closure.id})">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${monthYear}</h6>
+                            <small class="${balanceClass} fw-bold">R$ ${balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</small>
+                        </div>
+                        <p class="mb-1 text-muted">
+                            <i class="bi bi-arrow-up text-success me-1"></i>R$ ${parseFloat(closure.total_income).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                            <i class="bi bi-arrow-down text-danger ms-3 me-1"></i>R$ ${parseFloat(closure.total_expense).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        </p>
+                        <small class="text-muted">Fechado em ${new Date(closure.closed_at).toLocaleDateString('pt-BR')}</small>
+                    </button>
+                `;
+            });
+            
+            html += '</div>';
+            content.innerHTML = html;
+        } else {
+            content.innerHTML = '<div class="alert alert-info">Nenhum mês fechado ainda</div>';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar histórico</div>';
+    }
+    
+    modal.show();
+}
+
+// Mostrar detalhes de um mês específico
+async function showMonthDetails(closureId) {
+    const modal = new bootstrap.Modal(document.getElementById('monthDetailsModal'));
+    const titleEl = document.getElementById('monthDetailsTitle');
+    const content = document.getElementById('monthDetailsContent');
+    
+    try {
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_closure_details", closure_id=0) }}`.replace('/0', `/${closureId}`));
+        const data = await response.json();
+        const closure = data.closure;
+        
+        titleEl.textContent = `${closure.month_name} ${closure.year}`;
+        
+        let html = `
+            <div class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body">
+                                <h6 class="card-title text-success">Total de Entradas</h6>
+                                <h4>+R$ ${parseFloat(closure.total_income).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-danger">
+                            <div class="card-body">
+                                <h6 class="card-title text-danger">Total de Despesas</h6>
+                                <h4>-R$ ${parseFloat(closure.total_expense).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card border-info mt-3">
+                    <div class="card-body">
+                        <h6 class="card-title text-info">Saldo do Mês</h6>
+                        <h3 class="text-info">R$ ${parseFloat(closure.balance).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <h6 class="mb-3">Transações do Mês</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th class="text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        data.transactions.forEach(t => {
+            const icon = t.type === 'income' ? '✅' : '❌';
+            const valueClass = t.type === 'income' ? 'text-success' : 'text-danger';
+            const sign = t.type === 'income' ? '+' : '-';
+            
+            html += `
+                <tr>
+                    <td>${new Date(t.transaction_date).toLocaleDateString('pt-BR')}</td>
+                    <td>
+                        <small>${t.description}</small>
+                        ${t.is_auto_loaded ? '<br><small class="badge bg-info">Auto-carregada</small>' : ''}
+                    </td>
+                    <td class="text-end ${valueClass}"><strong>${sign}R$ ${parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar detalhes</div>';
+    }
+    
+    modal.show();
+}
+
+// Confirmar fechamento de mês
+async function closeMonthConfirm() {
+    const modal = new bootstrap.Modal(document.getElementById('closeMonthModal'));
+    modal.show();
+}
+
+// Executar fechamento de mês
+async function executeCloseMonth() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Fechando...';
+    
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_close_month") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('closeMonthModal')).hide();
+            showToast(`Mês fechado com sucesso! ${result.closure.fixed_expenses_copied} despesas fixas carregadas 🎉`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(result.error || 'Erro ao fechar mês', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao fechar mês:', error);
+        showToast('Erro ao fechar mês', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-lock me-1"></i>Fechar Mês';
+    }
+}
+
+// Verificar se deve mostrar botão de fechar mês (ao carregar)
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_current_month_closure") }}');
+        const data = await response.json();
+        
+        if (data.closure && data.closure.is_last_day_of_month) {
+            document.getElementById('closeMonthBtn').style.display = 'inline-block';
+            document.getElementById('closeMonthBtnMobile').style.display = 'inline-block';
+        }
+    } catch (error) {
+        console.error('Erro ao verificar data:', error);
+    }
+});
+
+// ============================================================================
+// FUNÇÕES DE COMPARTILHAMENTO DO SISTEMA
+// ============================================================================
+
+// Mostrar modal de compartilhamento
+function showShareModal() {
+    const modal = new bootstrap.Modal(document.getElementById('shareSystemModal'));
+    document.getElementById('shareEmail').value = '';
+    document.getElementById('accessLevel').value = 'editor';
+    document.getElementById('familyRole').value = '';
+    document.getElementById('shareInfo').classList.add('d-none');
+    
+    // Resetar tipo de compartilhamento
+    document.getElementById('shareTypeFamily').checked = true;
+    updateShareTypeOptions();
+    
+    // Voltar para a primeira aba
+    document.getElementById('new-share-tab').click();
+    
+    modal.show();
+}
+
+// Carregar convites pendentes recebidos
+async function loadPendingInvites() {
+    const container = document.getElementById('pendingInvitesContent');
+    
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_pending_invites") }}');
+        const data = await response.json();
+        
+        let html = '';
+        
+        if (data.pending_invites && data.pending_invites.length > 0) {
+            html += '<div class="list-group">';
+            
+            data.pending_invites.forEach(invite => {
+                const typeLabel = invite.share_type === 'family' ? 'Membro da Família' : 'Contador/Consultor';
+                const typeIcon = invite.share_type === 'family' ? 'people' : 'briefcase';
+                
+                html += `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <i class="bi bi-${typeIcon} me-2"></i>${typeLabel}
+                                </h6>
+                                <p class="mb-1"><strong>De:</strong> ${invite.owner_email}</p>
+                                <p class="mb-1 text-muted small">
+                                    Enviado em ${new Date(invite.created_at).toLocaleString('pt-BR')}
+                                </p>
+                            </div>
+                            <div class="btn-group-vertical" style="min-width: 100px;">
+                                <button class="btn btn-sm btn-success" onclick="acceptInvite(${invite.id})">
+                                    <i class="bi bi-check-circle me-1"></i>Aceitar
+                                </button>
+                                <button class="btn btn-sm btn-danger mt-1" onclick="rejectInvite(${invite.id})">
+                                    <i class="bi bi-x-circle me-1"></i>Recusar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        } else {
+            html = '<div class="alert alert-info">Você não tem convites pendentes.</div>';
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar convites.</div>';
+        console.error('Erro:', error);
+    }
+}
+
+// Aceitar convite
+async function acceptInvite(inviteId) {
+    if (!confirm('Deseja aceitar este convite?')) return;
+    
+    try {
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_accept_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Convite aceito com sucesso!', 'success');
+            loadPendingInvites(); // Recarregar lista
+        } else {
+            showToast(result.error || 'Erro ao aceitar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao aceitar convite', 'error');
+        console.error('Erro:', error);
+    }
+}
+
+// Recusar convite
+async function rejectInvite(inviteId) {
+    if (!confirm('Deseja recusar este convite?')) return;
+    
+    try {
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_delete_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Convite recusado', 'info');
+            loadPendingInvites(); // Recarregar lista
+        } else {
+            showToast(result.error || 'Erro ao recusar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao recusar convite', 'error');
+        console.error('Erro:', error);
+    }
+}
+
+// Carregar lista de compartilhamentos
+async function loadShares() {
+    const container = document.getElementById('sharesListContent');
+    
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_list_shares") }}');
+        const data = await response.json();
+        
+        let html = '';
+        
+        // Convites enviados
+        html += '<div class="mb-4">';
+        html += '<h6 class="text-primary"><i class="bi bi-send me-2"></i>Convites enviados por mim</h6>';
+        
+        if (data.sent_shares && data.sent_shares.length > 0) {
+            html += '<div class="table-responsive"><table class="table table-sm table-hover">';
+            html += '<thead class="table-light"><tr><th>Email</th><th>Tipo</th><th>Status</th><th>Enviado em</th></tr></thead><tbody>';
+            
+            data.sent_shares.forEach(s => {
+                const statusBadge = s.status === 'pending' 
+                    ? '<span class="badge bg-warning text-dark">Pendente</span>'
+                    : '<span class="badge bg-success">Aceito</span>';
+                    
+                const typeLabel = s.share_type === 'family' 
+                    ? '<span class="badge bg-info">Família</span>'
+                    : '<span class="badge bg-secondary">Contador</span>';
+                    
+                html += `<tr>
+                    <td>${s.shared_email}</td>
+                    <td>${typeLabel}</td>
+                    <td>${statusBadge}</td>
+                    <td><small>${new Date(s.created_at).toLocaleString('pt-BR')}</small></td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p class="text-muted small">Nenhum convite enviado ainda.</p>';
+        }
+        html += '</div>';
+        
+        // Compartilhamentos recebidos
+        html += '<div>';
+        html += '<h6 class="text-success"><i class="bi bi-key me-2"></i>Contas que tenho acesso</h6>';
+        
+        if (data.received_shares && data.received_shares.length > 0) {
+            html += '<div class="table-responsive"><table class="table table-sm table-hover">';
+            html += '<thead class="table-light"><tr><th>Proprietário</th><th>Tipo</th><th>Aceito em</th></tr></thead><tbody>';
+            
+            data.received_shares.forEach(s => {
+                const typeLabel = s.share_type === 'family' 
+                    ? '<span class="badge bg-info">Família</span>'
+                    : '<span class="badge bg-secondary">Contador</span>';
+                    
+                html += `<tr>
+                    <td>${s.owner_email}</td>
+                    <td>${typeLabel}</td>
+                    <td><small>${new Date(s.accepted_at).toLocaleString('pt-BR')}</small></td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+        } else {
+            html += '<p class="text-muted small">Nenhum compartilhamento ativo.</p>';
+        }
+        html += '</div>';
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar compartilhamentos.</div>';
+        console.error('Erro:', error);
+    }
+}
+
+// Alternar entre tipos de compartilhamento
+function updateShareTypeOptions() {
+    const shareType = document.querySelector('input[name="shareType"]:checked').value;
+    const familyOptions = document.getElementById('familyOptions');
+    const accountantOptions = document.getElementById('accountantOptions');
+    
+    if (shareType === 'family') {
+        familyOptions.style.display = 'block';
+        accountantOptions.style.display = 'none';
+    } else {
+        familyOptions.style.display = 'none';
+        accountantOptions.style.display = 'block';
+    }
+}
+
+// Adicionar listeners para alternar tipos
+document.addEventListener('DOMContentLoaded', function() {
+    const shareTypeRadios = document.querySelectorAll('input[name="shareType"]');
+    shareTypeRadios.forEach(radio => {
+        radio.addEventListener('change', updateShareTypeOptions);
+    });
+});
+
+// Executar compartilhamento
+async function executeShare() {
+    const email = document.getElementById('shareEmail').value.trim();
+    const shareType = document.querySelector('input[name="shareType"]:checked').value;
+    const familyRole = document.getElementById('familyRole').value;
+    const accessLevel = document.getElementById('accessLevel').value;
+    
+    if (!email) {
+        showToast('Por favor, insira um email', 'warning');
+        return;
+    }
+    
+    if (!email.includes('@')) {
+        showToast('Email inválido', 'error');
+        return;
+    }
+    
+    if (shareType === 'family' && !familyRole) {
+        showToast('Por favor, selecione o papel na família', 'warning');
+        return;
+    }
+    
+    try {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Compartilhando...';
+        
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_share_system") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email,
+                share_type: shareType,
+                family_role: shareType === 'family' ? familyRole : null,
+                access_level: shareType === 'accountant' ? accessLevel : 'editor'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('shareSystemModal')).hide();
+            
+            let message = `Sistema compartilhado com ${email}!`;
+            if (result.share.status === 'pending') {
+                message += ' Convite enviado - aguardando aceitação.';
+            } else {
+                message += ' Acesso ativo!';
+            }
+            
+            showToast(message + ' 🎉', 'success');
+        } else {
+            // Mostrar mensagem de erro mais detalhada
+            let errorMessage = result.error || 'Erro ao compartilhar';
+            
+            if (result.status === 'pending') {
+                errorMessage = `⏳ ${result.error}\n${result.details}`;
+            } else if (result.status === 'accepted') {
+                errorMessage = `✅ ${result.error}\nNível: ${result.access_level}`;
+            }
+            
+            showToast(errorMessage, 'warning');
+        }
+    } catch (error) {
+        console.error('Erro ao compartilhar:', error);
+        showToast('Erro ao compartilhar sistema', 'error');
+    } finally {
+        const btn = event.target;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Compartilhar';
+    }
+}
+
+// ============================================================================
+// FUNÇÕES DE WORKSPACES PARA O MODAL
+// ============================================================================
+
+// Carregar workspaces no modal
+async function loadWorkspacesInModal() {
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}');
+        const data = await response.json();
+        
+        let html = '';
+        
+        // Workspaces próprios
+        if (data.owned && data.owned.length > 0) {
+            html += '<h6 class="mb-3 fw-bold"><i class="bi bi-folder me-2"></i>Meus Workspaces</h6>';
+            data.owned.forEach(ws => {
+                html += `
+                    <div class="card mb-3 border-0 shadow-sm hover-card" style="transition: all 0.3s ease;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div onclick="selectWorkspace(${ws.id})" style="cursor: pointer; flex-grow: 1;">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                             style="width: 40px; height: 40px; background: ${ws.color}20; border: 2px solid ${ws.color};">
+                                            <i class="bi bi-folder-fill" style="color: ${ws.color}; font-size: 1.2rem;"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">${ws.name}</h6>
+                                            <small class="text-muted">
+                                                <i class="bi bi-shield-check me-1"></i>Proprietário
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-sm btn-outline-warning rounded-pill me-1" 
+                                            onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${ws.name}', '${ws.color}')"
+                                            title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill" 
+                                            onclick="event.stopPropagation(); deleteWorkspace(${ws.id})"
+                                            title="Deletar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        // Workspaces compartilhados
+        if (data.shared && data.shared.length > 0) {
+            html += '<h6 class="mb-3 mt-4 fw-bold"><i class="bi bi-people me-2"></i>Compartilhados Comigo</h6>';
+            data.shared.forEach(ws => {
+                const roleColors = {
+                    'owner': 'primary',
+                    'editor': 'success',
+                    'viewer': 'info'
+                };
+                const roleColor = roleColors[ws.role] || 'secondary';
+                const roleLabels = {
+                    'owner': 'Proprietário',
+                    'editor': 'Editor',
+                    'viewer': 'Visualizador'
+                };
+                const roleLabel = roleLabels[ws.role] || ws.role;
+                
+                html += `
+                    <div class="card mb-3 border-0 shadow-sm hover-card" style="transition: all 0.3s ease;">
+                        <div class="card-body" onclick="selectWorkspace(${ws.id})" style="cursor: pointer;">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 40px; height: 40px; background: ${ws.color}20; border: 2px solid ${ws.color};">
+                                    <i class="bi bi-folder-shared" style="color: ${ws.color}; font-size: 1.2rem;"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <h6 class="mb-0 fw-bold">${ws.name}</h6>
+                                        <span class="badge bg-${roleColor} rounded-pill" style="font-size: 0.7rem;">
+                                            ${roleLabel}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-person me-1"></i>${ws.owner_email}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        if (!html) {
+            html = '<p class="text-muted">Nenhum workspace encontrado.</p>';
+        }
+        
+        document.getElementById('workspacesListContent').innerHTML = html;
+    } catch (error) {
+        document.getElementById('workspacesListContent').innerHTML = '<p class="text-danger">Erro ao carregar workspaces</p>';
+    }
+}
+
+// Criar workspace do modal
+async function createWorkspaceFromModal() {
+    const name = document.getElementById('newWsName').value.trim();
+    const description = document.getElementById('newWsDesc').value.trim();
+    const color = document.getElementById('newWsColor').value;
+    
+    if (!name) {
+        showToast('Nome do workspace é obrigatório', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description, color })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Workspace criado com sucesso!', 'success');
+            document.getElementById('newWsName').value = '';
+            document.getElementById('newWsDesc').value = '';
+            document.getElementById('newWsColor').value = '#3b82f6';
+            document.getElementById('my-workspaces-tab').click();
+            loadWorkspacesInModal();
+        } else {
+            showToast(result.error || 'Erro ao criar workspace', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao criar workspace', 'error');
+    }
+}
+
+// Atualizar cor no campo de texto
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInput = document.getElementById('newWsColor');
+    if (colorInput) {
+        colorInput.addEventListener('change', (e) => {
+            document.getElementById('newWsColorText').value = e.target.value;
+        });
+    }
+    
+    // Verificar se é primeiro acesso
+    checkFirstAccess();
+});
+
+// Verificar primeiro acesso e convites pendentes
+async function checkFirstAccess() {
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    
+    if (!hasSeenWelcome) {
+        try {
+            // Verificar convites pendentes
+            const response = await fetch('{{ url_for("gerenciamento_financeiro.api_pending_invites") }}');
+            const data = await response.json();
+            
+            let html = '';
+            
+            if (data.invites && data.invites.length > 0) {
+                // Tem convites pendentes
+                html = `
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-envelope me-2"></i>Você tem ${data.invites.length} convite(s) pendente(s)!</h6>
+                        <p class="mb-3">Escolha uma opção:</p>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="acceptInviteAndClose(${data.invites[0].id})">
+                            <i class="bi bi-check-circle me-2"></i>Aceitar Convite e Usar Workspace Compartilhado
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="createOwnWorkspaceAndClose()">
+                            <i class="bi bi-folder-plus me-2"></i>Criar Meu Próprio Workspace
+                        </button>
+                    </div>
+                `;
+            } else {
+                // Sem convites, criar workspace próprio
+                html = `
+                    <div class="text-center">
+                        <i class="bi bi-folder-plus" style="font-size: 3rem; color: #3b82f6;"></i>
+                        <h6 class="mt-3">Vamos começar!</h6>
+                        <p class="text-muted">Seu workspace padrão foi criado automaticamente.</p>
+                        <button class="btn btn-primary" onclick="closeWelcomeModal()">
+                            <i class="bi bi-check me-2"></i>Entendi, vamos começar!
+                        </button>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('welcomeContent').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('welcomeModal'));
+            modal.show();
+            
+        } catch (error) {
+            console.error('Erro ao verificar primeiro acesso:', error);
+        }
+    }
+}
+
+// Aceitar convite e fechar modal
+async function acceptInviteAndClose(inviteId) {
+    try {
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_accept_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            localStorage.setItem('hasSeenWelcome', 'true');
+            showToast('Convite aceito com sucesso!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Erro ao aceitar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao aceitar convite', 'error');
+    }
+}
+
+// Criar workspace próprio e fechar modal
+function createOwnWorkspaceAndClose() {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    bootstrap.Modal.getInstance(document.getElementById('welcomeModal')).hide();
+    showToast('Workspace criado! Você pode gerenciá-lo no menu.', 'success');
+}
+
+// Fechar modal de boas-vindas
+function closeWelcomeModal() {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    bootstrap.Modal.getInstance(document.getElementById('welcomeModal')).hide();
+}
+
+</script>
+{% endblock %}
