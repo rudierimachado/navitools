@@ -6,10 +6,13 @@ from flask import Flask, render_template_string
 from flask_mail import Mail, Message
 import os
 from dotenv import load_dotenv
+from threading import Thread
+import logging
 
 load_dotenv()
 
 mail = Mail()
+logger = logging.getLogger(__name__)
 
 def init_mail(app: Flask):
     """Inicializa o serviço de email com Brevo"""
@@ -30,6 +33,21 @@ def init_mail(app: Flask):
     app.config['APP_BASE_URL'] = os.getenv('APP_BASE_URL', '').rstrip('/')
 
     mail.init_app(app)
+
+def _send_async_email(app: Flask, msg: Message):
+    """Envia email em thread separada (não bloqueia a requisição)"""
+    try:
+        with app.app_context():
+            mail.send(msg)
+            logger.info(f"✅ Email enviado para {msg.recipients}")
+    except Exception as e:
+        logger.error(f"❌ Erro ao enviar email: {str(e)}")
+
+def _send_email_background(app: Flask, msg: Message):
+    """Envia email em background thread"""
+    thread = Thread(target=_send_async_email, args=(app, msg))
+    thread.daemon = True
+    thread.start()
 
 def send_share_invitation(recipient_email: str, owner_email: str, access_level: str, share_id: int, app: Flask):
     """
@@ -137,13 +155,13 @@ def send_share_invitation(recipient_email: str, owner_email: str, access_level: 
                 html=html_body
             )
             
-            # Enviar
-            mail.send(msg)
-            print(f"✅ Email enviado para {recipient_email}")
+            # Enviar em background (não bloqueia a requisição)
+            _send_email_background(app, msg)
+            print(f"📧 Email de convite enfileirado para {recipient_email}")
             return True
             
     except Exception as e:
-        print(f"❌ Erro ao enviar email: {str(e)}")
+        print(f"❌ Erro ao preparar email: {str(e)}")
         return False
 
 def send_share_accepted(owner_email: str, shared_email: str, app: Flask):
@@ -211,12 +229,13 @@ def send_share_accepted(owner_email: str, shared_email: str, app: Flask):
                 html=html_body
             )
             
-            mail.send(msg)
-            print(f"✅ Email de confirmação enviado para {owner_email}")
+            # Enviar em background (não bloqueia a requisição)
+            _send_email_background(app, msg)
+            print(f"📧 Email de confirmação enfileirado para {owner_email}")
             return True
             
     except Exception as e:
-        print(f"❌ Erro ao enviar email: {str(e)}")
+        print(f"❌ Erro ao preparar email: {str(e)}")
         return False
 
 
@@ -260,11 +279,13 @@ def send_verification_code(recipient_email: str, code: str, app: Flask):
             
             html_body = render_template_string(email_template, code=code)
             msg = Message(subject='Código de Verificação - NEXUSRDR', recipients=[recipient_email], html=html_body)
-            mail.send(msg)
-            print(f"✅ Código enviado para {recipient_email}")
+            
+            # Enviar em background (não bloqueia a requisição)
+            _send_email_background(app, msg)
+            print(f"📧 Código de verificação enfileirado para {recipient_email}")
             return True
     except Exception as e:
-        print(f"❌ Erro ao enviar código: {str(e)}")
+        print(f"❌ Erro ao preparar código: {str(e)}")
         return False
 
 
@@ -308,9 +329,11 @@ def send_password_reset(recipient_email: str, reset_link: str, app: Flask):
             
             html_body = render_template_string(email_template, reset_link=reset_link)
             msg = Message(subject='Recuperação de Senha - NEXUSRDR', recipients=[recipient_email], html=html_body)
-            mail.send(msg)
-            print(f"✅ Link de recuperação enviado para {recipient_email}")
+            
+            # Enviar em background (não bloqueia a requisição)
+            _send_email_background(app, msg)
+            print(f"📧 Link de recuperação enfileirado para {recipient_email}")
             return True
     except Exception as e:
-        print(f"❌ Erro ao enviar link: {str(e)}")
+        print(f"❌ Erro ao preparar link: {str(e)}")
         return False
