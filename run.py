@@ -217,15 +217,7 @@ def create_app():
             except Exception as e:
                 click.echo(f'❌ Erro: {e}')
 
-        # Rotas básicas
-        @app.route('/')
-        def index():
-            return """
-            <h1>🎉 NEXUSRDR FUNCIONANDO!</h1>
-            <p>Aplicação carregada com sucesso.</p>
-            <a href="/health">Health check</a>
-            """
-
+        # Health check simples
         @app.route('/health')
         def health():
             return "OK"
