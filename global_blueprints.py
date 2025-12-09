@@ -26,9 +26,9 @@ from modulos.ferramentas_web.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
-from modulos.nexuspdf.routes import nexuspdf_bp
-from modulos.nexuspdf.comprimir_pdf.routes import comprimir_pdf_bp
-from modulos.nexuspdf.ocr_pdf.routes import ocr_pdf_bp
+from modulos.ferramentas_web.nexuspdf.routes import nexuspdf_bp
+from modulos.ferramentas_web.nexuspdf.comprimir_pdf.routes import comprimir_pdf_bp
+from modulos.ferramentas_web.nexuspdf.ocr_pdf.routes import ocr_pdf_bp
 from models import BlogPost, NewsletterSubscriber
 
 load_dotenv()

@@ -352,31 +352,37 @@ def edit_blog_post(post_id):
 def run_blog_bot():
     """Roda o robô de notícias do blog manualmente a partir do painel admin.
 
-    Retorna JSON com a quantidade de novos posts criados.
+    - Se a requisição for AJAX (X-Requested-With), retorna JSON.
+    - Caso contrário, usa flash + redirect para a tela do blog.
     """
     try:
         from robo_blog import TechNewsBot
 
         api_key = (os.getenv('GEMINI_API_KEY') or '').strip()
         if not api_key:
-            return jsonify({
-                'success': False,
-                'error': 'GEMINI_API_KEY não configurada. Verifique as variáveis de ambiente.'
-            }), 400
+            msg = 'GEMINI_API_KEY não configurada. Verifique as variáveis de ambiente.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'error')
+            return redirect(url_for('administrador.blog_manager'))
 
         bot = TechNewsBot(api_key)
         created = bot.executar() or 0
 
-        return jsonify({
-            'success': True,
-            'created': int(created),
-        })
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'created': int(created)})
+
+        if created > 0:
+            flash(f'Robô executado com sucesso. {created} novo(s) post(s) criado(s).', 'success')
+        else:
+            flash('Robô executado. Nenhuma nova notícia para publicar hoje.', 'info')
+        return redirect(url_for('administrador.blog_manager'))
 
     except Exception as exc:  # noqa: BLE001
-        return jsonify({
-            'success': False,
-            'error': str(exc),
-        }), 500
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(exc)}), 500
+        flash(f'Erro ao executar o robô: {exc}', 'error')
+        return redirect(url_for('administrador.blog_manager'))
 
 @administrador_bp.route('/menus')
 @login_required
