@@ -34,8 +34,10 @@ def ocr_pdf():
     temp_input_path = os.path.join(tempfile.gettempdir(), filename)
     pdf_file.save(temp_input_path)
 
+    mode = request.form.get('mode') or 'advanced'
+
     try:
-        extracted_text = perform_ocr_on_pdf(temp_input_path)
+        extracted_text = perform_ocr_on_pdf(temp_input_path, mode=mode)
     except Exception:
         flash('Não foi possível processar o OCR deste PDF. Tente novamente em instantes.', 'danger')
         return redirect(url_for('nexuspdf_ocr_pdf.ocr_pdf'))

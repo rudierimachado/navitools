@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 
-{% block title %}OCR em PDF - NexusPDF{% endblock %}
+{% block title %}OCR em PDF Online | Converter PDF Escaneado em Texto - NexusPDF{% endblock %}
 
-{% block meta_description %}Ferramenta de OCR em PDF do NexusPDF: envie um PDF e extraia texto pesquisável a partir de documentos escaneados ou imagens digitalizadas.{% endblock %}
-{% block meta_keywords %}ocr pdf, extrair texto de pdf, pdf escaneado, converter pdf imagem em texto, reconhecimento de caracteres, nexuspdf ocr{% endblock %}
+{% block meta_description %}Use o OCR em PDF online do NexusPDF para converter PDFs escaneados e imagens em texto pesquisável. Extraia texto de boletos, contratos, relatórios e documentos digitalizados em português de forma rápida e segura.{% endblock %}
+{% block meta_keywords %}ocr pdf online, ocr em pdf, converter pdf escaneado em texto, extrair texto de pdf, reconhecimento de texto em pdf, pdf imagem para texto, ocr portugues, nexuspdf ocr{% endblock %}
 
 {% block styles %}
 <style>
@@ -190,8 +190,8 @@
 <div class="ocr-wrapper">
     <div class="ocr-container">
         <div class="ocr-header">
-            <h1>OCR em PDF</h1>
-            <p>Envie um arquivo PDF escaneado para extrair texto por reconhecimento óptico de caracteres.</p>
+            <h1>OCR em PDF online: transforme PDFs escaneados em texto</h1>
+            <p>Envie um arquivo PDF comum ou escaneado e extraia texto pesquisável com reconhecimento de caracteres em português e outros idiomas.</p>
         </div>
 
         <!-- Slot para Google AdSense (topo OCR PDF) -->
@@ -204,6 +204,14 @@
                 <div class="ocr-form-group">
                     <label class="ocr-label">Arquivo PDF</label>
                     <input type="file" name="pdf_file" accept="application/pdf" required class="ocr-input" />
+                </div>
+
+                <div class="ocr-form-group">
+                    <label class="ocr-label">Modo de processamento</label>
+                    <select name="mode" class="ocr-input">
+                        <option value="normal">Modo normal – texto incorporado (rápido)</option>
+                        <option value="advanced" selected>Modo avançado – OCR via API (para PDFs escaneados)</option>
+                    </select>
                 </div>
 
                 <div class="ocr-actions">
@@ -242,27 +250,32 @@
 
         <!-- Texto explicativo para SEO -->
         <section style="margin-top: 2.25rem; color: rgba(255,255,255,0.9); font-size: 0.96rem; line-height: 1.7;">
-            <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">O que é OCR em PDF?</h2>
+            <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">O que é OCR em PDF e para que serve?</h2>
             <p style="margin-bottom: 0.75rem;">
                 OCR (Optical Character Recognition) é a tecnologia que permite reconhecer texto dentro de imagens ou
-                documentos escaneados. Com o módulo de <strong>OCR em PDF</strong> do NexusPDF, você pode transformar
-                PDFs que são apenas imagens em conteúdo de texto pesquisável e editável.
+                documentos escaneados. Com o módulo de <strong>OCR em PDF online</strong> do NexusPDF, você pode transformar
+                PDFs que são apenas imagens em conteúdo de texto pesquisável, copiável e editável.
             </p>
             <p style="margin-bottom: 1.1rem;">
-                Esse tipo de ferramenta é ideal para digitalizar contratos antigos, boletos, notas fiscais, relatórios
-                e qualquer documento impresso que foi apenas escaneado sem camada de texto.
+                Essa ferramenta de <strong>conversão de PDF escaneado em texto</strong> é ideal para digitalizar contratos antigos,
+                boletos, notas fiscais, relatórios e qualquer documento impresso que foi apenas escaneado sem camada de texto.
             </p>
 
-            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Como o OCR ajuda no dia a dia</h3>
+            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Como o OCR em PDF ajuda no dia a dia</h3>
             <ul style="padding-left: 1.1rem; margin-bottom: 0.75rem;">
-                <li style="margin-bottom: 0.35rem;">Permite copiar e colar trechos de documentos físicos digitalizados.</li>
-                <li style="margin-bottom: 0.35rem;">Facilita buscas por palavras-chave dentro de grandes PDFs.</li>
-                <li style="margin-bottom: 0.35rem;">Ajuda na organização de arquivos e automação de rotinas.</li>
+                <li style="margin-bottom: 0.35rem;">Permite copiar e colar trechos de documentos físicos digitalizados diretamente do PDF.</li>
+                <li style="margin-bottom: 0.35rem;">Facilita buscas por palavras-chave dentro de grandes arquivos PDF.</li>
+                <li style="margin-bottom: 0.35rem;">Ajuda na organização de arquivos, automação de rotinas e arquivamento digital.</li>
             </ul>
 
             <p style="margin-bottom: 0;">
-                O processamento de OCR do NexusPDF está em constante evolução e pode ser integrado a mecanismos mais
-                avançados conforme a necessidade do seu projeto.
+                O processamento de OCR do NexusPDF está em constante evolução. Você pode escolher entre um
+                <strong>modo normal</strong>, que extrai texto de PDFs com texto incorporado usando PyMuPDF, e um
+                <strong>modo avançado de OCR via API</strong>, ideal para PDFs escaneados apenas como imagem.
+            </p>
+            <p style="margin-top: 0.9rem; margin-bottom: 0;">
+                Use o <strong>OCR em PDF online grátis</strong> para testar agora mesmo e, se precisar de mais performance
+                ou automação, este módulo pode ser integrado ao restante do ecossistema de ferramentas do NEXUSRDR.
             </p>
         </section>
 
