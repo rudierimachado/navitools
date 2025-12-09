@@ -262,6 +262,13 @@
                 <h1><i class="bi bi-journal-richtext"></i> Gerenciar Blog</h1>
                 <p class="text-muted">Controle publicações, categorias, seções e status dos conteúdos.</p>
             </div>
+            <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+                <button type="button" id="run-bot-btn" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:0.35rem;">
+                    <i class="bi bi-robot"></i>
+                    Rodar robô de notícias
+                </button>
+                <small id="run-bot-status" class="text-muted" style="min-height:1.2rem;"></small>
+            </div>
         </div>
 
         <div class="stats-grid">
@@ -510,6 +517,59 @@
             };
             metaInput.addEventListener('input', updateMetaCount);
             updateMetaCount();
+        }
+
+        // Botão para rodar o robô de posts
+        const runBotBtn = document.getElementById('run-bot-btn');
+        const runBotStatus = document.getElementById('run-bot-status');
+
+        if (runBotBtn && runBotStatus) {
+            runBotBtn.addEventListener('click', async () => {
+                runBotBtn.disabled = true;
+                const originalText = runBotBtn.innerHTML;
+                runBotBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Rodando robô...';
+                runBotStatus.textContent = '';
+
+                try {
+                    const response = await fetch('{{ url_for('administrador.run_blog_bot') }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        const msg = data.error || 'Erro ao executar o robô.';
+                        runBotStatus.textContent = msg;
+                        runBotStatus.classList.remove('text-success');
+                        runBotStatus.classList.add('text-danger');
+                    } else {
+                        const qtd = data.created || 0;
+                        runBotStatus.textContent = qtd > 0
+                            ? `Robô executado com sucesso. ${qtd} novo(s) post(s) criado(s).`
+                            : 'Robô executado. Nenhuma nova notícia para publicar hoje.';
+                        runBotStatus.classList.remove('text-danger');
+                        runBotStatus.classList.add('text-success');
+
+                        // Opcional: recarregar página para refletir novos posts
+                        if (qtd > 0) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    }
+                } catch (err) {
+                    runBotStatus.textContent = 'Erro inesperado ao executar o robô.';
+                    runBotStatus.classList.remove('text-success');
+                    runBotStatus.classList.add('text-danger');
+                    console.error('Erro ao rodar robô de blog:', err);
+                } finally {
+                    runBotBtn.disabled = false;
+                    runBotBtn.innerHTML = originalText;
+                }
+            });
         }
     });
 </script>

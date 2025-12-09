@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import re
 from collections import Counter
 
@@ -344,6 +345,38 @@ def edit_blog_post(post_id):
     """Convenience route so links like /administrador/blog/<id>/edit work."""
     BlogPost.query.get_or_404(post_id)
     return redirect(url_for('administrador.blog_manager', edit=post_id))
+
+
+@administrador_bp.route('/blog/run-bot', methods=['POST'])
+@login_required
+def run_blog_bot():
+    """Roda o robô de notícias do blog manualmente a partir do painel admin.
+
+    Retorna JSON com a quantidade de novos posts criados.
+    """
+    try:
+        from robo_blog import TechNewsBot
+
+        api_key = (os.getenv('GEMINI_API_KEY') or '').strip()
+        if not api_key:
+            return jsonify({
+                'success': False,
+                'error': 'GEMINI_API_KEY não configurada. Verifique as variáveis de ambiente.'
+            }), 400
+
+        bot = TechNewsBot(api_key)
+        created = bot.executar() or 0
+
+        return jsonify({
+            'success': True,
+            'created': int(created),
+        })
+
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({
+            'success': False,
+            'error': str(exc),
+        }), 500
 
 @administrador_bp.route('/menus')
 @login_required

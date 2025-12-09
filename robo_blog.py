@@ -466,46 +466,73 @@ IMPORTANTE:
             print(f"❌ Erro ao baixar capa: {e}")
             return None
 
-    # ------------------------------------------------------------------
-    # EXECUÇÃO PRINCIPAL
-    # ------------------------------------------------------------------
-    def executar(self):
-        """Executa o processo completo: buscar notícias de hoje e publicar no blog."""
-        print("🚀 Iniciando TechNews Bot...")
-        print("=" * 50)
+        print(f"🖼️ Tentando baixar capa da URL: {url}")
 
-        noticias = self.buscar_noticias_de_hoje()
-        if not noticias:
-            print("Nenhuma notícia de hoje para processar.")
-            return
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Referer": noticia_original.get("link", "") if isinstance(noticia_original, dict) else "",
+        }
 
-        max_posts = int(os.getenv("ROBO_MAX_POSTS", "1"))
-        processadas = 0
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200 or not resp.content:
+            print(f"❌ Falha ao baixar imagem da capa. Status: {resp.status_code}")
+            return None
 
-        for noticia in noticias:
-            if processadas >= max_posts:
-                break
+        content_type = resp.headers.get("Content-Type", "image/jpeg")
+        if not content_type.startswith("image/"):
+            content_type = "image/jpeg"
 
-            link_original = noticia.get("link")
-            if self._post_com_link_ja_existe(link_original):
-                print(f"⚠️ Notícia já existente no banco (link): {link_original}. Pulando...")
-                continue
+        encoded = base64.b64encode(resp.content).decode("utf-8")
+        return f"data:{content_type};base64,{encoded}"
+    except Exception as e:
+        print(f"❌ Erro ao baixar capa: {e}")
+        return None
 
-            if self._post_ja_existe(noticia["titulo"]):
-                print(f"⚠️ Notícia já existente no banco (título): {noticia['titulo']}. Pulando...")
-                continue
+# ------------------------------------------------------------------
+# EXECUÇÃO PRINCIPAL
+# ------------------------------------------------------------------
+def executar(self):
+    """Executa o processo completo: buscar notícias de hoje e publicar no blog."""
+    print("🚀 Iniciando TechNews Bot...")
+    print("=" * 50)
 
-            dados = self.processar_com_ia(noticia)
-            if not dados:
-                print("⚠️ IA falhou para esta notícia. Encerrando execução para evitar estourar limites.")
-                break
+    noticias = self.buscar_noticias_de_hoje()
+    if not noticias:
+        print("Nenhuma notícia de hoje para processar.")
+        # Retorna 0 para permitir que chamadas programáticas saibam que nada foi criado
+        return 0
 
-            post = self.criar_post_no_blog(dados, noticia)
-            if post:
-                processadas += 1
+    max_posts = int(os.getenv("ROBO_MAX_POSTS", "1"))
+    processadas = 0
 
-        print("=" * 50)
-        print(f"🎉 PROCESSO CONCLUÍDO! Posts criados nesta execução: {processadas}")
+    for noticia in noticias:
+        if processadas >= max_posts:
+            break
+
+        link_original = noticia.get("link")
+        if self._post_com_link_ja_existe(link_original):
+            print(f"⚠️ Notícia já existente no banco (link): {link_original}. Pulando...")
+            continue
+
+        if self._post_ja_existe(noticia["titulo"]):
+            print(f"⚠️ Notícia já existente no banco (título): {noticia['titulo']}. Pulando...")
+            continue
+
+        dados = self.processar_com_ia(noticia)
+        if not dados:
+            print("⚠️ IA falhou para esta notícia. Encerrando execução para evitar estourar limites.")
+            break
+
+        post = self.criar_post_no_blog(dados, noticia)
+        if post:
+            processadas += 1
+
+    print("=" * 50)
+    print(f"🎉 PROCESSO CONCLUÍDO! Posts criados nesta execução: {processadas}")
+
+    # Retornar quantidade criada para uso por schedulers, CLI e painel admin
+    return processadas
 
 
 def main():
@@ -518,15 +545,16 @@ def main():
 
     if not rodar_robo_ativo:
         print("⚠️ Flag rodar_robo está desligada (rodar_robo != true/1). Robô NÃO será executado.")
-        return
+        return 0
 
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY não definida. Configure no .env antes de rodar o robô.")
-        return
+        return 0
 
     bot = TechNewsBot(api_key)
-    bot.executar()
+    created = bot.executar()
+    return created or 0
 
 
 if __name__ == "__main__":
