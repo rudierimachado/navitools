@@ -28,6 +28,7 @@ from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code
 from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo_bp
 from modulos.nexuspdf.routes import nexuspdf_bp
 from modulos.nexuspdf.comprimir_pdf.routes import comprimir_pdf_bp
+from modulos.nexuspdf.ocr_pdf.routes import ocr_pdf_bp
 from models import BlogPost, NewsletterSubscriber
 
 load_dotenv()
@@ -458,3 +459,4 @@ def register_blueprints(app):
     # NexusPDF - suíte de ferramentas PDF e texto
     app.register_blueprint(nexuspdf_bp, url_prefix="/nexuspdf")
     app.register_blueprint(comprimir_pdf_bp, url_prefix="/nexuspdf/comprimir-pdf")
+    app.register_blueprint(ocr_pdf_bp, url_prefix="/nexuspdf/ocr-pdf")
