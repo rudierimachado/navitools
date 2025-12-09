@@ -2,7 +2,6 @@ import os
 import tempfile
 from typing import List
 
-import fitz  # PyMuPDF
 import requests
 from pdf2image import convert_from_path
 
@@ -76,37 +75,13 @@ def _call_ocr_space_api(image_path: str, page_number: int) -> str:
     return combined + "\n"
 
 
-def _extract_text_pymupdf(input_path: str) -> str:
-    """Extrai texto de um PDF usando apenas PyMuPDF (sem OCR).
+def perform_ocr_on_pdf(input_path: str) -> str:
+    """Executa OCR em um PDF usando a API externa (OCR.Space).
 
-    Funciona bem para PDFs que já possuem texto incorporado (não são só imagens).
+    - Converte cada página do PDF em imagem usando pdf2image (Poppler).
+    - Envia cada página para a API OCR.Space.
+    - Concatena o texto de todas as páginas em uma única string.
     """
-
-    if not os.path.exists(input_path):
-        raise FileNotFoundError("Arquivo PDF de entrada não encontrado para OCR.")
-
-    try:
-        doc = fitz.open(input_path)
-    except Exception as exc:  # noqa: BLE001
-        raise RuntimeError(f"Falha ao abrir PDF para extração de texto: {exc}") from exc
-
-    texts: List[str] = []
-
-    for page_number in range(len(doc)):
-        page = doc.load_page(page_number)
-        page_text = page.get_text("text") or ""
-        header = f"\n\n===== Página {page_number + 1} =====\n"
-        texts.append(header + page_text)
-
-    combined_text = "".join(texts).strip()
-    if not combined_text:
-        return "Nenhum texto incorporado foi encontrado neste PDF. " "Tente o modo avançado (OCR)."
-
-    return combined_text
-
-
-def _perform_ocr_api(input_path: str) -> str:
-    """Executa OCR em um PDF usando a API externa (OCR.Space)."""
 
     if not os.path.exists(input_path):
         raise FileNotFoundError("Arquivo PDF de entrada não encontrado para OCR.")
@@ -164,18 +139,3 @@ def _perform_ocr_api(input_path: str) -> str:
         return "Nenhum texto pôde ser extraído deste PDF usando OCR."
 
     return combined_text
-
-
-def perform_ocr_on_pdf(input_path: str, mode: str = "advanced") -> str:
-    """Ponto de entrada único para OCR/extração de texto do PDF.
-
-    - mode="normal": usa apenas PyMuPDF (texto incorporado).
-    - mode="advanced": usa API de OCR (OCR.Space) para PDFs escaneados.
-    """
-
-    mode = (mode or "advanced").lower()
-
-    if mode == "normal":
-        return _extract_text_pymupdf(input_path)
-
-    return _perform_ocr_api(input_path)
