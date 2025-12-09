@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}OCR em PDF - NexusPDF{% endblock %}
+
+{% block meta_description %}Ferramenta de OCR em PDF do NexusPDF: envie um PDF e extraia texto pesquisável a partir de documentos escaneados ou imagens digitalizadas.{% endblock %}
+{% block meta_keywords %}ocr pdf, extrair texto de pdf, pdf escaneado, converter pdf imagem em texto, reconhecimento de caracteres, nexuspdf ocr{% endblock %}
+
+{% block styles %}
+<style>
+    .ocr-wrapper {
+        padding: 1rem;
+        width: 100%;
+        margin: 0;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    .ocr-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 4rem;
+    }
+
+    .ocr-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        color: #fff;
+    }
+
+    .ocr-header h1 {
+        font-size: clamp(2rem, 3.2vw, 2.6rem);
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+    }
+
+    .ocr-header p {
+        font-size: 1rem;
+        opacity: 0.85;
+    }
+
+    .ocr-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 2rem 1.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(18px);
+        color: #fff;
+    }
+
+    .ocr-form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .ocr-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .ocr-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(15, 23, 42, 0.7);
+        color: #fff;
+    }
+
+    .ocr-input::file-selector-button {
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        border: none;
+        margin-right: 1rem;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .ocr-actions {
+        margin-top: 2rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary-ocr {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        padding: 0.85rem 2.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 12px 30px rgba(34, 197, 94, 0.5);
+        transition: all 0.25s ease;
+    }
+
+    .btn-primary-ocr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 40px rgba(34, 197, 94, 0.7);
+    }
+
+    .ocr-progress-wrapper {
+        margin-top: 1.5rem;
+        width: 100%;
+    }
+
+    .ocr-progress-label {
+        font-size: 0.85rem;
+        color: rgba(226, 232, 240, 0.9);
+        margin-bottom: 0.35rem;
+    }
+
+    .ocr-progress-bar-bg {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.8);
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .ocr-progress-bar-fill {
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22c55e, #4ade80);
+        transition: width 0.25s ease-out;
+    }
+
+    .ocr-result {
+        margin-top: 2.5rem;
+        padding: 1.5rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        color: #e5e7eb;
+        font-size: 0.95rem;
+        max-height: 420px;
+        overflow: auto;
+        white-space: pre-wrap;
+    }
+
+    @media (max-width: 768px) {
+        .ocr-wrapper {
+            padding: 0.75rem;
+        }
+
+        .ocr-container {
+            padding: 2.5rem 1.25rem 3.25rem;
+        }
+
+        .ocr-card {
+            padding: 1.75rem 1.5rem;
+        }
+
+        .ocr-header h1 {
+            font-size: 2.1rem;
+        }
+
+        .ocr-header p {
+            font-size: 0.95rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .ocr-wrapper {
+            padding: 0.5rem;
+        }
+
+        .ocr-container {
+            padding: 2.25rem 1rem 3rem;
+        }
+
+        .ocr-card {
+            padding: 1.5rem 1.25rem;
+        }
+
+        .ocr-actions {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ocr-wrapper">
+    <div class="ocr-container">
+        <div class="ocr-header">
+            <h1>OCR em PDF</h1>
+            <p>Envie um arquivo PDF escaneado para extrair texto por reconhecimento óptico de caracteres.</p>
+        </div>
+
+        <!-- Slot para Google AdSense (topo OCR PDF) -->
+        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
+            <!-- Insira aqui o bloco responsivo do Google AdSense -->
+        </div>
+
+        <div class="ocr-card">
+            <form id="ocr-form" action="{{ url_for('nexuspdf_ocr_pdf.ocr_pdf') }}" method="post" enctype="multipart/form-data">
+                <div class="ocr-form-group">
+                    <label class="ocr-label">Arquivo PDF</label>
+                    <input type="file" name="pdf_file" accept="application/pdf" required class="ocr-input" />
+                </div>
+
+                <div class="ocr-actions">
+                    <button type="submit" class="btn-primary-ocr" id="ocr-submit-btn">
+                        <i class="bi bi-file-earmark-text"></i>
+                        Executar OCR
+                    </button>
+                </div>
+
+                <div class="ocr-progress-wrapper" id="ocr-progress" style="display: none;">
+                    <div class="ocr-progress-label">
+                        Processando PDF... isso pode levar alguns segundos para documentos maiores.
+                        <span id="ocr-progress-percent" style="margin-left: 0.35rem;">0%</span>
+                    </div>
+                    <div class="ocr-progress-bar-bg">
+                        <div class="ocr-progress-bar-fill" id="ocr-progress-bar"></div>
+                    </div>
+                </div>
+            </form>
+
+            {% if extracted_text %}
+            <div class="ocr-result mt-4">
+                {{ extracted_text }}
+            </div>
+
+            {% if txt_filename %}
+            <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                <a href="{{ url_for('nexuspdf_ocr_pdf.ocr_pdf_download', txt_filename=txt_filename) }}" class="btn-primary-ocr" style="text-decoration: none;">
+                    <i class="bi bi-download"></i>
+                    Baixar texto em .txt
+                </a>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <!-- Texto explicativo para SEO -->
+        <section style="margin-top: 2.25rem; color: rgba(255,255,255,0.9); font-size: 0.96rem; line-height: 1.7;">
+            <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">O que é OCR em PDF?</h2>
+            <p style="margin-bottom: 0.75rem;">
+                OCR (Optical Character Recognition) é a tecnologia que permite reconhecer texto dentro de imagens ou
+                documentos escaneados. Com o módulo de <strong>OCR em PDF</strong> do NexusPDF, você pode transformar
+                PDFs que são apenas imagens em conteúdo de texto pesquisável e editável.
+            </p>
+            <p style="margin-bottom: 1.1rem;">
+                Esse tipo de ferramenta é ideal para digitalizar contratos antigos, boletos, notas fiscais, relatórios
+                e qualquer documento impresso que foi apenas escaneado sem camada de texto.
+            </p>
+
+            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Como o OCR ajuda no dia a dia</h3>
+            <ul style="padding-left: 1.1rem; margin-bottom: 0.75rem;">
+                <li style="margin-bottom: 0.35rem;">Permite copiar e colar trechos de documentos físicos digitalizados.</li>
+                <li style="margin-bottom: 0.35rem;">Facilita buscas por palavras-chave dentro de grandes PDFs.</li>
+                <li style="margin-bottom: 0.35rem;">Ajuda na organização de arquivos e automação de rotinas.</li>
+            </ul>
+
+            <p style="margin-bottom: 0;">
+                O processamento de OCR do NexusPDF está em constante evolução e pode ser integrado a mecanismos mais
+                avançados conforme a necessidade do seu projeto.
+            </p>
+        </section>
+
+        <!-- Slot para Google AdSense (rodapé OCR PDF) -->
+        <div class="adsense-slot" style="margin-top: 2rem; text-align: center;">
+            <!-- Bloco adicional de anúncio ou destaque SEO para OCR em PDF -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('ocr-form');
+    const submitBtn = document.getElementById('ocr-submit-btn');
+    const progressWrapper = document.getElementById('ocr-progress');
+    const progressBar = document.getElementById('ocr-progress-bar');
+    const progressPercent = document.getElementById('ocr-progress-percent');
+
+    if (!form || !submitBtn || !progressWrapper || !progressBar || !progressPercent) {
+        return;
+    }
+
+    form.addEventListener('submit', function () {
+        // Só mostra a barra se houver arquivo selecionado
+        const fileInput = form.querySelector('input[name="pdf_file"]');
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
+
+        progressWrapper.style.display = 'block';
+
+        let current = 0;
+        const maxBeforeFinish = 90; // deixa 10% para o carregamento final da página
+
+        const interval = setInterval(function () {
+            if (current < maxBeforeFinish) {
+                current += 2;
+                progressBar.style.width = current + '%';
+                progressPercent.textContent = current + '%';
+            } else {
+                clearInterval(interval);
+            }
+        }, 250);
+    });
+});
+</script>
+{% endblock %}
