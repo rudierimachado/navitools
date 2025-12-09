@@ -1,0 +1,679 @@
+{% extends 'finance_base.html' %}
+
+{% block title %}Transações · NEXUSRDR{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Header -->
+    <div class="col-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+            <div>
+                <h1 class="h2 mb-1">Todas as Transações</h1>
+                <p class="text-muted mb-0">Gerencie seu histórico financeiro completo</p>
+            </div>
+            <div class="d-flex gap-2 mt-3 mt-md-0">
+                <button class="btn btn-success" onclick="showAddTransaction('income')">
+                    <i class="bi bi-plus-circle me-1"></i> Nova Entrada
+                </button>
+                <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+                    <i class="bi bi-dash-circle me-1"></i> Nova Despesa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form id="filtersForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="filterType" class="form-label">Tipo</label>
+                        <select class="form-select" id="filterType" onchange="applyFilters()">
+                            <option value="">Todos</option>
+                            <option value="income">Entradas</option>
+                            <option value="expense">Despesas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterCategory" class="form-label">Categoria</label>
+                        <select class="form-select" id="filterCategory" onchange="applyFilters()">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterStartDate" class="form-label">Data Início</label>
+                        <input type="date" class="form-control" id="filterStartDate" onchange="applyFilters()">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterEndDate" class="form-label">Data Fim</label>
+                        <input type="date" class="form-control" id="filterEndDate" onchange="applyFilters()">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Limpar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Transações -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="card-title mb-1">Histórico de Transações</h6>
+                    <small class="text-muted" id="transactionCount">Carregando...</small>
+                </div>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="viewMode" id="tableView" checked>
+                    <label class="btn btn-outline-primary btn-sm" for="tableView">
+                        <i class="bi bi-table"></i>
+                    </label>
+                    <input type="radio" class="btn-check" name="viewMode" id="cardView">
+                    <label class="btn btn-outline-primary btn-sm" for="cardView">
+                        <i class="bi bi-grid-3x3"></i>
+                    </label>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- Loading -->
+                <div id="loadingTransactions" class="text-center py-5">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-muted">Carregando transações...</p>
+                </div>
+                
+                <!-- Table View -->
+                <div id="tableViewContainer" class="d-none">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="d-none d-md-table-cell">Data</th>
+                                    <th>Descrição</th>
+                                    <th class="d-none d-lg-table-cell">Categoria</th>
+                                    <th class="d-none d-md-table-cell">Observações</th>
+                                    <th class="text-end">Valor</th>
+                                    <th width="100" class="d-none d-md-table-cell">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsTableBody">
+                                <!-- Transactions will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Card View -->
+                <div id="cardViewContainer" class="d-none p-3">
+                    <div class="row" id="transactionsCardContainer">
+                        <!-- Cards will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center py-5 d-none">
+                    <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
+                    <h6 class="text-muted mt-3">Nenhuma transação encontrada</h6>
+                    <p class="text-muted mb-3">Ajuste os filtros ou adicione uma nova transação</p>
+                    <button class="btn btn-primary" onclick="showAddTransaction('income')">
+                        <i class="bi bi-plus me-1"></i> Nova Transação
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="card-footer bg-transparent" id="paginationContainer" style="display: none;">
+                <nav>
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        <li class="page-item" id="prevPage">
+                            <button class="page-link" onclick="loadPage(currentPage - 1)">
+                                <i class="bi bi-chevron-left"></i> Anterior
+                            </button>
+                        </li>
+                        <li class="page-item active">
+                            <span class="page-link" id="currentPageInfo">Página 1</span>
+                        </li>
+                        <li class="page-item" id="nextPage">
+                            <button class="page-link" onclick="loadPage(currentPage + 1)">
+                                Próximo <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search/Filter Quick Actions Mobile -->
+<div class="d-md-none quick-actions">
+    <button class="btn btn-primary" onclick="document.getElementById('filterType').focus()">
+        <i class="bi bi-funnel"></i> Filtros
+    </button>
+    <button class="btn btn-success" onclick="showAddTransaction('income')">
+        <i class="bi bi-plus-circle"></i> Entrada
+    </button>
+    <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+        <i class="bi bi-dash-circle"></i> Despesa
+    </button>
+</div>
+
+<!-- Include the add transaction modal from dashboard -->
+<!-- Modal Adicionar Transação -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTransactionTitle">Nova Transação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addTransactionForm">
+                <div class="modal-body">
+                    <input type="hidden" id="transactionType">
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descrição *</label>
+                        <input type="text" class="form-control" id="description" required placeholder="Ex: Almoço, Pagamento salário...">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="amount" class="form-label">Valor (R$) *</label>
+                                <input type="number" class="form-control" id="amount" step="0.01" min="0" required placeholder="0,00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transactionDate" class="form-label">Data *</label>
+                                <input type="date" class="form-control" id="transactionDate" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Categoria</label>
+                        <select class="form-select" id="category">
+                            <option value="">Selecione uma categoria</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Observações</label>
+                        <input type="text" class="form-control" id="notes" placeholder="Informações adicionais (opcional)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="saveButton">
+                        <span class="spinner-border spinner-border-sm d-none me-2"></span>
+                        Salvar Transação
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Variables
+let currentPage = 1;
+let totalPages = 1;
+let currentEditingId = null;
+let allCategories = [];
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    loadAllCategories();
+    loadTransactions();
+    
+    // View mode switch
+    document.getElementById('tableView').addEventListener('change', switchToTableView);
+    document.getElementById('cardView').addEventListener('change', switchToCardView);
+});
+
+// Load categories for filters
+async function loadAllCategories() {
+    try {
+        const response = await fetch('{{ url_for('gerenciamento_financeiro.api_categories') }}');
+        const data = await response.json();
+        allCategories = data.categories || [];
+        
+        const select = document.getElementById('filterCategory');
+        select.innerHTML = '<option value="">Todas</option>';
+        
+        allCategories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = `${cat.icon || '💰'} ${cat.name}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+    }
+}
+
+// Load transactions
+async function loadTransactions(page = 1) {
+    currentPage = page;
+    
+    showElement('loadingTransactions');
+    hideElement('tableViewContainer');
+    hideElement('cardViewContainer');
+    hideElement('emptyState');
+    hideElement('paginationContainer');
+    
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            per_page: 20
+        });
+        
+        // Add filters
+        const type = document.getElementById('filterType').value;
+        const category = document.getElementById('filterCategory').value;
+        const startDate = document.getElementById('filterStartDate').value;
+        const endDate = document.getElementById('filterEndDate').value;
+        
+        if (type) params.append('type', type);
+        if (category) params.append('category_id', category);
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?${params}`);
+        const data = await response.json();
+        
+        hideElement('loadingTransactions');
+        
+        if (data.transactions && data.transactions.length > 0) {
+            displayTransactions(data.transactions);
+            updatePagination(data.pagination);
+            document.getElementById('transactionCount').textContent = `${data.pagination.total} transações encontradas`;
+        } else {
+            showElement('emptyState');
+            document.getElementById('transactionCount').textContent = '0 transações encontradas';
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar transações:', error);
+        hideElement('loadingTransactions');
+        showElement('emptyState');
+        showToast('Erro ao carregar transações', 'error');
+    }
+}
+
+// Display transactions
+function displayTransactions(transactions) {
+    const isTableView = document.getElementById('tableView').checked;
+    
+    if (isTableView) {
+        displayTableView(transactions);
+    } else {
+        displayCardView(transactions);
+    }
+}
+
+// Table view
+function displayTableView(transactions) {
+    const tbody = document.getElementById('transactionsTableBody');
+    
+    tbody.innerHTML = transactions.map(t => `
+        <tr>
+            <td class="d-none d-md-table-cell">
+                <div class="fw-semibold">${new Date(t.transaction_date).toLocaleDateString('pt-BR')}</div>
+            </td>
+            <td>
+                <div class="fw-semibold">${t.description}</div>
+                <small class="text-muted d-md-none">
+                    ${new Date(t.transaction_date).toLocaleDateString('pt-BR')}
+                    ${t.category ? ' · ' + t.category.name : ''}
+                </small>
+                ${t.is_fixed ? '<small class="badge bg-info ms-2">Fixo</small>' : ''}
+            </td>
+            <td class="d-none d-lg-table-cell">
+                ${t.category ? 
+                    `<span class="badge rounded-pill" style="background-color: ${t.category.color}20; color: ${t.category.color};">
+                        ${t.category.icon} ${t.category.name}
+                    </span>` 
+                    : '<span class="text-muted">-</span>'
+                }
+            </td>
+            <td class="d-none d-md-table-cell">
+                <small class="text-muted">${t.notes || '-'}</small>
+            </td>
+            <td class="text-end">
+                <span class="fw-bold text-${t.type === 'income' ? 'success' : 'danger'}">
+                    ${t.type === 'income' ? '+' : '-'}R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                </span>
+            </td>
+            <td class="d-none d-md-table-cell">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary btn-sm" onclick="editTransaction(${t.id})" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction(${t.id})" title="Excluir">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    
+    showElement('tableViewContainer');
+}
+
+// Card view
+function displayCardView(transactions) {
+    const container = document.getElementById('transactionsCardContainer');
+    
+    container.innerHTML = transactions.map(t => `
+        <div class="col-12 col-md-6 col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">${t.description}</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editTransaction(${t.id})" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction(${t.id})" title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <span class="fw-bold text-${t.type === 'income' ? 'success' : 'danger'}" style="font-size: 1.1rem;">
+                            ${t.type === 'income' ? '+' : '-'}R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        </span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            ${new Date(t.transaction_date).toLocaleDateString('pt-BR')}
+                        </small>
+                        ${t.category ? 
+                            `<span class="badge rounded-pill" style="background-color: ${t.category.color}20; color: ${t.category.color};">
+                                ${t.category.icon} ${t.category.name}
+                            </span>` 
+                            : ''
+                        }
+                    </div>
+                    
+                    ${t.notes ? `<small class="text-muted d-block mt-2">${t.notes}</small>` : ''}
+                    ${t.is_fixed ? '<small class="badge bg-info mt-2">Recorrente</small>' : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    showElement('cardViewContainer');
+}
+
+// View switching
+function switchToTableView() {
+    if (document.getElementById('transactionsTableBody').children.length > 0) {
+        hideElement('cardViewContainer');
+        showElement('tableViewContainer');
+    }
+}
+
+function switchToCardView() {
+    if (document.getElementById('transactionsCardContainer').children.length > 0) {
+        hideElement('tableViewContainer');
+        showElement('cardViewContainer');
+    }
+}
+
+// Pagination
+function updatePagination(pagination) {
+    totalPages = pagination.pages;
+    
+    if (totalPages <= 1) {
+        hideElement('paginationContainer');
+        return;
+    }
+    
+    document.getElementById('currentPageInfo').textContent = `Página ${pagination.page} de ${totalPages}`;
+    
+    const prevBtn = document.getElementById('prevPage');
+    const nextBtn = document.getElementById('nextPage');
+    
+    if (pagination.has_prev) {
+        prevBtn.classList.remove('disabled');
+    } else {
+        prevBtn.classList.add('disabled');
+    }
+    
+    if (pagination.has_next) {
+        nextBtn.classList.remove('disabled');
+    } else {
+        nextBtn.classList.add('disabled');
+    }
+    
+    showElement('paginationContainer');
+}
+
+function loadPage(page) {
+    if (page >= 1 && page <= totalPages) {
+        loadTransactions(page);
+    }
+}
+
+// Filters
+function applyFilters() {
+    loadTransactions(1);
+}
+
+function clearFilters() {
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    loadTransactions(1);
+}
+
+// Helper functions
+function showElement(id) {
+    document.getElementById(id).classList.remove('d-none');
+    document.getElementById(id).style.display = 'block';
+}
+
+function hideElement(id) {
+    document.getElementById(id).classList.add('d-none');
+    document.getElementById(id).style.display = 'none';
+}
+
+// Include transaction modal functions from dashboard
+// (Same functions: showAddTransaction, loadCategories, editTransaction, deleteTransaction, form submit handler)
+
+// Show add transaction modal
+function showAddTransaction(type) {
+    const modal = new bootstrap.Modal(document.getElementById('addTransactionModal'));
+    const title = document.getElementById('addTransactionTitle');
+    const typeInput = document.getElementById('transactionType');
+    const saveButton = document.getElementById('saveButton');
+    
+    // Reset form
+    document.getElementById('addTransactionForm').reset();
+    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    currentEditingId = null;
+    
+    // Configure for type
+    typeInput.value = type;
+    
+    if (type === 'income') {
+        title.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
+        saveButton.className = 'btn btn-success';
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Entrada';
+    } else {
+        title.innerHTML = '<i class="bi bi-dash-circle text-danger me-2"></i>Nova Despesa';
+        saveButton.className = 'btn btn-danger';
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Despesa';
+    }
+    
+    // Load categories
+    loadCategories(type);
+    
+    modal.show();
+}
+
+// Load categories for transaction
+async function loadCategories(type) {
+    try {
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
+        const data = await response.json();
+        
+        const select = document.getElementById('category');
+        select.innerHTML = '<option value="">Selecione uma categoria</option>';
+        
+        if (data.categories && Array.isArray(data.categories)) {
+            data.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = `${cat.icon || '💰'} ${cat.name}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+        showToast('Erro ao carregar categorias', 'error');
+    }
+}
+
+// Handle form submission
+document.getElementById('addTransactionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const button = document.getElementById('saveButton');
+    const spinner = button.querySelector('.spinner-border');
+    
+    button.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    const formData = {
+        type: document.getElementById('transactionType').value,
+        description: document.getElementById('description').value,
+        amount: parseFloat(document.getElementById('amount').value),
+        transaction_date: document.getElementById('transactionDate').value,
+        category_id: document.getElementById('category').value || null,
+        notes: document.getElementById('notes').value || null
+    };
+    
+    try {
+        let url = '{{ url_for('gerenciamento_financeiro.api_transactions') }}';
+        let method = 'POST';
+        
+        if (currentEditingId) {
+            url += `/${currentEditingId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
+            showToast(
+                currentEditingId 
+                    ? 'Transação atualizada com sucesso! 🎉'
+                    : `${formData.type === 'income' ? 'Entrada' : 'Despesa'} registrada com sucesso! 🎉`, 
+                'success'
+            );
+            loadTransactions(currentPage); // Reload current page
+        } else {
+            showToast(result.error || 'Erro ao salvar transação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        showToast('Erro ao salvar transação', 'error');
+    } finally {
+        button.disabled = false;
+        spinner.classList.add('d-none');
+    }
+});
+
+// Edit transaction
+async function editTransaction(id) {
+    try {
+        // Find transaction in current loaded data or fetch it
+        let transaction = null;
+        
+        // Try to find in current table/card view first
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?page=1&per_page=1000`);
+        const data = await response.json();
+        transaction = data.transactions?.find(t => t.id === id);
+        
+        if (!transaction) {
+            showToast('Transação não encontrada', 'error');
+            return;
+        }
+        
+        // Set editing mode
+        currentEditingId = id;
+        
+        // Open modal with data
+        showAddTransaction(transaction.type);
+        
+        // Fill form after modal loads
+        setTimeout(() => {
+            document.getElementById('description').value = transaction.description || '';
+            document.getElementById('amount').value = transaction.amount;
+            document.getElementById('transactionDate').value = transaction.transaction_date;
+            document.getElementById('notes').value = transaction.notes || '';
+            
+            if (transaction.category && transaction.category.id) {
+                document.getElementById('category').value = transaction.category.id;
+            }
+            
+            // Update title
+            const title = document.getElementById('addTransactionTitle');
+            title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${transaction.type === 'income' ? 'Entrada' : 'Despesa'}`;
+        }, 500);
+        
+    } catch (error) {
+        console.error('Erro ao carregar transação:', error);
+        showToast('Erro ao carregar transação', 'error');
+    }
+}
+
+// Delete transaction
+async function deleteTransaction(id) {
+    if (!confirm('Deseja realmente excluir esta transação?')) return;
+    
+    try {
+        showLoading();
+        
+        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Transação excluída com sucesso!', 'success');
+            loadTransactions(currentPage); // Reload current page
+        } else {
+            showToast(result.error || 'Erro ao excluir transação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        showToast('Erro ao excluir transação', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+</script>
+{% endblock %}

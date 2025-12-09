@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Criar conta · NexusRDR{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">
+                <i class="bi bi-person-plus"></i>
+            </div>
+            <div>
+                <p class="auth-tag">Cadastro</p>
+                <h1>Criar conta</h1>
+                <p class="auth-subtitle">Acesse todas as ferramentas personalizadas do NexusRDR</p>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+                <div class="flash-group">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="email">E-mail</label>
+                <div class="input-icon">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email" id="email" name="email" placeholder="voce@nexusrdr.com" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <div class="input-icon">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" id="password" name="password" minlength="6" placeholder="Crie uma senha forte" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirmar senha</label>
+                <div class="input-icon">
+                    <i class="bi bi-lock-fill"></i>
+                    <input type="password" id="confirm_password" name="confirm_password" minlength="6" placeholder="Repita a senha" required>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-button">
+                <span>Cadastrar</span>
+                <i class="bi bi-check2-circle"></i>
+            </button>
+
+            <div class="auth-helper">
+                <span>Já possui conta?</span>
+                <a href="{{ url_for('main.login_page') }}">Entrar agora</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

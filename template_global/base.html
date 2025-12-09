@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light" class="{{ device_classes }}">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0M80JNBV7C"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-0M80JNBV7C');
+    </script>
+    
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4455974024550708"
+         crossorigin="anonymous"></script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="google-adsense-account" content="ca-pub-4455974024550708">
+    
+    <!-- SEO Meta Tags -->
+    <title>{% block title %}NEXUSRDR - Ferramentas Web Gratuitas{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}NEXUSRDR - Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA. Sem cadastro, rápido e seguro.{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}ferramentas web, qr code, conversor imagens, youtube downloader, removedor fundo, ferramentas online grátis{% endblock %}">
+    <meta name="author" content="NEXUSRDR">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="language" content="pt-BR">
+    <meta name="revisit-after" content="7 days">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}https://nexusrdr.com.br{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}NEXUSRDR - Ferramentas Web Gratuitas{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA.{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://nexusrdr.com.br/static/og-image.png{% endblock %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="NEXUSRDR">
+    <meta property="og:locale" content="pt_BR">
+    
+    <!-- Twitter / X -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="{% block twitter_url %}https://nexusrdr.com.br{% endblock %}">
+    <meta property="twitter:title" content="{% block twitter_title %}NEXUSRDR - Ferramentas Web Gratuitas{% endblock %}">
+    <meta property="twitter:description" content="{% block twitter_description %}Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA.{% endblock %}">
+    <meta property="twitter:image" content="{% block twitter_image %}https://nexusrdr.com.br/static/og-image.png{% endblock %}">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{% block canonical_url %}https://nexusrdr.com.br{% endblock %}">
+    
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#0ea5e9">
+    <link rel="alternate" hreflang="pt-BR" href="https://nexusrdr.com.br">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Light Theme */
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #38bdf8;
+            --primary-alpha: rgba(14, 165, 233, 0.1);
+            --secondary: #6366f1;
+            --accent: #8b5cf6;
+            
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            
+            --bg-base: #f1f5f9;
+            --bg-elevated: #ffffff;
+            --bg-muted: #f8fafc;
+            --bg-glass: rgba(255, 255, 255, 0.7);
+            --bg-glass-hover: rgba(255, 255, 255, 0.85);
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            
+            --border-color: rgba(15, 23, 42, 0.08);
+            --border-glass: rgba(15, 23, 42, 0.12);
+            
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
+            
+            --header-height: 80px;
+            --mobile-header-height: 70px;
+            
+            --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-base: #0f172a;
+            --bg-elevated: #1e293b;
+            --bg-glass: rgba(30, 41, 59, 0.7);
+            --bg-glass-hover: rgba(30, 41, 59, 0.85);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            
+            --border-color: rgba(248, 250, 252, 0.08);
+            --border-glass: rgba(248, 250, 252, 0.12);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            padding-bottom: 100px;
+        }
+
+        /* ========================================
+           HEADER GLASS ULTRA - RESPONSIVE
+        ======================================== */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: var(--bg-glass);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border-bottom: 1px solid var(--border-glass);
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition-base);
+        }
+
+        .header-container {
+            height: 100%;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 100%;
+        }
+        
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 1.5rem;
+            transition: var(--transition-base);
+            z-index: 1001;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.4rem;
+            color: white;
+            box-shadow: 0 8px 24px rgba(14, 165, 233, 0.4);
+            transition: var(--transition-base);
+        }
+
+        .logo-text {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ========================================
+           MOBILE MENU BUTTON - MAIS VISÍVEL
+        ======================================== */
+        .mobile-menu-btn {
+            display: none;
+            flex-direction: column;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            border: 2px solid var(--primary-dark);
+            border-radius: 16px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            z-index: 1002;
+            transition: var(--transition-base);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+            position: relative;
+        }
+
+        .mobile-menu-btn:hover,
+        .mobile-menu-btn:focus {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+        }
+
+        .hamburger-line {
+            width: 24px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            display: block;
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(6px, 6px);
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+
+        .mobile-menu-btn.active .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(6px, -6px);
+        }
+        
+        /* Header Navigation - Desktop */
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+            justify-content: flex-start;
+            margin-left: 2rem;
+            margin-right: 1rem;
+        }
+
+        .nav-dropdown {
+            position: relative;
+        }
+
+        .nav-dropdown-toggle {
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 0.625rem 1.25rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: var(--transition-base);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .nav-dropdown-toggle:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .nav-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 250px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: var(--transition-base);
+            z-index: 1001;
+            margin-top: 0.5rem;
+        }
+
+        .nav-dropdown:hover .nav-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .nav-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.25rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: var(--transition-base);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .nav-dropdown-item:hover {
+            background: var(--bg-glass);
+            color: var(--primary);
+        }
+
+        /* Header Actions - Desktop */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-btn {
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 0.625rem 1.25rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: var(--transition-base);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .header-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-base);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            transform: rotate(180deg) scale(1.05);
+        }
+        
+        /* ========================================
+           MOBILE NAVIGATION - MELHORADO
+        ======================================== */
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            max-width: 320px;
+            height: 100vh;
+            background: var(--bg-elevated);
+            border-right: 1px solid var(--border-glass);
+            box-shadow: 0 0 50px rgba(0,0,0,0.3);
+            transform: translateX(0);
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1500;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mobile-nav.show {
+            left: 0;
+        }
+
+        .mobile-nav-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1400;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            backdrop-filter: blur(4px);
+        }
+
+        .mobile-nav-backdrop.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Mobile Nav Header */
+        .mobile-nav-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            border-bottom: 2px solid var(--border-color);
+            background: var(--bg-muted);
+            flex-shrink: 0;
+            min-height: var(--mobile-header-height);
+        }
+
+        .mobile-nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mobile-nav-logo .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .mobile-nav-logo .logo-text {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+        }
+
+        .mobile-nav-close {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-glass);
+            border: none;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-nav-close:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        /* Mobile Nav Content */
+        .mobile-nav-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .mobile-nav-section {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mobile-nav-section:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-nav-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--bg-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mobile-nav-title i {
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .mobile-nav-items {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .mobile-nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 0.95rem;
+            position: relative;
+            min-height: 56px;
+        }
+
+        .mobile-nav-item:last-child {
+            border-bottom: none;
+        }
+
+        .mobile-nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+
+        .mobile-nav-item:hover::before,
+        .mobile-nav-item:focus::before {
+            transform: scaleY(1);
+        }
+
+        .mobile-nav-item:hover,
+        .mobile-nav-item:focus {
+            background: var(--bg-glass);
+            color: var(--primary);
+            padding-left: 28px;
+        }
+
+        .mobile-nav-item:active {
+            background: var(--bg-muted);
+            transform: scale(0.98);
+        }
+
+        .mobile-nav-item i {
+            margin-right: 14px;
+            color: var(--primary);
+            width: 18px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .item-arrow {
+            margin-right: 0 !important;
+            margin-left: auto !important;
+            width: auto !important;
+            color: var(--text-muted) !important;
+            font-size: 0.9rem !important;
+        }
+
+        /* Mobile Nav Footer */
+        .mobile-nav-footer {
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-muted);
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .theme-toggle-mobile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            width: 100%;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .theme-toggle-mobile:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .theme-toggle-mobile i {
+            font-size: 1rem;
+        }
+
+        .mobile-nav-version {
+            margin-top: 12px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* ========================================
+           APP LAYOUT
+        ======================================== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .app-main {
+            width: 100%;
+            margin-top: var(--header-height);
+            padding: 2rem;
+            transition: var(--transition-base);
+        }
+
+        .main-content {
+            margin-top: 0;
+        }
+
+        /* ========================================
+           FOOTER
+        ======================================== */
+        .app-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-glass);
+            backdrop-filter: blur(18px) saturate(140%);
+            color: var(--text-primary);
+            padding: 0.75rem 1.5rem;
+            border-top: 1px solid var(--border-glass);
+            z-index: 997;
+            transition: var(--transition-base);
+        }
+
+        .app-footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            width: 100%;
+        }
+
+        .app-footer strong {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .footer-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            font-size: 0.85rem;
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            justify-content: flex-end;
+            font-size: 0.85rem;
+        }
+
+        .footer-links a {
+            color: inherit;
+            text-decoration: none;
+            opacity: 0.75;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN
+        ======================================== */
+
+        /* Mobile Portrait & Landscape */
+        @media (max-width: 768px) {
+            :root {
+                --header-height: var(--mobile-header-height);
+            }
+
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+            
+            .header-nav,
+            .header-actions .header-btn {
+                display: none !important;
+            }
+
+            .header-container {
+                padding: 0 1.5rem;
+                height: var(--mobile-header-height);
+            }
+
+            .app-main {
+                margin-top: var(--mobile-header-height);
+                padding: 1rem;
+            }
+
+            .app-logo {
+                font-size: 1.3rem;
+            }
+
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
+
+            .theme-toggle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .app-footer-inner {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+                font-size: 0.8rem;
+            }
+
+            .footer-links {
+                justify-content: center;
+                font-size: 0.8rem;
+            }
+
+            /* Melhor toque no mobile */
+            .mobile-nav-item {
+                min-height: 60px;
+                padding: 18px 20px;
+            }
+
+            .mobile-nav-title {
+                padding: 18px 20px;
+            }
+        }
+
+        /* Small Mobile */
+        @media (max-width: 480px) {
+            .header-container {
+                padding: 0 1rem;
+            }
+
+            .app-main {
+                padding: 0.75rem;
+            }
+
+            .app-logo {
+                font-size: 1.1rem;
+            }
+
+            .logo-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+            }
+
+            .mobile-menu-btn {
+                width: 45px;
+                height: 45px;
+            }
+
+            .hamburger-line {
+                width: 22px;
+                height: 2px;
+            }
+
+            .mobile-nav {
+                max-width: 100%;
+            }
+        }
+
+        /* Body scroll lock */
+        body.mobile-nav-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Animations */
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .mobile-nav-item,
+        .nav-dropdown {
+            animation: slideInLeft 0.3s ease-out backwards;
+        }
+
+        .mobile-nav-item:nth-child(1) { animation-delay: 0.05s; }
+        .mobile-nav-item:nth-child(2) { animation-delay: 0.1s; }
+        .mobile-nav-item:nth-child(3) { animation-delay: 0.15s; }
+        .mobile-nav-item:nth-child(4) { animation-delay: 0.2s; }
+        .mobile-nav-item:nth-child(5) { animation-delay: 0.25s; }
+    </style>
+    
+    {% block extra_styles %}{% endblock %}
+    {% block styles %}{% endblock %}
+</head>
+<body>
+    {% set menu_data = sidebar_menu or {} %}
+    {% set top_menu = menu_data.get('top_menu', []) %}
+    {% set side_groups = menu_data.get('side_groups', []) %}
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-container">
+                <a href="/" class="app-logo">
+                    <div class="logo-icon">NR</div>
+                    <span class="logo-text">NEXUSRDR</span>
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+
+                <!-- Navigation Menu - Desktop -->
+                <nav class="header-nav">
+                    {% if side_groups %}
+                        {% for group in side_groups %}
+                            {% if group.children %}
+                                <div class="nav-dropdown">
+                                    <div class="nav-dropdown-toggle">
+                                        <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                        <span>{{ group.display_name }}</span>
+                                        <i class="bi bi-chevron-down"></i>
+                                    </div>
+                                    <div class="nav-dropdown-menu">
+                                        {% for module in group.children %}
+                                        <a href="{{ module.url }}" class="nav-dropdown-item">
+                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                            <span>{{ module.display_name }}</span>
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <a href="{{ group.url }}" class="nav-dropdown-toggle">
+                                    <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                    <span>{{ group.display_name }}</span>
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </nav>
+
+                <div class="header-actions">
+                    {% if top_menu %}
+                        {% for module in top_menu %}
+                        <a href="{{ module.url }}" class="header-btn">
+                            <i class="bi bi-{{ module.icon or 'app-indicator' }}"></i>
+                            <span>{{ module.display_name }}</span>
+                        </a>
+                        {% endfor %}
+                    {% endif %}
+
+                    <a href="/blog" class="header-btn">
+                        <i class="bi bi-journal-richtext"></i>
+                        <span>Blog</span>
+                    </a>
+
+                    <a href="/administrador" class="header-btn">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Admin</span>
+                    </a>
+
+                    <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">
+                        <i class="bi bi-moon-stars"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Mobile Navigation Backdrop -->
+        <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+
+        <!-- Mobile Navigation -->
+        <nav class="mobile-nav" id="mobileNav">
+            <div class="mobile-nav-header">
+                <div class="mobile-nav-logo">
+                    <div class="logo-icon">NR</div>
+                    <span class="logo-text">NEXUSRDR</span>
+                </div>
+                <button class="mobile-nav-close" id="mobileNavClose" aria-label="Fechar menu">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="mobile-nav-content">
+                {% if side_groups %}
+                    {% for group in side_groups %}
+                        <div class="mobile-nav-section">
+                            <div class="mobile-nav-title">
+                                <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                {{ group.display_name }}
+                            </div>
+                            {% if group.children %}
+                                <div class="mobile-nav-items">
+                                    {% for module in group.children %}
+                                    <a href="{{ module.url }}" class="mobile-nav-item">
+                                        <span>
+                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                            {{ module.display_name }}
+                                        </span>
+                                        <i class="bi bi-chevron-right item-arrow"></i>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="mobile-nav-items">
+                                    <a href="{{ group.url }}" class="mobile-nav-item">
+                                        <span>
+                                            <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                            {{ group.display_name }}
+                                        </span>
+                                        <i class="bi bi-chevron-right item-arrow"></i>
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="mobile-nav-section">
+                    <div class="mobile-nav-title">
+                        <i class="bi bi-three-dots"></i>
+                        Outros
+                    </div>
+                    <div class="mobile-nav-items">
+                        <a href="/blog" class="mobile-nav-item">
+                            <span>
+                                <i class="bi bi-journal-richtext"></i>
+                                Blog
+                            </span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                        <a href="/contact" class="mobile-nav-item">
+                            <span>
+                                <i class="bi bi-envelope"></i>
+                                Contato
+                            </span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                        <a href="/administrador" class="mobile-nav-item">
+                            <span>
+                                <i class="bi bi-shield-lock"></i>
+                                Admin
+                            </span>
+                            <i class="bi bi-chevron-right item-arrow"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mobile-nav-footer">
+                <button class="theme-toggle-mobile" id="themeToggleMobile">
+                    <i class="bi bi-moon-stars"></i>
+                    <span>Tema</span>
+                </button>
+                <div class="mobile-nav-version">
+                    <small>v3.0.0</small>
+                </div>
+            </div>
+        </nav>
+
+        <!-- MAIN -->
+        <main class="app-main" id="appMain">
+            <div class="main-content" id="mainContent">
+                {% block top_banner %}{% endblock %}
+                {% block content %}{% endblock %}
+                {% block bottom_banner %}{% endblock %}
+            </div>
+            
+            <!-- FOOTER -->
+            <footer class="app-footer">
+                <div class="app-footer-inner">
+                    <div class="footer-content">
+                        <div class="footer-brand">
+                            <strong>NEXUSRDR</strong> v3.0.0 · Sistema de Ferramentas Web
+                            <span>Desenvolvido por Rudieri Machado · 2025</span>
+                        </div>
+                        <nav class="footer-links">
+                            <a href="{{ url_for('main.contact') }}">Contato</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.terms') }}">Termos de Uso</a>
+                            <span>&bull;</span>
+                            <a href="{{ url_for('main.blog_list') }}">Blog</a>
+                        </nav>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% block extra_scripts %}{% endblock %}
+
+    <script>
+        // ========================================
+        // MOBILE NAVIGATION & THEME SYSTEM - MELHORADO
+        // ========================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Sistema de navegação mobile iniciado');
+            
+            // Elementos
+            const themeToggle = document.getElementById('themeToggle');
+            const html = document.documentElement;
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+            const mobileNavClose = document.getElementById('mobileNavClose');
+            const themeToggleMobile = document.getElementById('themeToggleMobile');
+
+            // ========================================
+            // FUNÇÕES
+            // ========================================
+            
+            function openMobileMenu() {
+                console.log('📱 Abrindo menu mobile');
+                if (mobileNav && mobileMenuBtn) {
+                    mobileNav.classList.add('show');
+                    mobileMenuBtn.classList.add('active');
+                    if (mobileNavBackdrop) mobileNavBackdrop.classList.add('show');
+                    document.body.classList.add('mobile-nav-open');
+                }
+            }
+
+            function closeMobileMenu() {
+                console.log('📱 Fechando menu mobile');
+                if (mobileNav && mobileMenuBtn) {
+                    mobileNav.classList.remove('show');
+                    mobileMenuBtn.classList.remove('active');
+                    if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('show');
+                    document.body.classList.remove('mobile-nav-open');
+                }
+            }
+
+            function updateThemeIcons(theme) {
+                // Desktop
+                const themeIcon = themeToggle?.querySelector('i');
+                if (themeIcon) {
+                    themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+                }
+
+                // Mobile
+                const mobileIcon = themeToggleMobile?.querySelector('i');
+                if (mobileIcon) {
+                    mobileIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
+                }
+            }
+
+            // ========================================
+            // EVENT LISTENERS
+            // ========================================
+            
+            // Botão hambúrguer
+            if (mobileMenuBtn) {
+                console.log('✅ Botão hambúrguer encontrado');
+                
+                mobileMenuBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('🔄 Clique no hambúrguer detectado');
+                    
+                    if (mobileNav && mobileNav.classList.contains('show')) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+
+                // Touch events para melhor compatibilidade mobile
+                mobileMenuBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (mobileNav && mobileNav.classList.contains('show')) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+            } else {
+                console.error('❌ Botão hambúrguer NÃO encontrado');
+            }
+
+            // Botão fechar no mobile nav
+            if (mobileNavClose) {
+                mobileNavClose.addEventListener('click', closeMobileMenu);
+            }
+
+            // Backdrop
+            if (mobileNavBackdrop) {
+                mobileNavBackdrop.addEventListener('click', closeMobileMenu);
+            }
+
+            // Theme toggle desktop
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    const currentTheme = html.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateThemeIcons(newTheme);
+                });
+            }
+
+            // Theme toggle mobile
+            if (themeToggleMobile) {
+                themeToggleMobile.addEventListener('click', function() {
+                    const currentTheme = html.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateThemeIcons(newTheme);
+                });
+            }
+
+            // Fechar menu ao redimensionar
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    closeMobileMenu();
+                }
+            });
+
+            // Fechar menu ao clicar em links
+            const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+            mobileNavItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    setTimeout(closeMobileMenu, 200);
+                });
+            });
+
+            // Evitar propagação no menu mobile
+            if (mobileNav) {
+                mobileNav.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // ========================================
+            // INICIALIZAÇÃO
+            // ========================================
+            
+            // Carregar tema salvo
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            updateThemeIcons(savedTheme);
+            
+            console.log('✅ Sistema inicializado com sucesso');
+            console.log(`📱 Dispositivo: ${window.innerWidth}px`);
+        });
+
+        // Função global para fechar menu (backup)
+        window.closeMobileMenu = function() {
+            const mobileNav = document.getElementById('mobileNav');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
+            
+            if (mobileNav && mobileMenuBtn) {
+                mobileNav.classList.remove('show');
+                mobileMenuBtn.classList.remove('active');
+                if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('show');
+                document.body.classList.remove('mobile-nav-open');
+            }
+        };
+
+        // Debugging para dispositivos móveis
+        if (window.innerWidth <= 768) {
+            console.log('📱 Modo mobile ativo');
+            console.log('🔍 Debug: verificando elementos...');
+            
+            setTimeout(() => {
+                const btn = document.getElementById('mobileMenuBtn');
+                const nav = document.getElementById('mobileNav');
+                console.log('📱 Botão hambúrguer:', btn ? '✅' : '❌');
+                console.log('📱 Menu mobile:', nav ? '✅' : '❌');
+                console.log('📱 Computedstyle do botão:', btn ? window.getComputedStyle(btn).display : 'N/A');
+            }, 500);
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Política de Privacidade · NEXUSRDR{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .privacy-wrapper {
+        padding: 3rem 0;
+        color: var(--text-primary);
+    }
+
+    .privacy-card {
+        background: var(--content-card-bg);
+        border-radius: 18px;
+        padding: 2.5rem;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+        border: 1px solid var(--content-border);
+    }
+
+    .privacy-card h1,
+    .privacy-card h2,
+    .privacy-card h3 {
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+
+    .privacy-card p,
+    .privacy-card li {
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    .privacy-list {
+        padding-left: 1rem;
+    }
+
+    .privacy-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(14, 165, 233, 0.12);
+        color: var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="privacy-wrapper">
+    <div class="container">
+        <div class="privacy-card">
+            <span class="privacy-badge"><i class="bi bi-shield-check"></i> Transparência e Proteção</span>
+            <h1 class="mt-3 mb-4">Política de Privacidade</h1>
+            <p>
+                Esta política descreve como o NEXUSRDR coleta, utiliza e protege os dados dos visitantes e usuários dos nossos serviços.
+                O documento é atualizado periodicamente para refletir mudanças legais e operacionais. Caso tenha dúvidas, entre em contato pelo e-mail oficial publicado na página de contato.
+            </p>
+
+            <h2 class="mt-4">1. O que são cookies?</h2>
+            <p>
+                Cookies são pequenos arquivos de texto armazenados no seu navegador. Eles nos ajudam a lembrar preferências,
+                medir audiência, exibir anúncios relevantes e manter a sessão autenticada em áreas restritas.
+            </p>
+            <ul class="privacy-list">
+                <li><strong>Cookies essenciais:</strong> necessários para login seguro e recursos básicos do site.</li>
+                <li><strong>Cookies de desempenho:</strong> utilizados por ferramentas como Google Analytics para medir tráfego e melhorar o produto.</li>
+                <li><strong>Cookies de publicidade:</strong> usados por provedores de anúncios para personalizar campanhas e medir conversões.</li>
+            </ul>
+            <p>
+                Você pode gerenciar ou remover cookies nas configurações do seu navegador. No entanto, desabilitar cookies essenciais pode limitar
+                funcionalidades, especialmente em módulos autenticados como a Gestão Financeira Familiar.
+            </p>
+
+            <h2 class="mt-4">2. Quais dados coletamos?</h2>
+            <p>Coletamos apenas o mínimo necessário para operar com segurança e melhorar a experiência.</p>
+            <h3 class="mt-3">2.1. Dados fornecidos diretamente por você</h3>
+            <ul class="privacy-list">
+                <li>Nome e e-mail em formulários de contato, newsletter ou cadastro em módulos fechados.</li>
+                <li>Credenciais de acesso (e-mail e senha criptografada) para a Gestão Financeira Familiar.</li>
+                <li>Preferências salvas em ferramentas (por exemplo, opções de conversão ou histórico de uploads).</li>
+            </ul>
+
+            <h3 class="mt-3">2.2. Dados coletados automaticamente</h3>
+            <ul class="privacy-list">
+                <li>
+                    <strong>Informações de uso:</strong> páginas visitadas, tempo na página, cliques e origem de tráfego, coletados via Google Analytics.
+                </li>
+                <li>
+                    <strong>Dados de dispositivo:</strong> tipo de navegador, resolução de tela e sistema operacional, apenas para otimização técnica.
+                </li>
+                <li>
+                    <strong>Logs de segurança:</strong> IP, user agent e horário das tentativas de login no módulo financeiro (armazenados no LoginAudit)
+                    para detectar fraudes e cumprir obrigações legais.
+                </li>
+            </ul>
+
+            <h3 class="mt-3">2.3. Dados coletados por terceiros</h3>
+            <ul class="privacy-list">
+                <li>
+                    <strong>Google Analytics:</strong> identifica padrões de navegação de forma agregada. Não capturamos dados sensíveis ou que permitam identificar
+                    uma pessoa específica sem consentimento.
+                </li>
+                <li>
+                    <strong>Redes de anúncios:</strong> provedores como Google Ads ou parceiros equivalentes podem coletar cookies próprios para medir campanhas,
+                    seguindo suas próprias políticas de privacidade.
+                </li>
+            </ul>
+
+            <h2 class="mt-4">3. Como utilizamos e protegemos os dados</h2>
+            <ul class="privacy-list">
+                <li><strong>Operação do serviço:</strong> garantir login seguro, funcionamento de ferramentas e personalização mínima.</li>
+                <li><strong>Melhoria contínua:</strong> analisar métricas de uso para priorizar novos recursos e otimizações.</li>
+                <li><strong>Comunicação:</strong> enviar alertas, novidades e notificações transacionais, sempre com opção de opt-out.</li>
+                <li><strong>Proteção:</strong> criptografamos senhas, restringimos acesso a dados sensíveis e usamos protocolos HTTPS em todo o site.</li>
+            </ul>
+            <p>
+                Não vendemos dados pessoais e só compartilhamos informações com fornecedores estritamente necessários (hospedagem, analytics ou anúncios),
+                todos contratualmente obrigados a seguir padrões de segurança e privacidade.
+            </p>
+
+            <h2 class="mt-4">4. Seus direitos e controles</h2>
+            <ul class="privacy-list">
+                <li><strong>Acessar e atualizar:</strong> você pode revisar ou atualizar dados via painel ou solicitando por e-mail.</li>
+                <li><strong>Excluir:</strong> envie uma solicitação para remover sua conta ou dados específicos, salvo obrigações legais.</li>
+                <li><strong>Opt-out:</strong> configure cookies no navegador ou desative o uso de dados para anúncios personalizados nas preferências do Google.</li>
+            </ul>
+
+            <p class="mt-4 mb-0">
+                Em caso de dúvidas, entre em contato conosco pelo canal oficial indicado no rodapé do site. Estamos comprometidos em manter a transparência
+                e a segurança dos seus dados em todos os módulos e ferramentas do NEXUSRDR.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}

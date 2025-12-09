@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Termos de Uso · NEXUSRDR{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .terms-wrapper {
+        padding: 3rem 0;
+        color: var(--text-primary);
+    }
+
+    .terms-card {
+        background: var(--content-card-bg);
+        border-radius: 18px;
+        padding: 2.5rem;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+        border: 1px solid var(--content-border);
+    }
+
+    .terms-card h1,
+    .terms-card h2 {
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .terms-card p,
+    .terms-card li {
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    .terms-list {
+        padding-left: 1rem;
+    }
+
+    .terms-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(99, 102, 241, 0.12);
+        color: var(--secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="terms-wrapper">
+    <div class="container">
+        <div class="terms-card">
+            <span class="terms-badge"><i class="bi bi-journal-text"></i> Termos e Condições</span>
+            <h1 class="mt-3 mb-4">Termos de Uso do NEXUSRDR</h1>
+            <p>
+                Ao acessar este site e utilizar qualquer ferramenta do ecossistema NEXUSRDR, você concorda com os termos abaixo.
+                Se não concordar com alguma cláusula, interrompa o uso imediatamente e entre em contato em caso de dúvidas.
+            </p>
+
+            <h2 class="mt-4">1. Uso permitido</h2>
+            <ul class="terms-list">
+                <li>
+                    As ferramentas são oferecidas exclusivamente para fins pessoais ou profissionais legítimos. É proibido utilizar
+                    os serviços para atividades ilegais, difamatórias, fraudulentas ou que violem direitos de terceiros.
+                </li>
+                <li>
+                    Você concorda em não contornar limitações técnicas, tentar acesso não autorizado aos servidores ou executar engenharia reversa
+                    dos componentes hospedados.
+                </li>
+                <li>
+                    Ferramentas que fazem upload de arquivos exigem que você garanta a titularidade ou autorização para manipular o conteúdo enviado.
+                </li>
+            </ul>
+
+            <h2 class="mt-4">2. Registro e segurança</h2>
+            <ul class="terms-list">
+                <li>
+                    Ao criar conta em módulos fechados (ex.: Gestão Financeira Familiar), mantenha suas credenciais em sigilo e informe-nos
+                    imediatamente sobre uso não autorizado.
+                </li>
+                <li>
+                    Podemos suspender ou encerrar contas que violem estes termos ou comprometam a segurança da plataforma.
+                </li>
+            </ul>
+
+            <h2 class="mt-4">3. Disponibilidade e limitações</h2>
+            <p>
+                O NEXUSRDR poderá modificar, suspender ou encerrar qualquer ferramenta sem aviso prévio, especialmente para manutenção,
+                ajustes técnicos ou descontinuação de recursos.
+            </p>
+            <p>
+                Embora trabalhemos para manter alta disponibilidade, não garantimos funcionamento ininterrupto nem que o serviço esteja livre de erros.
+            </p>
+
+            <h2 class="mt-4">4. Isenção de garantias</h2>
+            <p>
+                As ferramentas são fornecidas “no estado em que se encontram” ("as is"), sem garantias expressas ou implícitas.
+                Não nos responsabilizamos por perdas, danos ou lucros cessantes decorrentes do uso ou incapacidade de uso dos serviços.
+            </p>
+
+            <h2 class="mt-4">5. Responsabilidade do usuário</h2>
+            <ul class="terms-list">
+                <li>Você é responsável pelos dados que fornece e pelo uso que faz das saídas geradas.</li>
+                <li>É proibido utilizar resultados das ferramentas para violar leis, contratos ou políticas de terceiros.</li>
+                <li>Ao usar integrações com APIs ou serviços externos (ex.: YouTube, provedores de IA), siga também os termos desses parceiros.</li>
+            </ul>
+
+            <h2 class="mt-4">6. Propriedade intelectual</h2>
+            <p>
+                Todo o conteúdo do site, incluindo identidade visual, textos e código, pertence ao NEXUSRDR ou a seus licenciantes.
+                Você não recebe qualquer licença além do uso limitado descrito neste documento.
+            </p>
+
+            <h2 class="mt-4">7. Atualizações e contato</h2>
+            <p>
+                Estes termos podem ser atualizados sem aviso prévio. A versão vigente será sempre publicada nesta página com a data de atualização.
+                Para dúvidas ou solicitações, utilize os canais oficiais indicados na página de contato.
+            </p>
+
+            <p class="mt-4 mb-0 text-muted">
+                Última atualização: {{ current_year }}
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}

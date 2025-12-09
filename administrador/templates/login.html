@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Login Administrativo · NEXUSRDR{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .admin-auth-wrapper {
+        position: relative;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #0f172a 0%, #020617 55%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+
+    .admin-auth-card {
+        width: 100%;
+        max-width: 420px;
+        background: rgba(15, 23, 42, 0.8);
+        border-radius: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 2.75rem;
+        backdrop-filter: blur(18px);
+        box-shadow: 0 25px 60px rgba(2, 6, 23, 0.6);
+        color: #f8fafc;
+    }
+
+    .admin-auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .admin-auth-icon {
+        width: 78px;
+        height: 78px;
+        border-radius: 22px;
+        margin: 0 auto 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        font-size: 2.4rem;
+        box-shadow: 0 15px 35px rgba(14, 165, 233, 0.45);
+    }
+
+    .admin-auth-header h1 {
+        font-size: 1.9rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    .admin-auth-header p {
+        color: rgba(248, 250, 252, 0.75);
+        margin: 0;
+    }
+
+    .admin-form label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.45rem;
+        display: block;
+        color: rgba(248, 250, 252, 0.8);
+    }
+
+    .admin-input {
+        position: relative;
+        margin-bottom: 1.4rem;
+    }
+
+    .admin-input input {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(15, 23, 42, 0.65);
+        color: #f8fafc;
+        padding: 0.9rem 1rem 0.9rem 3rem;
+        font-size: 1rem;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .admin-input input::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .admin-input i {
+        position: absolute;
+        top: 50%;
+        left: 1rem;
+        transform: translateY(-50%);
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 1.1rem;
+    }
+
+    .admin-input input:focus {
+        outline: none;
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+    }
+
+    .admin-button {
+        width: 100%;
+        border: none;
+        border-radius: 18px;
+        padding: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+        color: #fff;
+        box-shadow: 0 20px 40px rgba(14, 165, 233, 0.4);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        margin-bottom: 1.5rem;
+    }
+
+    .admin-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 25px 50px rgba(14, 165, 233, 0.5);
+    }
+
+    .admin-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: rgba(248, 250, 252, 0.7);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .admin-back:hover {
+        color: #f8fafc;
+    }
+
+    .alert {
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 576px) {
+        .admin-auth-card {
+            padding: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="admin-auth-wrapper">
+    <div class="admin-auth-card">
+        <div class="admin-auth-header">
+            <div class="admin-auth-icon">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+            <p class="text-uppercase mb-1" style="letter-spacing: 0.2em; font-size: 0.75rem; color: rgba(255,255,255,0.65);">NEXUSRDR ADMIN</p>
+            <h1>Painel Restrito</h1>
+            <p>Faça login para gerenciar módulos, conteúdos e lançamentos.</p>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+            </div>
+        {% endif %}
+
+        <form method="POST" class="admin-form">
+            <label for="username">Usuário</label>
+            <div class="admin-input">
+                <i class="bi bi-person"></i>
+                <input type="text" id="username" name="username" placeholder="admin" required>
+            </div>
+
+            <label for="password">Senha</label>
+            <div class="admin-input">
+                <i class="bi bi-lock"></i>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="admin-button">
+                Entrar no painel
+            </button>
+        </form>
+
+        <div class="text-center">
+            <a href="/" class="admin-back">
+                <i class="bi bi-arrow-left"></i>
+                Voltar ao NexusRDR
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

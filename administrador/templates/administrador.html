@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel Administrativo{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .admin-dashboard {
+        padding: 1rem;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    .admin-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .admin-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .admin-card {
+        background: var(--bg-elevated);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-elevated);
+        transition: var(--transition-base);
+        border: 2px solid transparent;
+    }
+
+    .admin-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-floating);
+        border-color: var(--primary-alpha);
+    }
+
+    .admin-card-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--primary-alpha);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .admin-card-icon i {
+        font-size: 1.5rem;
+        color: var(--primary);
+    }
+
+    .admin-card h3 {
+        margin: 0 0 0.5rem 0;
+        color: var(--text-primary);
+    }
+
+    .admin-card p {
+        margin: 0 0 1rem 0;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .admin-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .admin-card-link:hover {
+        color: var(--primary-dark);
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-card h2 {
+        margin: 0 0 0.5rem 0;
+    }
+
+    .welcome-card p {
+        margin: 0 0 1.5rem 0;
+        opacity: 0.9;
+    }
+
+    .btn-group {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 2px solid transparent;
+        transition: var(--transition-base);
+    }
+
+    .btn-light {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-light:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn-outline-light {
+        background: transparent;
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-outline-light:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+        .admin-dashboard {
+            padding: 1rem;
+        }
+
+        .admin-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .btn-group {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1><i class="bi bi-shield-lock"></i> Painel Administrativo</h1>
+        <p class="text-muted">Gerencie e configure o sistema</p>
+    </div>
+
+    <div class="welcome-card admin-card">
+        <h2>Bem-vindo, {{ session.get('admin_username', 'Admin') }}!</h2>
+        <p>Acesse as ferramentas de administração para configurar e gerenciar o sistema.</p>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('main.index') }}" class="btn btn-light">
+                <i class="bi bi-house-door"></i> Voltar ao Site
+            </a>
+            <a href="{{ url_for('administrador.logout') }}" class="btn btn-outline-light">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </a>
+        </div>
+    </div>
+
+    <div class="admin-cards">
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-menu-button-wide"></i>
+            </div>
+            <h3>Gerenciar Menus</h3>
+            <p>Configure a estrutura de navegação do sistema, adicione novos itens, altere níveis e organize a ordem dos menus.</p>
+            <a href="{{ url_for('administrador.menus') }}" class="admin-card-link">
+                Acessar <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-journal-richtext"></i>
+            </div>
+            <h3>Blog</h3>
+            <p>Gerencie posts, destaques e status das publicações que aparecem na área pública do site.</p>
+            <a href="{{ url_for('administrador.blog_manager') }}" class="admin-card-link">
+                Acessar <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-gear"></i>
+            </div>
+            <h3>Configurações</h3>
+            <p>Ajuste configurações gerais do sistema, temas, integrações e outras preferências administrativas.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-people"></i>
+            </div>
+            <h3>Usuários</h3>
+            <p>Gerencie contas de usuário, permissões de acesso e controle de autenticação do sistema.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-bar-chart"></i>
+            </div>
+            <h3>Relatórios</h3>
+            <p>Visualize estatísticas de uso, logs do sistema e relatórios de performance das ferramentas.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-database"></i>
+            </div>
+            <h3>Banco de Dados</h3>
+            <p>Ferramentas para backup, restauração e manutenção do banco de dados do sistema.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+
+        <div class="admin-card">
+            <div class="admin-card-icon">
+                <i class="bi bi-journal-text"></i>
+            </div>
+            <h3>Logs</h3>
+            <p>Monitore logs de sistema, erros, acessos e atividades para diagnóstico e segurança.</p>
+            <a href="#" class="admin-card-link" style="color: var(--text-muted);">
+                Em breve <i class="bi bi-clock"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

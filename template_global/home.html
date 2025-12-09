@@ -1,0 +1,1244 @@
+{% extends 'base.html' %}
+
+{% block title %}NEXUSRDR - Ferramentas Web Gratuitas Online{% endblock %}
+
+{% block meta_description %}NEXUSRDR: Ferramentas web gratuitas - Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA. Sem cadastro, rápido e seguro.{% endblock %}
+{% block meta_keywords %}ferramentas web, qr code gerador, conversor imagens, youtube downloader, removedor fundo, ferramentas online grátis, sem cadastro{% endblock %}
+
+{% block og_type %}website{% endblock %}
+{% block og_url %}https://nexusrdr.com.br{% endblock %}
+{% block og_title %}NEXUSRDR - Ferramentas Web Gratuitas{% endblock %}
+{% block og_description %}Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA. Sem cadastro, rápido e seguro.{% endblock %}
+
+{% block twitter_url %}https://nexusrdr.com.br{% endblock %}
+{% block twitter_title %}NEXUSRDR - Ferramentas Web Gratuitas{% endblock %}
+{% block twitter_description %}Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA.{% endblock %}
+
+{% block canonical_url %}https://nexusrdr.com.br{% endblock %}
+
+{% block styles %}
+<style>
+    .home-container {
+        width: 100vw;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background: #0f0f23;
+        position: relative;
+    }
+
+    /* Animated Background */
+    .bg-animation {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        background: linear-gradient(45deg, #0f0f23, #1a1a3e, #0f0f23);
+        background-size: 400% 400%;
+        animation: gradientShift 15s ease infinite;
+    }
+
+    .bg-animation::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3), transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3), transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2), transparent 50%);
+        animation: float 20s ease-in-out infinite;
+    }
+
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        33% { transform: translateY(-20px) rotate(0.5deg); }
+        66% { transform: translateY(10px) rotate(-0.5deg); }
+    }
+
+    /* Hero Section - Full Viewport */
+    .hero-section {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-content {
+        max-width: 1400px;
+        width: 100%;
+        padding: 0 2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+        z-index: 2;
+    }
+
+    .hero-text {
+        color: white;
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50px;
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .hero-title {
+        font-size: clamp(3rem, 8vw, 6rem);
+        font-weight: 900;
+        line-height: 0.9;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, #fff, #a78bfa, #06b6d4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: titleGlow 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes titleGlow {
+        0% { filter: brightness(1); }
+        100% { filter: brightness(1.2); }
+    }
+
+    .hero-subtitle {
+        font-size: 1.4rem;
+        line-height: 1.6;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 3rem;
+        max-width: 500px;
+    }
+
+    .hero-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-3px);
+        color: white;
+    }
+
+    /* Hero Visual */
+    .hero-visual {
+        position: relative;
+        height: 600px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .floating-cards {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .floating-card {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 2rem;
+        color: white;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        animation: floatCard 6s ease-in-out infinite;
+    }
+
+    .floating-card:nth-child(1) {
+        top: 10%;
+        left: 10%;
+        width: 280px;
+        animation-delay: 0s;
+    }
+
+    .floating-card:nth-child(2) {
+        top: 40%;
+        right: 10%;
+        width: 250px;
+        animation-delay: 2s;
+    }
+
+    .floating-card:nth-child(3) {
+        bottom: 20%;
+        left: 20%;
+        width: 300px;
+        animation-delay: 4s;
+    }
+
+    @keyframes floatCard {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(1deg); }
+    }
+
+    .card-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    /* Scroll Indicator */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(255, 255, 255, 0.6);
+        text-align: center;
+        animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+        40% { transform: translateX(-50%) translateY(-10px); }
+        60% { transform: translateX(-50%) translateY(-5px); }
+    }
+
+    /* Main Content Sections */
+    .main-content {
+        width: 100vw;
+        background: linear-gradient(180deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+        position: relative;
+        z-index: 1;
+    }
+
+    .section {
+        width: 100%;
+        padding: 6rem 0;
+        position: relative;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .section-badge {
+        display: inline-block;
+        background: rgba(102, 126, 234, 0.2);
+        color: #a78bfa;
+        padding: 0.5rem 1.5rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+
+    .section-title {
+        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-weight: 800;
+        color: white;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #fff, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .section-subtitle {
+        font-size: 1.2rem;
+        color: rgba(255, 255, 255, 0.7);
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+
+    /* Tools Grid */
+    .tools-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+    }
+
+    .tool-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 2.5rem;
+        color: white;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .tool-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(167, 139, 250, 0.1));
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    .tool-card:hover::before {
+        opacity: 1;
+    }
+
+    .tool-card:hover {
+        transform: translateY(-10px);
+        border-color: rgba(167, 139, 250, 0.4);
+        box-shadow: 0 30px 60px rgba(102, 126, 234, 0.3);
+    }
+
+    .tool-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .tool-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        font-size: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .tool-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: white;
+    }
+
+    .tool-description {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+
+    .tool-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .tool-btn:hover {
+        transform: translateX(5px);
+        color: white;
+    }
+
+    /* Blog Section */
+    .blog-highlight {
+        display: flex;
+        justify-content: center;
+        margin-top: 3rem;
+    }
+
+    .blog-card-main {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 3rem;
+        color: white;
+        max-width: 600px;
+        text-align: center;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .blog-card-main::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(167, 139, 250, 0.1));
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+
+    .blog-card-main:hover::before {
+        opacity: 1;
+    }
+
+    .blog-card-main:hover {
+        transform: translateY(-10px);
+        border-color: rgba(167, 139, 250, 0.4);
+        box-shadow: 0 30px 60px rgba(102, 126, 234, 0.3);
+    }
+
+    .blog-card-main > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .blog-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .blog-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: white;
+    }
+
+    .blog-description {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .blog-features {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        text-align: left;
+    }
+
+    .blog-feature {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .blog-feature i {
+        color: #a78bfa;
+        font-size: 1.1rem;
+    }
+
+    .blog-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .blog-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6);
+        color: white;
+    }
+
+    /* CTA Section */
+    .cta-section {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        margin: 4rem 0;
+        border-radius: 30px;
+        padding: 4rem 3rem;
+        text-align: center;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .cta-section > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .cta-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .cta-subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+
+    .cta-form {
+        display: flex;
+        gap: 1rem;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .cta-input {
+        flex: 1;
+        padding: 1rem 1.5rem;
+        border: none;
+        border-radius: 50px;
+        font-size: 1rem;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        backdrop-filter: blur(10px);
+    }
+
+    .cta-input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .cta-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        border-radius: 50px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .cta-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    /* CTA Newsletter */
+    .cta-note {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 1rem;
+        font-style: italic;
+    }
+
+    /* ========================================
+       RESPONSIVE DESIGN
+    ======================================== */
+    
+    /* Tablet landscape */
+    @media (max-width: 1024px) {
+        .hero {
+            padding: 4rem 2rem;
+            min-height: 80vh;
+        }
+        
+        .hero-title {
+            font-size: 3rem;
+        }
+        
+        .tools-grid {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .tool-card {
+            padding: 2rem;
+        }
+    }
+    
+    /* Tablet portrait */
+    @media (max-width: 768px) {
+        .hero {
+            padding: 3rem 1.5rem;
+            min-height: 70vh;
+        }
+        
+        .hero-title {
+            font-size: 2.5rem;
+            line-height: 1.2;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.1rem;
+            max-width: 500px;
+        }
+        
+        .tools-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .tool-card {
+            padding: 1.5rem;
+        }
+        
+        .tool-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+        }
+        
+        .blog-card-main {
+            padding: 2rem;
+            margin: 0 1rem;
+        }
+        
+        .cta-section {
+            padding: 3rem 1.5rem;
+        }
+        
+        .cta-title {
+            font-size: 2rem;
+        }
+        
+        .cta-form {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .cta-form input {
+            width: 100%;
+        }
+        
+        .cta-form button {
+            width: 100%;
+        }
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 640px) {
+        .hero {
+            padding: 2.5rem 1rem;
+            min-height: 60vh;
+        }
+        
+        .hero-title {
+            font-size: 2rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1rem;
+            max-width: 400px;
+        }
+        
+        .hero-badge {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .section {
+            padding: 2rem 1rem;
+        }
+        
+        .section-title {
+            font-size: 2rem;
+        }
+        
+        .section-subtitle {
+            font-size: 1rem;
+        }
+        
+        .tool-card {
+            padding: 1.25rem;
+        }
+        
+        .tool-title {
+            font-size: 1.25rem;
+        }
+        
+        .blog-card-main {
+            padding: 1.5rem;
+            margin: 0 0.5rem;
+        }
+        
+        .cta-section {
+            padding: 2.5rem 1rem;
+        }
+        
+        .cta-title {
+            font-size: 1.75rem;
+        }
+        
+        .cta-subtitle {
+            font-size: 1rem;
+        }
+    }
+    
+    /* Mobile portrait */
+    @media (max-width: 480px) {
+        .hero {
+            padding: 2rem 0.75rem;
+            min-height: 50vh;
+        }
+        
+        .hero-title {
+            font-size: 1.75rem;
+            line-height: 1.1;
+        }
+        
+        .hero-subtitle {
+            font-size: 0.9rem;
+            max-width: 300px;
+        }
+        
+        .hero-badge {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+        }
+        
+        .btn-primary, .btn-secondary {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .section {
+            padding: 1.5rem 0.75rem;
+        }
+        
+        .section-title {
+            font-size: 1.75rem;
+        }
+        
+        .section-subtitle {
+            font-size: 0.9rem;
+        }
+        
+        .tool-card {
+            padding: 1rem;
+        }
+        
+        .tool-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tool-title {
+            font-size: 1.1rem;
+        }
+        
+        .tool-description {
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .tool-btn {
+            padding: 0.6rem 1.2rem;
+            font-size: 0.9rem;
+        }
+        
+        .blog-card-main {
+            padding: 1.25rem;
+            margin: 0 0.25rem;
+        }
+        
+        .blog-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+        }
+        
+        .cta-section {
+            padding: 2rem 0.75rem;
+        }
+        
+        .cta-title {
+            font-size: 1.5rem;
+        }
+        
+        .cta-subtitle {
+            font-size: 0.9rem;
+        }
+        
+        .cta-input {
+            padding: 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .cta-btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .cta-note {
+            font-size: 0.8rem;
+        }
+    }
+    
+    /* Small mobile */
+    @media (max-width: 360px) {
+        .hero {
+            padding: 1.5rem 0.5rem;
+        }
+        
+        .hero-title {
+            font-size: 1.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 0.85rem;
+            max-width: 280px;
+        }
+        
+        .section {
+            padding: 1.25rem 0.5rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+        }
+        
+        .tool-card {
+            padding: 0.75rem;
+        }
+        
+        .blog-card-main {
+            padding: 1rem;
+            margin: 0;
+        }
+        
+        .cta-section {
+            padding: 1.5rem 0.5rem;
+        }
+        
+        .cta-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    /* Particles Effect */
+    .particles {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: rgba(167, 139, 250, 0.6);
+        border-radius: 50%;
+        animation: particleFloat 15s linear infinite;
+    }
+
+    @keyframes particleFloat {
+        0% {
+            transform: translateY(100vh) translateX(0);
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(-100px) translateX(100px);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-container">
+    <!-- Animated Background -->
+    <div class="bg-animation"></div>
+    
+    <!-- Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <div class="hero-badge">
+                    <i class="bi bi-gear-wide-connected"></i>
+                    Sistemas Empresariais
+                </div>
+                <h1 class="hero-title">NEXUSRDR</h1>
+                <p class="hero-subtitle">
+                    Plataforma completa com sistemas empresariais e soluções práticas para resolver problemas do seu dia a dia. 
+                    Interface moderna, performance otimizada e experiência profissional.
+                </p>
+                <div class="hero-buttons">
+                    <a href="/gerador-de-qr-code" class="btn-primary">
+                        <i class="bi bi-qr-code"></i>
+                        Começar Agora
+                    </a>
+                    <a href="/menu" class="btn-secondary">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        Ver Ferramentas
+                    </a>
+                </div>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="floating-cards">
+                    <div class="floating-card">
+                        <div class="card-icon">
+                            <i class="bi bi-qr-code"></i>
+                        </div>
+                        <h3>QR Code Generator</h3>
+                        <p>Crie códigos QR personalizados em segundos</p>
+                    </div>
+                    <div class="floating-card">
+                        <div class="card-icon">
+                            <i class="bi bi-image"></i>
+                        </div>
+                        <h3>Image Converter</h3>
+                        <p>Converta imagens entre formatos</p>
+                    </div>
+                    <div class="floating-card">
+                        <div class="card-icon">
+                            <i class="fab fa-youtube"></i>
+                        </div>
+                        <h3>YouTube Downloader</h3>
+                        <p>Baixe vídeos em alta qualidade</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="scroll-indicator">
+            <i class="bi bi-chevron-down"></i>
+            <div>Scroll para explorar</div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Tools Section -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge">🛠️ Ferramentas</div>
+                    <h2 class="section-title">Sistemas completos</h2>
+                    <p class="section-subtitle">
+                        Soluções empresariais e ferramentas práticas com interface profissional para resolver seus desafios diários
+                    </p>
+                </div>
+                
+                <div class="tools-grid">
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="bi bi-qr-code"></i>
+                        </div>
+                        <h3 class="tool-title">Gerador de QR Code</h3>
+                        <p class="tool-description">
+                            Crie QR Codes personalizados para links, WiFi, vCards e muito mais. 
+                            Interface full-screen com preview em tempo real.
+                        </p>
+                        <a href="/gerador-de-qr-code" class="tool-btn">
+                            Abrir Ferramenta
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="bi bi-image"></i>
+                        </div>
+                        <h3 class="tool-title">Conversor de Imagens</h3>
+                        <p class="tool-description">
+                            Converta entre JPG, PNG, WEBP, AVIF e PDF. 
+                            Processamento em lote com compressão inteligente.
+                        </p>
+                        <a href="/conversor-imagens" class="tool-btn">
+                            Abrir Ferramenta
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="tool-card">
+                        <div class="tool-icon">
+                            <i class="fab fa-youtube"></i>
+                        </div>
+                        <h3 class="tool-title">YouTube Downloader</h3>
+                        <p class="tool-description">
+                            Baixe vídeos e áudios do YouTube em alta qualidade. 
+                            Suporte a MP3, MP4 e múltiplas resoluções.
+                        </p>
+                        <a href="/youtube-downloader" class="tool-btn">
+                            Abrir Ferramenta
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Blog Section -->
+      
+                
+                <div class="blog-highlight">
+                    <div class="blog-card-main">
+                        <div class="blog-icon">
+                            <i class="bi bi-journal-richtext"></i>
+                        </div>
+                        <h3 class="blog-title">Explore nosso Blog</h3>
+                        <p class="blog-description">
+                            Tutoriais detalhados, dicas de produtividade e novidades sobre ferramentas web. 
+                            Conteúdo atualizado semanalmente para você dominar todas as funcionalidades.
+                        </p>
+                        <div class="blog-features">
+                            <div class="blog-feature">
+                                <i class="bi bi-check-circle"></i>
+                                <span>Tutoriais passo a passo</span>
+                            </div>
+                            <div class="blog-feature">
+                                <i class="bi bi-check-circle"></i>
+                                <span>Dicas de produtividade</span>
+                            </div>
+                            <div class="blog-feature">
+                                <i class="bi bi-check-circle"></i>
+                                <span>Novidades e atualizações</span>
+                            </div>
+                        </div>
+                        <a href="/blog" class="blog-btn">
+                            <i class="bi bi-arrow-right"></i>
+                            Acessar Blog
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="section">
+            <div class="container">
+                <div class="cta-section">
+                    <h2 class="cta-title">Receba dicas e novidades</h2>
+                    <p class="cta-subtitle">
+                        Cadastre seu email para receber tutoriais exclusivos, dicas de produtividade e novidades sobre nossas ferramentas
+                    </p>
+                    <div class="cta-form">
+                        <input type="email" class="cta-input" placeholder="Digite seu melhor email">
+                        <button class="cta-btn">Cadastrar Email</button>
+                    </div>
+                    <p class="cta-note">
+                        🔒 Sem spam. Apenas conteúdo de qualidade. Cancele quando quiser.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+// Particles Animation
+function createParticles() {
+    const particlesContainer = document.getElementById('particles');
+    const particleCount = 50;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 15 + 's';
+        particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+        particlesContainer.appendChild(particle);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    createParticles();
+});
+
+console.log('🚀 NEXUSRDR Full-Screen Home loaded!');
+</script>
+
+<!-- Schema Markup para Homepage -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "NEXUSRDR",
+  "url": "https://nexusrdr.com.br",
+  "description": "Ferramentas web gratuitas: Gerador de QR Code, Conversor de Imagens, YouTube Downloader, Removedor de Fundo com IA",
+  "publisher": {
+    "@type": "Organization",
+    "name": "NEXUSRDR",
+    "url": "https://nexusrdr.com.br",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://nexusrdr.com.br/static/logo.png"
+    }
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://nexusrdr.com.br/blog?search={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+<!-- Schema Markup para Ferramentas -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "itemListElement": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://nexusrdr.com.br/gerador-de-qr-code",
+      "name": "Gerador de QR Code",
+      "description": "Gere QR Codes gratuitamente e sem cadastro. Ferramenta online rápida e segura.",
+      "url": "https://nexusrdr.com.br/gerador-de-qr-code",
+      "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://nexusrdr.com.br/conversor-imagens",
+      "name": "Conversor de Imagens",
+      "description": "Converta imagens entre diferentes formatos (PNG, JPG, WebP, etc). Sem cadastro.",
+      "url": "https://nexusrdr.com.br/conversor-imagens",
+      "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://nexusrdr.com.br/youtube-downloader",
+      "name": "YouTube Downloader",
+      "description": "Baixe vídeos do YouTube em diferentes qualidades. Ferramenta gratuita e segura.",
+      "url": "https://nexusrdr.com.br/youtube-downloader",
+      "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://nexusrdr.com.br/removedor-de-fundo",
+      "name": "Removedor de Fundo com IA",
+      "description": "Remova fundos de imagens automaticamente com inteligência artificial. Sem cadastro.",
+      "url": "https://nexusrdr.com.br/removedor-de-fundo",
+      "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}

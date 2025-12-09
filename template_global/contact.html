@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+
+{% block title %}Contato · NEXUSRDR{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .contact-wrapper {
+        padding: 3rem 0;
+        color: var(--text-primary);
+    }
+
+    .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .contact-card {
+        background: var(--content-card-bg);
+        border-radius: 18px;
+        padding: 2.5rem;
+        border: 1px solid var(--content-border);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    .contact-card h1,
+    .contact-card h2 {
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .contact-card p {
+        color: var(--text-secondary);
+    }
+
+    .contact-card a {
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .contact-alert {
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+    }
+
+    .contact-alert.success {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #22c55e;
+    }
+
+    .contact-alert.danger {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #ef4444;
+    }
+
+    .contact-info-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--content-border);
+    }
+
+    .contact-info-item:last-child {
+        border-bottom: none;
+    }
+
+    .contact-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: rgba(14, 165, 233, 0.15);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .contact-form label {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        color: var(--text-primary);
+    }
+
+    .contact-form input,
+    .contact-form textarea {
+        border-radius: 14px;
+        border: 1px solid var(--content-border);
+        background: rgba(15, 23, 42, 0.35);
+        color: var(--text-primary);
+        padding: 0.85rem 1rem;
+        font-size: 1rem;
+        width: 100%;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .contact-form input::placeholder,
+    .contact-form textarea::placeholder {
+        color: rgba(248, 250, 252, 0.65);
+    }
+
+    .contact-form input:focus,
+    .contact-form textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+    }
+
+    .contact-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .contact-btn {
+        flex: 1 1 220px;
+        border: none;
+        border-radius: 16px;
+        padding: 0.95rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: #fff;
+        box-shadow: 0 18px 35px rgba(14, 165, 233, 0.28);
+        text-align: center;
+        text-decoration: none;
+    }
+
+    .contact-btn.whatsapp-btn {
+        background: linear-gradient(135deg, #25d366, #128c7e);
+        box-shadow: 0 18px 35px rgba(37, 211, 102, 0.28);
+    }
+
+    /* ========================================
+       RESPONSIVE DESIGN
+    ======================================== */
+
+    /* Tablet portrait */
+    @media (max-width: 768px) {
+        .contact-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .contact-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .contact-header h1 {
+            font-size: 2rem;
+        }
+
+        .contact-card {
+            padding: 1.5rem;
+        }
+    }
+
+    /* Mobile landscape */
+    @media (max-width: 640px) {
+        .contact-container {
+            padding: 1rem;
+        }
+
+        .contact-header {
+            padding: 1.5rem 1rem;
+        }
+
+        .contact-header h1 {
+            font-size: 1.75rem;
+        }
+
+        .contact-header p {
+            font-size: 0.95rem;
+        }
+
+        .contact-card {
+            padding: 1.25rem;
+        }
+
+        .contact-card h2 {
+            font-size: 1.25rem;
+        }
+
+        .contact-info-item {
+            padding: 0.75rem 0;
+        }
+
+        .contact-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.1rem;
+        }
+
+        input, textarea, button {
+            padding: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        button {
+            padding: 0.875rem 1.5rem;
+        }
+    }
+
+    /* Mobile portrait */
+    @media (max-width: 480px) {
+        .contact-container {
+            padding: 0.75rem;
+        }
+
+        .contact-header {
+            padding: 1.25rem 0.75rem;
+        }
+
+        .contact-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .contact-header p {
+            font-size: 0.9rem;
+        }
+
+        .contact-card {
+            padding: 1rem;
+        }
+
+        .contact-card h2 {
+            font-size: 1.1rem;
+        }
+
+        .contact-info-item {
+            padding: 0.625rem 0;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .contact-icon {
+            width: 35px;
+            height: 35px;
+            font-size: 1rem;
+        }
+
+        input, textarea {
+            padding: 0.625rem;
+            font-size: 0.85rem;
+        }
+
+        textarea {
+            min-height: 100px;
+        }
+
+        button {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        label {
+            font-size: 0.9rem;
+        }
+    }
+
+    /* Small mobile */
+    @media (max-width: 360px) {
+        .contact-container {
+            padding: 0.5rem;
+        }
+
+        .contact-header {
+            padding: 1rem 0.5rem;
+        }
+
+        .contact-header h1 {
+            font-size: 1.25rem;
+        }
+
+        .contact-card {
+            padding: 0.75rem;
+        }
+
+        .contact-card h2 {
+            font-size: 1rem;
+        }
+
+        .contact-icon {
+            width: 30px;
+            height: 30px;
+            font-size: 0.9rem;
+        }
+
+        input, textarea {
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        button {
+            padding: 0.625rem 1rem;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="contact-wrapper">
+    <div class="container">
+        <div class="contact-card mb-4">
+            <span class="privacy-badge"><i class="bi bi-person-lines-fill"></i> Fale com o NEXUSRDR</span>
+            <h1 class="mt-3 mb-2">Contato direto com o autor</h1>
+            <p class="mb-0">
+                Este projeto é operado diretamente por Rudieri Machado. Use o formulário ou os canais abaixo para falar comigo sobre parcerias,
+                suporte, sugestões ou reportar problemas.
+            </p>
+        </div>
+
+        {% if form_status %}
+        <div class="contact-alert {{ form_status.type }}">
+            {{ form_status.message }}
+        </div>
+        {% endif %}
+
+        <div class="contact-grid">
+            <div class="contact-card contact-info">
+                <h2 class="mb-3">Informações rápidas</h2>
+                <div class="contact-info-item">
+                    <div class="contact-icon">
+                        <i class="bi bi-envelope"></i>
+                    </div>
+                    <div>
+                        <strong>E-mail</strong>
+                        <p class="mb-0"><a href="mailto:rudirimachado@gmail.com" class="text-decoration-none">rudirimachado@gmail.com</a></p>
+                    </div>
+                </div>
+                <div class="contact-info-item">
+                    <div class="contact-icon">
+                        <i class="bi bi-whatsapp"></i>
+                    </div>
+                    <div>
+                        <strong>WhatsApp</strong>
+                        <p class="mb-0"><a href="https://wa.me/5547996609407" target="_blank" rel="noopener">+55 (47) 99660-9407</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-card contact-form">
+                <h2 class="mb-3">Mande uma mensagem</h2>
+                <form method="POST" action="/contact">
+                    <div class="mb-3">
+                        <label for="name">Nome completo</label>
+                        <input type="text" id="name" name="Nome" placeholder="Seu nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email">E-mail</label>
+                        <input type="email" id="email" name="E-mail" placeholder="voce@nexusrdr.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message">Mensagem</label>
+                        <textarea id="message" name="Mensagem" rows="5" placeholder="Explique em detalhes como posso ajudar" required></textarea>
+                    </div>
+                    <div class="contact-actions">
+                        <button type="submit" class="contact-btn">Enviar por e-mail</button>
+                        <a href="https://wa.me/5547996609407?text=Ol%C3%A1%20Rudieri,%20acabei%20de%20visitar%20o%20NEXUSRDR" target="_blank" rel="noopener" class="contact-btn whatsapp-btn">
+                            Falar pelo WhatsApp
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

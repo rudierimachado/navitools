@@ -1,0 +1,750 @@
+{% extends "base.html" %}
+
+{% block title %}Gerador de QR Code - Grátis{% endblock %}
+
+{% block styles %}
+<style>
+    .qr-wrapper {
+        padding: 1rem;
+        width: 100%;
+        margin: 0;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    /* Header Compacto */
+    .qr-header {
+        background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+
+    .qr-header-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .qr-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+
+    .qr-header-text h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+    }
+
+    .qr-header-text p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    /* Layout Principal */
+    .qr-main-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    /* Seção da Ferramenta */
+    .qr-tool-section {
+        background: var(--bg-elevated);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: var(--shadow-elevated);
+        border: 1px solid var(--border-color);
+    }
+
+    /* Seção de Informações */
+    .qr-info-section {
+        background: var(--bg-elevated);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-elevated);
+        border: 1px solid var(--border-color);
+        height: fit-content;
+        position: sticky;
+        top: 1rem;
+    }
+
+    /* Tipos de QR Code */
+    .qr-types {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .qr-type {
+        background: var(--bg-base);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition-base);
+    }
+
+    .qr-type:hover {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+    }
+
+    .qr-type.active {
+        border-color: var(--primary);
+        background: var(--primary-alpha);
+    }
+
+    .qr-type i {
+        font-size: 1.5rem;
+        color: var(--primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .qr-type h6 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Formulário */
+    .qr-form {
+        margin-bottom: 2rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-control {
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-size: 1rem;
+        transition: var(--transition-base);
+    }
+
+    .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-alpha);
+        outline: none;
+    }
+
+    /* Botão Gerar */
+    .btn-generate {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-base);
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+    }
+
+    /* Resultado */
+    .qr-result {
+        text-align: center;
+        padding: 2rem;
+        background: var(--bg-base);
+        border-radius: 12px;
+        margin-top: 2rem;
+        display: none;
+    }
+
+    .qr-result.show {
+        display: block;
+    }
+
+    .qr-code {
+        margin: 1rem 0;
+    }
+
+    .btn-download {
+        background: var(--success);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-base);
+        margin: 0.5rem;
+    }
+
+    .btn-download:hover {
+        background: var(--success-dark);
+        transform: translateY(-1px);
+    }
+
+    /* Info Section */
+    .info-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .info-list li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .info-list li:last-child {
+        border-bottom: none;
+    }
+
+    .info-list i {
+        color: var(--primary);
+        width: 20px;
+        text-align: center;
+    }
+
+    /* Notificações */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 600;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s ease;
+    }
+
+    .notification.success {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .notification.error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Loading state */
+    .btn-generate:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+        .qr-main-layout {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .qr-info-section {
+            position: static;
+        }
+
+        .qr-types {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .notification {
+            right: 10px;
+            left: 10px;
+            min-width: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qr-wrapper">
+    <!-- Header Compacto -->
+    <div class="qr-header">
+        <div class="qr-header-content">
+            <div class="qr-icon">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <div class="qr-header-text">
+                <h1>Gerador de QR Code</h1>
+                <p>Crie QR codes personalizados instantaneamente</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Principal: Ferramenta + Informações -->
+    <div class="qr-main-layout">
+        <!-- Ferramenta (Lado Esquerdo/Principal) -->
+        <div class="qr-tool-section">
+            <h3 style="margin-bottom: 1.5rem; color: var(--text-primary); font-weight: 700;">
+                <i class="fas fa-magic" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                Criar QR Code
+            </h3>
+
+            <!-- Tipos de QR Code -->
+            <div class="qr-types">
+                <div class="qr-type active" data-type="text">
+                    <i class="fas fa-font"></i>
+                    <h6>Texto</h6>
+                </div>
+                <div class="qr-type" data-type="url">
+                    <i class="fas fa-link"></i>
+                    <h6>URL</h6>
+                </div>
+                <div class="qr-type" data-type="wifi">
+                    <i class="fas fa-wifi"></i>
+                    <h6>WiFi</h6>
+                </div>
+                <div class="qr-type" data-type="whatsapp">
+                    <i class="fab fa-whatsapp"></i>
+                    <h6>WhatsApp</h6>
+                </div>
+                <div class="qr-type" data-type="vcard">
+                    <i class="fas fa-address-card"></i>
+                    <h6>vCard</h6>
+                </div>
+            </div>
+
+            <!-- Formulários -->
+            <div class="qr-form">
+                <!-- Texto -->
+                <div id="form-text" class="form-type active">
+                    <label class="form-label">
+                        <i class="fas fa-font"></i>
+                        Digite seu texto
+                    </label>
+                    <textarea class="form-control" id="text-input" rows="4" placeholder="Digite o texto que será codificado no QR Code..."></textarea>
+                </div>
+
+                <!-- URL -->
+                <div id="form-url" class="form-type" style="display: none;">
+                    <label class="form-label">
+                        <i class="fas fa-link"></i>
+                        URL do site
+                    </label>
+                    <input type="url" class="form-control" id="url-input" placeholder="https://exemplo.com">
+                </div>
+
+                <!-- WiFi -->
+                <div id="form-wifi" class="form-type" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-wifi"></i>
+                            Nome da rede (SSID)
+                        </label>
+                        <input type="text" class="form-control" id="wifi-ssid" placeholder="Nome da rede WiFi">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i>
+                            Senha
+                        </label>
+                        <input type="password" class="form-control" id="wifi-password" placeholder="Senha da rede">
+                    </div>
+                    <div>
+                        <label class="form-label">
+                            <i class="fas fa-shield-alt"></i>
+                            Tipo de segurança
+                        </label>
+                        <select class="form-control" id="wifi-security">
+                            <option value="WPA">WPA/WPA2</option>
+                            <option value="WEP">WEP</option>
+                            <option value="nopass">Sem senha</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- WhatsApp -->
+                <div id="form-whatsapp" class="form-type" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fab fa-whatsapp"></i>
+                            Número do WhatsApp
+                        </label>
+                        <input type="tel" class="form-control" id="whatsapp-phone" placeholder="5511999999999">
+                    </div>
+                    <div>
+                        <label class="form-label">
+                            <i class="fas fa-comment"></i>
+                            Mensagem (opcional)
+                        </label>
+                        <textarea class="form-control" id="whatsapp-message" rows="3" placeholder="Mensagem pré-definida..."></textarea>
+                    </div>
+                </div>
+
+                <!-- vCard -->
+                <div id="form-vcard" class="form-type" style="display: none;">
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-user"></i>
+                            Nome completo
+                        </label>
+                        <input type="text" class="form-control" id="vcard-name" placeholder="João Silva">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-phone"></i>
+                            Telefone (opcional)
+                        </label>
+                        <input type="tel" class="form-control" id="vcard-phone" placeholder="11999999999">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-envelope"></i>
+                            Email (opcional)
+                        </label>
+                        <input type="email" class="form-control" id="vcard-email" placeholder="joao@exemplo.com">
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label">
+                            <i class="fas fa-building"></i>
+                            Empresa (opcional)
+                        </label>
+                        <input type="text" class="form-control" id="vcard-organization" placeholder="Minha Empresa">
+                    </div>
+                    <div>
+                        <label class="form-label">
+                            <i class="fas fa-link"></i>
+                            Website (opcional)
+                        </label>
+                        <input type="url" class="form-control" id="vcard-url" placeholder="https://exemplo.com">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botão Gerar -->
+            <button class="btn-generate" id="generate-btn">
+                <i class="fas fa-magic"></i>
+                Gerar QR Code
+            </button>
+
+            <!-- Resultado -->
+            <div class="qr-result" id="qr-result">
+                <h4 style="color: var(--success); margin-bottom: 1rem;">
+                    <i class="fas fa-check-circle"></i>
+                    QR Code gerado com sucesso!
+                </h4>
+                <div class="qr-code" id="qr-code"></div>
+                <div>
+                    <button class="btn-download" onclick="downloadQR('png')">
+                        <i class="fas fa-download"></i>
+                        Baixar PNG
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informações (Lado Direito) -->
+        <div class="qr-info-section">
+            <h4 class="info-title">
+                <i class="fas fa-info-circle"></i>
+                Sobre QR Codes
+            </h4>
+            <ul class="info-list">
+                <li>
+                    <i class="fas fa-mobile-alt"></i>
+                    Escaneie com qualquer smartphone
+                </li>
+                <li>
+                    <i class="fas fa-bolt"></i>
+                    Acesso instantâneo às informações
+                </li>
+                <li>
+                    <i class="fas fa-shield-alt"></i>
+                    Seguro e confiável
+                </li>
+                <li>
+                    <i class="fas fa-download"></i>
+                    Download em alta qualidade
+                </li>
+                <li>
+                    <i class="fas fa-palette"></i>
+                    Personalizável
+                </li>
+            </ul>
+
+            <div style="margin-top: 2rem; padding: 1rem; background: var(--primary-alpha); border-radius: 8px;">
+                <h6 style="color: var(--primary); margin-bottom: 0.5rem; font-weight: 600;">
+                    <i class="fas fa-lightbulb"></i>
+                    Dica
+                </h6>
+                <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                    QR Codes podem armazenar até 4.296 caracteres alfanuméricos. Quanto menos informação, mais fácil de escanear!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais
+let currentType = 'text';
+let currentQRFilename = null;
+
+// Elementos DOM
+const qrTypes = document.querySelectorAll('.qr-type');
+const formTypes = document.querySelectorAll('.form-type');
+const generateBtn = document.getElementById('generate-btn');
+const qrResult = document.getElementById('qr-result');
+const qrCodeDiv = document.getElementById('qr-code');
+
+// Event listeners para tipos de QR
+qrTypes.forEach(type => {
+    type.addEventListener('click', () => {
+        // Remove active de todos
+        qrTypes.forEach(t => t.classList.remove('active'));
+        formTypes.forEach(f => {
+            f.style.display = 'none';
+            f.classList.remove('active');
+        });
+        
+        // Ativa o selecionado
+        type.classList.add('active');
+        currentType = type.dataset.type;
+        
+        // Mostra o formulário correspondente
+        const formElement = document.getElementById(`form-${currentType}`);
+        if (formElement) {
+            formElement.style.display = 'block';
+            formElement.classList.add('active');
+        }
+        
+        // Esconde resultado anterior
+        qrResult.classList.remove('show');
+    });
+});
+
+// Event listener para gerar QR Code
+generateBtn.addEventListener('click', () => {
+    generateQRCode();
+});
+
+// Função para obter dados baseado no tipo
+function getQRData() {
+    switch (currentType) {
+        case 'text':
+            const text = document.getElementById('text-input').value.trim();
+            return text ? { text: text } : null;
+        
+        case 'url':
+            const urlValue = document.getElementById('url-input').value.trim();
+            return urlValue ? { url: urlValue } : null;
+        
+        case 'wifi':
+            const ssid = document.getElementById('wifi-ssid').value.trim();
+            const wifiPassword = document.getElementById('wifi-password').value;
+            const security = document.getElementById('wifi-security').value;
+            
+            if (!ssid) return null;
+            
+            return {
+                ssid: ssid,
+                password: wifiPassword,
+                security: security,
+                hidden: false
+            };
+        
+        case 'whatsapp':
+            const whatsappPhone = document.getElementById('whatsapp-phone').value.trim();
+            const message = document.getElementById('whatsapp-message').value.trim();
+            
+            if (!whatsappPhone) return null;
+            
+            return {
+                phone: whatsappPhone,
+                message: message
+            };
+        
+        case 'vcard':
+            const vcardName = document.getElementById('vcard-name').value.trim();
+            const vcardPhone = document.getElementById('vcard-phone').value.trim();
+            const vcardEmail = document.getElementById('vcard-email').value.trim();
+            const vcardOrganization = document.getElementById('vcard-organization').value.trim();
+            const vcardUrl = document.getElementById('vcard-url').value.trim();
+            
+            if (!vcardName) return null;
+            
+            return {
+                name: vcardName,
+                phone: vcardPhone,
+                email: vcardEmail,
+                organization: vcardOrganization,
+                url: vcardUrl
+            };
+        
+        default:
+            return null;
+    }
+}
+
+// Função para gerar QR Code via backend
+async function generateQRCode() {
+    const data = getQRData();
+    if (!data) {
+        showError('Por favor, preencha os dados necessários!');
+        return;
+    }
+    
+    // Mostra loading
+    generateBtn.disabled = true;
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
+    
+    try {
+        const response = await fetch('/gerador-de-qr-code/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                type: currentType,
+                data: data,
+                fillColor: '#0f172a',
+                backColor: '#ffffff',
+                size: 'medium'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Mostra o QR Code
+            qrCodeDiv.innerHTML = `<img src="${result.qr_image}" alt="QR Code" style="max-width: 100%; border-radius: 8px;">`;
+            currentQRFilename = result.filename;
+            qrResult.classList.add('show');
+            qrResult.scrollIntoView({ behavior: 'smooth' });
+            
+            showSuccess('QR Code gerado com sucesso!');
+        } else {
+            showError(result.error || 'Erro ao gerar QR Code');
+        }
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        showError('Erro de conexão. Tente novamente.');
+    } finally {
+        // Remove loading
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-magic"></i> Gerar QR Code';
+    }
+}
+
+// Função para download
+async function downloadQR(format) {
+    if (!currentQRFilename) {
+        showError('Nenhum QR Code para download');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/gerador-de-qr-code/download/${currentQRFilename}`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `qrcode-${currentType}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } else {
+            showError('Erro ao fazer download');
+        }
+    } catch (error) {
+        console.error('Erro no download:', error);
+        showError('Erro ao fazer download');
+    }
+}
+
+// Funções de feedback
+function showError(message) {
+    // Remove notificações anteriores
+    removeNotifications();
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification error';
+    notification.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+function showSuccess(message) {
+    // Remove notificações anteriores
+    removeNotifications();
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification success';
+    notification.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        ${message}
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+function removeNotifications() {
+    const notifications = document.querySelectorAll('.notification');
+    notifications.forEach(n => n.remove());
+}
+</script>
+{% endblock %}

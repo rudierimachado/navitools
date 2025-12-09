@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gestão Financeira · NEXUSRDR{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    {% block extra_styles %}{% endblock %}
+    
+    <style>
+        /* Variáveis de Cores - Light Mode */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Dark Mode */
+        [data-bs-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px var(--shadow);
+            background: var(--bg-secondary);
+            transition: all 0.3s ease;
+        }
+        
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .value-card {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            color: white;
+        }
+        
+        .income-card {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+        
+        .expense-card {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        /* Dark Mode - Navbar */
+        [data-bs-theme="dark"] .navbar {
+            background: var(--bg-secondary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        /* Dark Mode - Modals */
+        [data-bs-theme="dark"] .modal-content {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        [data-bs-theme="dark"] .modal-header {
+            border-color: var(--border-color);
+        }
+        
+        [data-bs-theme="dark"] .modal-footer {
+            border-color: var(--border-color);
+        }
+        
+        /* Dark Mode - Forms */
+        [data-bs-theme="dark"] .form-control,
+        [data-bs-theme="dark"] .form-select {
+            background: var(--bg-primary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        [data-bs-theme="dark"] .form-control:focus,
+        [data-bs-theme="dark"] .form-select:focus {
+            background: var(--bg-primary);
+            border-color: #3b82f6;
+            color: var(--text-primary);
+        }
+        
+        /* Animação do botão de tema */
+        #themeToggle {
+            transition: all 0.3s ease;
+        }
+        
+        #themeToggle:hover {
+            transform: rotate(20deg);
+        }
+        
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding: 0.5rem;
+            }
+        }
+        
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+    </style>
+</head>
+<body>
+    {% if user %}
+    <!-- Navbar simples -->
+    <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold text-primary" href="{{ url_for('gerenciamento_financeiro.home') }}">
+                <i class="bi bi-folder-fill me-2"></i>
+                <span id="navbarWorkspaceName">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
+            </a>
+            
+            <div class="d-flex align-items-center gap-2">
+                <!-- Botão Dark Mode -->
+                <button class="btn btn-outline-secondary btn-sm" id="themeToggle" onclick="toggleTheme()">
+                    <i class="bi bi-sun-fill" id="themeIcon"></i>
+                </button>
+                
+                <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle me-1"></i>
+                    {{ user.email }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li class="px-3 py-2 text-muted small">
+                        <i class="bi bi-envelope me-1"></i>{{ user.email }}
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="showWorkspaceMenu(); return false;">
+                        <i class="bi bi-folder me-2"></i>Gerenciar Workspaces
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="showShareModal(); return false;">
+                        <i class="bi bi-share me-2"></i>Compartilhar
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="{{ url_for('gerenciamento_financeiro.logout') }}">
+                        <i class="bi bi-box-arrow-right me-2"></i>Sair
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="container-fluid py-4">
+        <!-- Toast Container -->
+        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Toast simples
+        window.showToast = function(message, type = 'success') {
+            const container = document.querySelector('.toast-container');
+            const id = 'toast-' + Date.now();
+            
+            const bgClass = {
+                'success': 'text-bg-success',
+                'error': 'text-bg-danger',
+                'warning': 'text-bg-warning',
+                'info': 'text-bg-info'
+            }[type] || 'text-bg-success';
+            
+            container.innerHTML += `
+                <div id="${id}" class="toast ${bgClass}" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            const toast = new bootstrap.Toast(document.getElementById(id));
+            toast.show();
+        };
+
+        // Mostrar modal de workspaces
+        window.showWorkspaceMenu = function() {
+            const modal = new bootstrap.Modal(document.getElementById('workspacesModal'));
+            modal.show();
+            loadWorkspacesInModal();
+        };
+        
+        // Carregar workspaces no modal
+        window.loadWorkspacesInModal = async function() {
+            try {
+                const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}');
+                
+                if (!response.ok) {
+                    showToast('Erro ao carregar workspaces', 'error');
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                let html = '<div style="max-width: 350px; max-height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 10px;">';
+                
+                // Workspaces próprios
+                if (data.owned && data.owned.length > 0) {
+                    html += '<div style="font-weight: bold; padding: 8px; background: rgba(0,0,0,0.05); margin-bottom: 5px;">Meus Workspaces</div>';
+                    data.owned.forEach(ws => {
+                        html += `<div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectWorkspace(${ws.id})">
+                            <i class="bi bi-folder" style="color: ${ws.color};"></i> <strong>${ws.name}</strong>
+                            <button onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${ws.name}', '${ws.color}')" class="btn btn-sm btn-outline-warning" style="float: right; margin-left: 5px;"><i class="bi bi-pencil"></i></button>
+                            <button onclick="event.stopPropagation(); deleteWorkspace(${ws.id})" class="btn btn-sm btn-outline-danger" style="float: right;"><i class="bi bi-trash"></i></button>
+                        </div>`;
+                    });
+                }
+                
+                // Workspaces compartilhados
+                if (data.shared && data.shared.length > 0) {
+                    html += '<div style="font-weight: bold; padding: 8px; background: rgba(0,0,0,0.05); margin: 10px 0 5px 0;">Compartilhados</div>';
+                    data.shared.forEach(ws => {
+                        html += `<div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectWorkspace(${ws.id})">
+                            <i class="bi bi-folder-shared" style="color: ${ws.color};"></i> <strong>${ws.name}</strong>
+                            <small style="display: block; color: #999;">De: ${ws.owner_email}</small>
+                        </div>`;
+                    });
+                }
+                
+                html += '<div style="padding: 10px; background: rgba(0,0,0,0.05); margin-top: 10px;"><button class="btn btn-sm btn-success w-100" id="btnNewWs"><i class="bi bi-plus me-1"></i>Novo Workspace</button></div>';
+                html += '</div>';
+                
+                // Remover menu anterior
+                const oldMenu = document.getElementById('workspaceMenuPopup');
+                if (oldMenu) oldMenu.remove();
+                
+                // Criar popup
+                const popup = document.createElement('div');
+                popup.id = 'workspaceMenuPopup';
+                popup.innerHTML = html;
+                popup.style.position = 'fixed';
+                popup.style.top = '60px';
+                popup.style.right = '20px';
+                popup.style.zIndex = '1000';
+                document.body.appendChild(popup);
+                
+                // Adicionar listener ao botão
+                document.getElementById('btnNewWs').onclick = function() {
+                    showCreateWorkspaceModal();
+                };
+                
+                // Fechar ao clicar fora
+                setTimeout(() => {
+                    document.addEventListener('click', function closeMenu(e) {
+                        if (!popup.contains(e.target)) {
+                            popup.remove();
+                        }
+                    }, {once: true});
+                }, 100);
+                
+            } catch (error) {
+                showToast('Erro ao carregar workspaces', 'error');
+            }
+        };
+
+        // Selecionar workspace
+        window.selectWorkspace = async function(workspaceId) {
+            try {
+                const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_select_workspace", workspace_id=0) }}`.replace('/0', `/${workspaceId}`), {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Workspace selecionado!', 'success');
+                    
+                    // Fechar menu
+                    const menu = document.getElementById('workspaceMenu');
+                    if (menu) menu.remove();
+                    
+                    // Recarregar página após 500ms
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showToast(result.error || 'Erro ao selecionar workspace', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao selecionar workspace', 'error');
+                console.error(error);
+            }
+        };
+
+        // Mostrar modal para criar workspace
+        window.showCreateWorkspaceModal = function() {
+            const html = `
+                <div class="modal fade" id="createWorkspaceModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-folder-plus me-2"></i>Novo Workspace
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="wsName" class="form-label">Nome</label>
+                                    <input type="text" class="form-control" id="wsName" placeholder="Ex: Família, Negócio...">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="wsDesc" class="form-label">Descrição (opcional)</label>
+                                    <input type="text" class="form-control" id="wsDesc" placeholder="Descrição do workspace">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="wsColor" class="form-label">Cor</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="color" class="form-control" id="wsColor" value="#3b82f6" style="width: 60px;">
+                                        <input type="text" class="form-control" id="wsColorText" value="#3b82f6" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" onclick="createWorkspace()">
+                                    <i class="bi bi-check me-1"></i>Criar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            
+            // Atualizar cor
+            document.getElementById('wsColor').addEventListener('change', (e) => {
+                document.getElementById('wsColorText').value = e.target.value;
+            });
+            
+            new bootstrap.Modal(document.getElementById('createWorkspaceModal')).show();
+        };
+
+        // Criar workspace
+        window.createWorkspace = async function() {
+            const name = document.getElementById('wsName').value.trim();
+            const description = document.getElementById('wsDesc').value.trim();
+            const color = document.getElementById('wsColor').value;
+            
+            if (!name) {
+                showToast('Nome do workspace é obrigatório', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, color })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createWorkspaceModal'));
+                    if (modal) modal.hide();
+                    showToast('Workspace criado com sucesso!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(result.error || 'Erro ao criar workspace', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao criar workspace: ' + error.message, 'error');
+            }
+        };
+
+        // Mostrar modal para editar workspace
+        window.showEditWorkspaceModal = function(workspaceId, name, color) {
+            const html = `
+                <div class="modal fade" id="editWorkspaceModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-pencil me-2"></i>Editar Workspace
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="editWsName" class="form-label">Nome</label>
+                                    <input type="text" class="form-control" id="editWsName" value="${name}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editWsColor" class="form-label">Cor</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="color" class="form-control" id="editWsColor" value="${color}" style="width: 60px;">
+                                        <input type="text" class="form-control" id="editWsColorText" value="${color}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-warning" onclick="updateWorkspace(${workspaceId})">
+                                    <i class="bi bi-check me-1"></i>Salvar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            document.body.appendChild(container);
+            
+            // Atualizar cor
+            document.getElementById('editWsColor').addEventListener('change', (e) => {
+                document.getElementById('editWsColorText').value = e.target.value;
+            });
+            
+            new bootstrap.Modal(document.getElementById('editWorkspaceModal')).show();
+        };
+
+        // Atualizar workspace
+        window.updateWorkspace = async function(workspaceId) {
+            const name = document.getElementById('editWsName').value.trim();
+            const color = document.getElementById('editWsColor').value;
+            
+            if (!name) {
+                showToast('Nome não pode estar vazio', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_update_workspace", workspace_id=0) }}`.replace('/0', `/${workspaceId}`), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, color })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editWorkspaceModal'));
+                    if (modal) modal.hide();
+                    showToast('Workspace atualizado com sucesso!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(result.error || 'Erro ao atualizar workspace', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao atualizar workspace: ' + error.message, 'error');
+            }
+        };
+
+        // Deletar workspace
+        window.deleteWorkspace = async function(workspaceId) {
+            if (!confirm('Tem certeza que deseja deletar este workspace? As transações não serão perdidas.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_update_workspace", workspace_id=0) }}`.replace('/0', `/${workspaceId}`), {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast('Workspace deletado com sucesso!', 'success');
+                    const menu = document.getElementById('workspaceMenu');
+                    if (menu) menu.remove();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(result.error || 'Erro ao deletar workspace', 'error');
+                }
+            } catch (error) {
+                showToast('Erro ao deletar workspace: ' + error.message, 'error');
+            }
+        };
+        
+        // Toggle Dark Mode
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // Atualizar ícone
+            const icon = document.getElementById('themeIcon');
+            if (newTheme === 'dark') {
+                icon.className = 'bi bi-sun-fill';
+            } else {
+                icon.className = 'bi bi-moon-fill';
+            }
+        }
+        
+        // Carregar tema salvo (padrão: dark)
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                if (savedTheme === 'dark') {
+                    icon.className = 'bi bi-sun-fill';
+                } else {
+                    icon.className = 'bi bi-moon-fill';
+                }
+            }
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

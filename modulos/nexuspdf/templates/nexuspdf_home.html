@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}NexusPDF - Ferramentas de PDF e Texto{% endblock %}
+
+{% block meta_description %}NexusPDF é uma suíte de ferramentas online para trabalhar com PDF e texto: comprimir PDF, OCR, conversões, edição com marca d’água, contador de caracteres, conversor de texto, gerador de Lorem Ipsum e editor Markdown.{% endblock %}
+{% block meta_keywords %}nexuspdf, comprimir pdf, compressor pdf online, reduzir tamanho pdf, ocr pdf, converter pdf, editar pdf, marcar d'água pdf, assinar pdf, contador de caracteres, conversor de texto, lorem ipsum, editor markdown{% endblock %}
+
+{% block styles %}
+<style>
+    .nexuspdf-wrapper {
+        padding: 1rem;
+        width: 100%;
+        margin: 0;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    .nexuspdf-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 4rem;
+    }
+
+    .nexuspdf-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        color: #fff;
+    }
+
+    .nexuspdf-header h1 {
+        font-size: clamp(2.2rem, 4vw, 3rem);
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+    }
+
+    .nexuspdf-header p {
+        font-size: 1.05rem;
+        opacity: 0.85;
+    }
+
+    .nexuspdf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.75rem;
+    }
+
+    .nexuspdf-card {
+        display: block;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 1.75rem 1.5rem;
+        text-decoration: none;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(18px);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .nexuspdf-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.18), rgba(167, 139, 250, 0.15));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .nexuspdf-card:hover::before {
+        opacity: 1;
+    }
+
+    .nexuspdf-card:hover {
+        transform: translateY(-6px);
+        border-color: rgba(167, 139, 250, 0.5);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .nexuspdf-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .nexuspdf-card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        font-size: 1.6rem;
+    }
+
+    .nexuspdf-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .nexuspdf-card p {
+        font-size: 0.98rem;
+        opacity: 0.88;
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .nexuspdf-wrapper {
+            padding: 0.75rem;
+        }
+
+        .nexuspdf-container {
+            padding: 2.5rem 1.25rem 3.25rem;
+        }
+
+        .nexuspdf-grid {
+            gap: 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .nexuspdf-wrapper {
+            padding: 0.5rem;
+        }
+
+        .nexuspdf-container {
+            padding: 2rem 1rem 3rem;
+        }
+
+        .nexuspdf-card {
+            padding: 1.5rem 1.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nexuspdf-wrapper">
+    <div class="nexuspdf-container">
+        <div class="nexuspdf-header">
+            <h1>NexusPDF</h1>
+            <p>Suite de ferramentas para PDF e texto. Escolha um módulo para começar:</p>
+        </div>
+
+        <!-- Slot para Google AdSense (topo módulo NexusPDF) -->
+        <div class="adsense-slot" style="margin-bottom: 2rem; text-align: center;">
+            <!-- Insira aqui o bloco responsivo do Google AdSense -->
+        </div>
+
+        <div class="nexuspdf-grid">
+        <a href="/nexuspdf/comprimir-pdf" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-file-earmark-zip"></i>
+            </div>
+            <h3>Comprimir PDF</h3>
+            <p>Reduza o tamanho dos arquivos PDF mantendo a qualidade.</p>
+        </a>
+        <a href="/nexuspdf/ocr-pdf" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-eyeglasses"></i>
+            </div>
+            <h3>OCR PDF</h3>
+            <p>Reconheça texto em PDFs digitalizados.</p>
+        </a>
+        <a href="/nexuspdf/converter-em-pdf" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-filetype-pdf"></i>
+            </div>
+            <h3>Converter em PDF</h3>
+            <p>Transforme documentos e imagens em PDF completo.</p>
+        </a>
+        <a href="/nexuspdf/converter-de-pdf" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-arrow-left-right"></i>
+            </div>
+            <h3>Converter de PDF</h3>
+            <p>Extraia páginas ou converta PDF para outros formatos.</p>
+        </a>
+        <a href="/nexuspdf/editar-pdf" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-pencil-square"></i>
+            </div>
+            <h3>Editar PDF</h3>
+            <p>Inserir número de páginas, marca d'água e assinatura.</p>
+        </a>
+        <a href="/nexuspdf/contador-caracteres" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-hash"></i>
+            </div>
+            <h3>Contador de Caracteres</h3>
+            <p>Conte caracteres e palavras para redes sociais e textos.</p>
+        </a>
+        <a href="/nexuspdf/conversor-texto" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-fonts"></i>
+            </div>
+            <h3>Conversor de Texto</h3>
+            <p>MAIÚSCULA, minúscula e Título em um clique.</p>
+        </a>
+        <a href="/nexuspdf/lorem-ipsum" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-card-text"></i>
+            </div>
+            <h3>Gerador de Lorem Ipsum</h3>
+            <p>Gere texto placeholder rapidamente.</p>
+        </a>
+        <a href="/nexuspdf/editor-markdown" class="nexuspdf-card">
+            <div class="nexuspdf-card-icon">
+                <i class="bi bi-code-square"></i>
+            </div>
+            <h3>Editor de Texto Markdown</h3>
+            <p>Edite texto com preview em tempo real.</p>
+        </a>
+        </div>
+
+        <!-- Conteúdo explicativo para SEO -->
+        <section style="margin-top: 3rem; color: rgba(255,255,255,0.9); font-size: 0.98rem; line-height: 1.7;">
+            <h2 style="font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem;">O que é o NexusPDF?</h2>
+            <p style="margin-bottom: 0.75rem;">
+                O NexusPDF é um hub de ferramentas focadas em produtividade com documentos digitais. Em um único lugar
+                você encontra soluções para <strong>comprimir PDF</strong>, fazer <strong>OCR em PDF</strong>,
+                <strong>converter arquivos para PDF e de PDF para outros formatos</strong>, além de recursos para edição
+                e textos auxiliares.
+            </p>
+            <p style="margin-bottom: 1.25rem;">
+                Ideal para quem trabalha com contratos, propostas, materiais de marketing, documentos acadêmicos e
+                conteúdos para redes sociais, o NexusPDF foi pensado para ser rápido, simples e sem complicação.
+            </p>
+
+            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.75rem;">Principais recursos</h3>
+            <ul style="padding-left: 1.1rem; margin-bottom: 1.25rem;">
+                <li style="margin-bottom: 0.35rem;">Comprimir PDF para reduzir o tamanho dos arquivos sem perder legibilidade.</li>
+                <li style="margin-bottom: 0.35rem;">OCR em PDF para transformar documentos escaneados em texto pesquisável.</li>
+                <li style="margin-bottom: 0.35rem;">Conversões completas: para PDF e de PDF para outros formatos.</li>
+                <li style="margin-bottom: 0.35rem;">Edição de PDF com marca d’água, paginação e assinatura digital.</li>
+                <li style="margin-bottom: 0.35rem;">Ferramentas de texto: contador de caracteres, conversor de caixa, Lorem Ipsum e editor Markdown.</li>
+            </ul>
+
+            <p style="margin-bottom: 0;">
+                Novas ferramentas podem ser adicionadas ao NexusPDF ao longo do tempo, mantendo o módulo sempre
+                atualizado para o seu fluxo de trabalho diário.
+            </p>
+        </section>
+
+        <!-- Slot para Google AdSense (rodapé módulo NexusPDF) -->
+        <div class="adsense-slot" style="margin-top: 2.5rem; text-align: center;">
+            <!-- Insira aqui outro bloco do Google AdSense ou bloco de destaque para SEO -->
+        </div>
+    </div>
+</div>
+{% endblock %}

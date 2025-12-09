@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Login · NexusRDR{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+            <div>
+                <p class="auth-tag">Acesso Seguro</p>
+                <h1>Entrar no sistema</h1>
+                <p class="auth-subtitle">Use seu e-mail e senha cadastrados no Supabase</p>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
+                <div class="flash-group">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="email">E-mail</label>
+                <div class="input-icon">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email" id="email" name="email" placeholder="exemplo@nexusrdr.com" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <div class="input-icon">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" class="auth-button">
+                <span>Entrar</span>
+                <i class="bi bi-arrow-right"></i>
+            </button>
+
+            <div class="auth-helper">
+                <span>Não tem conta?</span>
+                <a href="{{ url_for('gerenciamento_financeiro.register') }}">Criar conta</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}{% endblock %}
