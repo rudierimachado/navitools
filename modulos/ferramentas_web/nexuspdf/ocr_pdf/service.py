@@ -16,9 +16,10 @@ def perform_ocr_on_pdf(input_path: str) -> str:
     if not os.path.exists(input_path):
         raise FileNotFoundError("Arquivo PDF de entrada não encontrado para OCR.")
 
-    # Converter PDF em imagens (uma por página)
+    # Converter PDF em imagens (uma por página) usando DPI mais baixo
+    # para ganhar velocidade sem prejudicar muito a legibilidade.
     try:
-        pages = convert_from_path(input_path)
+        pages = convert_from_path(input_path, dpi=150)
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"Falha ao converter PDF em imagens para OCR: {exc}") from exc
 
@@ -27,9 +28,25 @@ def perform_ocr_on_pdf(input_path: str) -> str:
 
     texts: List[str] = []
 
-    for page_number, image in enumerate(pages, start=1):
+    # Limite de páginas para evitar PDFs gigantes travando o servidor.
+    max_pages = 100
+    pages_to_process = pages[:max_pages]
+
+    for page_number, image in enumerate(pages_to_process, start=1):
+        # Converter para escala de cinza e limitar tamanho de imagens muito grandes
+        image = image.convert("L")
+        max_width = 2000
+        if image.width > max_width:
+            ratio = max_width / float(image.width)
+            new_height = int(image.height * ratio)
+            image = image.resize((max_width, new_height))
+
         try:
-            page_text = pytesseract.image_to_string(image, lang="por+eng")
+            page_text = pytesseract.image_to_string(
+                image,
+                lang="por+eng",
+                config="--oem 3 --psm 6",
+            )
         except Exception as exc:  # noqa: BLE001
             page_text = f"[Erro ao processar OCR na página {page_number}: {exc}]\n"
 

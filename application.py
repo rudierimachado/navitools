@@ -15,12 +15,6 @@ def log_debug(message):
     print(f"[NEXUSRDR-DEBUG {timestamp}] {message}")
     sys.stdout.flush()
 
-log_debug("=== INICIANDO APLICAÇÃO NEXUSRDR ===")
-log_debug(f"Python version: {sys.version}")
-log_debug(f"Current directory: {os.getcwd()}")
-log_debug(f"Directory contents: {os.listdir('.')}")
-log_debug(f"Python path: {sys.path}")
-
 # Variáveis globais para imports opcionais
 Config = None
 register_blueprints = None
