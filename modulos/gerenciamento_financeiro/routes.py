@@ -7,11 +7,13 @@ from flask import (
     flash,
     session,
     jsonify,
+    send_file,
 )
 from sqlalchemy import func, extract, and_, or_
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import calendar
+import os
 
 from extensions import db
 from email_service import send_share_invitation, send_share_accepted, send_verification_code, send_password_reset
@@ -39,6 +41,23 @@ gerenciamento_financeiro_bp = Blueprint(
     __name__,
     template_folder="templates",
 )
+
+
+@gerenciamento_financeiro_bp.route("/download/app")
+def download_app():
+    """Serve o APK do aplicativo financeiro Android."""
+    apk_path = os.path.join(os.path.dirname(__file__), "app-release.apk")
+
+    if not os.path.exists(apk_path):
+        flash("Arquivo de instalação do app não encontrado. Tente novamente mais tarde.", "warning")
+        return redirect(url_for("gerenciamento_financeiro.login"))
+
+    return send_file(
+        apk_path,
+        as_attachment=True,
+        download_name="nexus-financeiro.apk",
+    )
+
 
 def _log_attempt(email: str, succeeded: bool, message: str | None = None, user_id: int | None = None):
     audit = LoginAudit(

@@ -22,9 +22,14 @@
                     </span>
                 </p>
             </div>
-            
-            <!-- Quick Actions - Desktop -->
-            <div class="d-none d-md-flex gap-2">
+
+            <div class="d-flex flex-column align-items-stretch align-items-md-end gap-2 mt-3 mt-md-0">
+                <a href="{{ url_for('gerenciamento_financeiro.download_app') }}" class="btn btn-outline-secondary btn-sm w-100 text-start text-md-end">
+                    <i class="bi bi-download me-1"></i>
+                    Baixar app Android (APK)
+                </a>
+                <!-- Quick Actions - Desktop -->
+                <div class="d-none d-md-flex gap-2">
                 <button class="btn btn-success" onclick="showAddTransaction('income')">
                     <i class="bi bi-plus-circle me-1"></i> Nova Entrada
                 </button>
@@ -37,6 +42,7 @@
                 <button class="btn btn-info" id="closeMonthBtn" onclick="closeMonthConfirm()">
                     <i class="bi bi-lock me-1"></i> Fechar Mês
                 </button>
+                </div>
             </div>
         </div>
     </div>
