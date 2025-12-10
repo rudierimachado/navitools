@@ -369,6 +369,60 @@ def login():
 
     return render_template("finance_login.html", user=None)
 
+@gerenciamento_financeiro_bp.route("/api/login", methods=["POST"])
+def api_login():
+    """Endpoint de login para clientes API (ex: app Flutter).
+
+    Recebe JSON {"email": "...", "password": "..."} e, em caso de sucesso,
+    autentica o usuário na sessão (mesma lógica da tela HTML) e retorna JSON.
+    """
+
+    data = request.get_json(silent=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    password = str(data.get("password", ""))
+
+    if not email or not password:
+        return jsonify({
+            "success": False,
+            "message": "Informe e-mail e senha.",
+        }), 400
+
+    user = User.query.filter(func.lower(User.email) == email).first()
+
+    if not user or not check_password_hash(user.password_hash, password):
+        _log_attempt(email, False, "Credenciais inválidas")
+        return jsonify({
+            "success": False,
+            "message": "E-mail ou senha inválidos.",
+        }), 401
+
+    # Autenticação bem-sucedida (mesma lógica da rota HTML)
+    session["finance_user_id"] = user.id
+    session["finance_user_email"] = user.email
+
+    # Garantir que o usuário tenha pelo menos um workspace
+    workspace_count = Workspace.query.filter_by(owner_id=user.id).count()
+    if workspace_count == 0:
+        default_workspace = Workspace(
+            owner_id=user.id,
+            name="Meu Workspace",
+            description="Workspace padrão",
+            color="#3b82f6",
+        )
+        db.session.add(default_workspace)
+        db.session.commit()
+
+    _log_attempt(email, True, user_id=user.id)
+
+    return jsonify({
+        "success": True,
+        "message": "Login realizado com sucesso",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+        },
+    }), 200
+
 @gerenciamento_financeiro_bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
