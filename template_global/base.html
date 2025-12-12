@@ -848,6 +848,50 @@
         .mobile-nav-item:nth-child(3) { animation-delay: 0.15s; }
         .mobile-nav-item:nth-child(4) { animation-delay: 0.2s; }
         .mobile-nav-item:nth-child(5) { animation-delay: 0.25s; }
+
+        /* Back Button */
+        .back-button {
+            position: fixed;
+            top: 90px;
+            left: 20px;
+            z-index: 999;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition-base);
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: translateX(-3px);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .back-button i {
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            .back-button {
+                top: 80px;
+                left: 10px;
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+            }
+        }
     </style>
     
     {% block extra_styles %}{% endblock %}
@@ -1025,6 +1069,12 @@
 
         <!-- MAIN -->
         <main class="app-main" id="appMain">
+            <!-- Back Button -->
+            <a href="javascript:history.back()" class="back-button" id="backButton">
+                <i class="bi bi-arrow-left"></i>
+                <span>Voltar</span>
+            </a>
+
             <div class="main-content" id="mainContent">
                 {% block top_banner %}{% endblock %}
                 {% block content %}{% endblock %}

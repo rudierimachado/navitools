@@ -29,6 +29,8 @@ from modulos.ferramentas_web.removedor_de_fundo.routes import removedor_de_fundo
 from modulos.ferramentas_web.nexuspdf.routes import nexuspdf_bp
 from modulos.ferramentas_web.nexuspdf.comprimir_pdf.routes import comprimir_pdf_bp
 from modulos.ferramentas_web.nexuspdf.ocr_pdf.routes import ocr_pdf_bp
+from modulos.ferramentas_web.nexuspdf.word_em_pdf.routes import word_em_pdf_bp
+
 from models import BlogPost, NewsletterSubscriber
 
 load_dotenv()
@@ -460,3 +462,4 @@ def register_blueprints(app):
     app.register_blueprint(nexuspdf_bp, url_prefix="/nexuspdf")
     app.register_blueprint(comprimir_pdf_bp, url_prefix="/nexuspdf/comprimir-pdf")
     app.register_blueprint(ocr_pdf_bp, url_prefix="/nexuspdf/ocr-pdf")
+    app.register_blueprint(word_em_pdf_bp, url_prefix="/nexuspdf/documentos-para-pdf")

@@ -388,7 +388,8 @@ def login():
 
     return render_template("finance_login.html", user=None)
 
-@gerenciamento_financeiro_bp.route("/api/login", methods=["POST"])
+@gerenciamento_financeiro_bp.route("/api/login", methods=["POST", "OPTIONS"])
+@gerenciamento_financeiro_bp.route("/api/login/", methods=["POST", "OPTIONS"])
 def api_login():
     """Endpoint de login para clientes API (ex: app Flutter).
 
@@ -396,24 +397,66 @@ def api_login():
     autentica o usuário na sessão (mesma lógica da tela HTML) e retorna JSON.
     """
 
+    # Tratamento de CORS para Flutter Web / navegadores
+    origin = request.headers.get("Origin", "*")
+
+    # Pré-flight (OPTIONS)
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
     data = request.get_json(silent=True) or {}
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
 
+    # Logs de depuração
+    print("[API LOGIN] Requisição recebida do APP_FIN")
+    print(f"[API LOGIN] IP: {request.remote_addr}")
+    print(f"[API LOGIN] User-Agent: {request.headers.get('User-Agent')}")
+    print(f"[API LOGIN] Payload bruto: {data}")
+    print(f"[API LOGIN] Email normalizado: {email!r}")
+
     if not email or not password:
-        return jsonify({
+        print("[API LOGIN] Falha: email ou senha vazios")
+        resp = jsonify({
             "success": False,
             "message": "Informe e-mail e senha.",
-        }), 400
+        })
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 400
 
     user = User.query.filter(func.lower(User.email) == email).first()
 
-    if not user or not check_password_hash(user.password_hash, password):
+    if not user:
+        print(f"[API LOGIN] Usuário não encontrado no banco local para email={email!r}")
         _log_attempt(email, False, "Credenciais inválidas")
-        return jsonify({
+        resp = jsonify({
             "success": False,
             "message": "E-mail ou senha inválidos.",
-        }), 401
+        })
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
+
+    if not check_password_hash(user.password_hash, password):
+        print(f"[API LOGIN] Senha inválida para email={email!r} (usuário id={user.id})")
+        _log_attempt(email, False, "Credenciais inválidas")
+        resp = jsonify({
+            "success": False,
+            "message": "E-mail ou senha inválidos.",
+        })
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
 
     # Autenticação bem-sucedida (mesma lógica da rota HTML)
     session["finance_user_id"] = user.id
@@ -433,14 +476,20 @@ def api_login():
 
     _log_attempt(email, True, user_id=user.id)
 
-    return jsonify({
+    print(f"[API LOGIN] Login bem-sucedido para email={email!r}, user_id={user.id}")
+
+    resp = jsonify({
         "success": True,
         "message": "Login realizado com sucesso",
         "user": {
             "id": user.id,
             "email": user.email,
         },
-    }), 200
+    })
+    resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Vary"] = "Origin"
+    resp.headers["Access-Control-Allow-Credentials"] = "true"
+    return resp, 200
 
 @gerenciamento_financeiro_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -695,15 +744,40 @@ def logout():
     return redirect(url_for("gerenciamento_financeiro.login"))
 
 # ============================================================================
-# API DE TRANSAÇÕES (CORRIGIDA)
+# API DE TRANSAÇÕES (CORRIGIDA) - COM CORS E SUPORTE A user_id NA QUERY
 # ============================================================================
 
-@gerenciamento_financeiro_bp.route("/api/transactions", methods=["GET", "POST"])
+@gerenciamento_financeiro_bp.route("/api/transactions", methods=["GET", "POST", "OPTIONS"])
+@gerenciamento_financeiro_bp.route("/api/transactions/", methods=["GET", "POST", "OPTIONS"])
 def api_transactions():
-    if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
-        
-    user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
+
+    # Pré-flight CORS
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    user_id: int | None = None
+
+    # Tentar usar sessão Flask primeiro
+    if "finance_user_id" in session:
+        user_id = session["finance_user_id"]
+    else:
+        # Fallback para apps que não conseguem enviar cookies (Flutter Web)
+        user_id = request.args.get("user_id", type=int)
+
+    if not user_id:
+        resp = jsonify({"error": "Não autorizado"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
+
     accessible_ids = _get_accessible_user_ids(user_id)
     
     # Obter workspace_id da sessão ou usar o padrão
@@ -774,17 +848,12 @@ def api_transactions():
                 
                 db.session.commit()
                 
-                return jsonify({
-                    "message": f"Transação recorrente criada com sucesso! {len(transactions_created)} meses gerados.",
-                    "transaction": {
-                        "id": transactions_created[0].id,
-                        "description": transactions_created[0].description,
-                        "amount": float(transactions_created[0].amount),
-                        "type": transactions_created[0].type,
-                        "transaction_date": transactions_created[0].transaction_date.isoformat(),
-                        "recurring_months": len(transactions_created)
-                    }
-                }), 201
+                resp = jsonify({"message": "Transações criadas com sucesso!", "created": len(transactions_created)})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp
+                
             else:
                 # Transação única
                 transaction = Transaction(
@@ -804,16 +873,11 @@ def api_transactions():
                 db.session.add(transaction)
                 db.session.commit()
                 
-                return jsonify({
-                    "message": "Transação criada com sucesso!",
-                    "transaction": {
-                        "id": transaction.id,
-                        "description": transaction.description,
-                        "amount": float(transaction.amount),
-                        "type": transaction.type,
-                        "transaction_date": transaction.transaction_date.isoformat()
-                    }
-                }), 201
+                resp = jsonify({"message": "Transação criada com sucesso!", "id": transaction.id})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp
             
         except ValueError as ve:
             db.session.rollback()
@@ -821,7 +885,11 @@ def api_transactions():
         except Exception as e:
             db.session.rollback()
             print(f"Erro ao criar transação: {e}")  # Log para debug
-            return jsonify({"error": "Erro interno do servidor"}), 500
+            resp = jsonify({"error": "Erro interno do servidor"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 500
     
     else:  # GET
         try:
@@ -852,7 +920,7 @@ def api_transactions():
                 error_out=False
             )
             
-            return jsonify({
+            resp = jsonify({
                 "transactions": [{
                     "id": t.id,
                     "description": t.description,
@@ -878,10 +946,18 @@ def api_transactions():
                     "has_prev": transactions.has_prev
                 }
             })
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp
             
         except Exception as e:
             print(f"Erro ao buscar transações: {e}")
-            return jsonify({"error": "Erro ao buscar transações"}), 500
+            resp = jsonify({"error": "Erro ao buscar transações"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 500
 
 @gerenciamento_financeiro_bp.route("/api/transactions/<int:transaction_id>", methods=["PUT", "DELETE"])
 def api_transaction_detail(transaction_id):
@@ -919,18 +995,55 @@ def api_transaction_detail(transaction_id):
             
             db.session.commit()
             
-            return jsonify({"message": "Transação atualizada com sucesso!"})
+            resp = jsonify({"message": "Transação atualizada com sucesso!"})
+            resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp
             
         except Exception as e:
             db.session.rollback()
-            return jsonify({"error": str(e)}), 500
+            resp = jsonify({"error": str(e)})
+            resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 500
 
-@gerenciamento_financeiro_bp.route("/api/dashboard-stats")
+@gerenciamento_financeiro_bp.route("/api/dashboard-stats", methods=["GET", "OPTIONS"])
+@gerenciamento_financeiro_bp.route("/api/dashboard-stats/", methods=["GET", "OPTIONS"])
 def api_dashboard_stats():
-    if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
+    """Retorna estatísticas do dashboard para o app/API.
 
-    user_id = session["finance_user_id"]
+    Agora com suporte a CORS para Flutter Web.
+    """
+
+    origin = request.headers.get("Origin", "*")
+
+    # Pré-flight CORS
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    user_id: int | None = None
+
+    # Tentar usar sessão Flask primeiro
+    if "finance_user_id" in session:
+        user_id = session["finance_user_id"]
+    else:
+        # Fallback para apps que não conseguem enviar cookies (ex: Flutter Web)
+        user_id = request.args.get("user_id", type=int)
+
+    if not user_id:
+        resp = jsonify({"error": "Não autorizado"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
     today = datetime.utcnow().date()
     month_start = today.replace(day=1)
 
@@ -987,7 +1100,7 @@ def api_dashboard_stats():
     savings = (monthly_income or 0) - (monthly_expense or 0)
     savings_rate = (savings / monthly_income * 100) if monthly_income else 0
 
-    return jsonify({
+    resp = jsonify({
         "balance": float(balance),
         "monthly_income": float(monthly_income),
         "monthly_expense": float(monthly_expense),
@@ -996,6 +1109,10 @@ def api_dashboard_stats():
         "savings_rate": savings_rate,
         "savings": float(savings),
     })
+    resp.headers["Access-Control-Allow-Origin"] = origin
+    resp.headers["Vary"] = "Origin"
+    resp.headers["Access-Control-Allow-Credentials"] = "true"
+    return resp
 
 @gerenciamento_financeiro_bp.route("/api/recurring", methods=["GET", "POST"])
 def api_recurring():
