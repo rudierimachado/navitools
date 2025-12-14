@@ -2,34 +2,33 @@
 
 {% block title %}Dashboard Financeiro · NEXUSRDR{% endblock %}
 
+{% block extra_scripts %}
+{% endblock %}
+
 {% block content %}
 <div class="row g-4">
     <!-- Header Dashboard -->
     <div class="col-12">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4">
             <div class="flex-grow-1">
-                <h1 class="h2 mb-1">Dashboard Financeiro</h1>
-                <p class="text-muted mb-0">
+                <h1 class="h3 h2-md mb-1">Dashboard Financeiro</h1>
+                <p class="text-muted mb-0 small">
                     <i class="bi bi-person-circle me-1"></i>
                     {{ user.email.split('@')[0] if user }} · 
                     <i class="bi bi-calendar me-1"></i>
                     {{ now.strftime('%B %Y') if now }}
                 </p>
                 <p class="mb-0 mt-2">
-                    <span class="badge rounded-pill" style="font-size: 0.85rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #3b82f6, #1e40af);">
-                        <i class="bi bi-folder-fill me-2"></i>
+                    <span class="badge rounded-pill" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; background: linear-gradient(135deg, #3b82f6, #1e40af);">
+                        <i class="bi bi-folder-fill me-1"></i>
                         <span id="currentWorkspaceName">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
                     </span>
                 </p>
             </div>
 
             <div class="d-flex flex-column align-items-stretch align-items-md-end gap-2 mt-3 mt-md-0">
-                <a href="{{ url_for('gerenciamento_financeiro.download_app') }}" class="btn btn-outline-secondary btn-sm w-100 text-start text-md-end">
-                    <i class="bi bi-download me-1"></i>
-                    Baixar app Android (APK)
-                </a>
-                <!-- Quick Actions - Desktop -->
-                <div class="d-none d-md-flex gap-2">
+                <!-- Quick Actions -->
+                <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
                 <button class="btn btn-success" onclick="showAddTransaction('income')">
                     <i class="bi bi-plus-circle me-1"></i> Nova Entrada
                 </button>
@@ -38,6 +37,9 @@
                 </button>
                 <button class="btn btn-warning" onclick="showMonthlyHistory()">
                     <i class="bi bi-calendar-check me-1"></i> Histórico
+                </button>
+                <button class="btn btn-primary" id="chartsBtn" onclick="showChartsModal()">
+                    <i class="bi bi-bar-chart-line me-1"></i> Gráficos
                 </button>
                 <button class="btn btn-info" id="closeMonthBtn" onclick="closeMonthConfirm()">
                     <i class="bi bi-lock me-1"></i> Fechar Mês
@@ -53,17 +55,17 @@
             <!-- Saldo Total -->
             <div class="col-12 col-md-6 col-xl-3">
                 <div class="card value-card h-100">
-                    <div class="card-body">
+                    <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="card-subtitle mb-1 opacity-75">Saldo Atual</h6>
-                                <h3 class="card-title mb-1">R$ {{ "{:,.2f}".format(balance or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
-                                <small class="opacity-75">
+                                <h6 class="card-subtitle mb-1 opacity-75" style="font-size: 0.85rem;">Saldo Atual</h6>
+                                <h3 class="card-title mb-1" style="font-size: 1.5rem;">R$ {{ "{:,.2f}".format(balance or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <small class="opacity-75" style="font-size: 0.75rem;">
                                     <i class="bi bi-arrow-up me-1"></i>
                                     Atualizado agora
                                 </small>
                             </div>
-                            <div class="opacity-50">
+                            <div class="opacity-50 d-none d-sm-block">
                                 <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
                             </div>
                         </div>
@@ -73,16 +75,22 @@
             
             <!-- Entradas do Mês -->
             <div class="col-12 col-md-6 col-xl-3">
-                <div class="card income-card h-100">
-                    <div class="card-body text-white">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="card-subtitle mb-1 opacity-75">Entradas do Mês</h6>
-                                <h4 class="card-title mb-1">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h4>
-                                <small class="opacity-75">{{ income_count }} transações</small>
-                            </div>
-                            <div class="opacity-25">
-                                <i class="bi bi-arrow-up-circle" style="font-size: 2.5rem;"></i>
+                <div class="card income-card h-100" style="animation: slideInUp 0.5s ease-out 0.1s both;">
+                    <div class="card-body text-white p-3 p-md-4">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div class="flex-grow-1" style="position: relative; z-index: 2;">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; backdrop-filter: blur(10px);">
+                                        <i class="bi bi-arrow-up-circle" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Entradas</h6>
+                                </div>
+                                <h3 class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                        <i class="bi bi-graph-up-arrow me-1"></i>{{ income_count }} transações
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -91,16 +99,22 @@
             
             <!-- Gastos do Mês -->
             <div class="col-12 col-md-6 col-xl-3">
-                <div class="card expense-card h-100">
-                    <div class="card-body text-white">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="card-subtitle mb-1 opacity-75">Gastos do Mês</h6>
-                                <h4 class="card-title mb-1">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h4>
-                                <small class="opacity-75">{{ expense_count }} transações</small>
-                            </div>
-                            <div class="opacity-25">
-                                <i class="bi bi-arrow-down-circle" style="font-size: 2.5rem;"></i>
+                <div class="card expense-card h-100" style="animation: slideInUp 0.5s ease-out 0.2s both;">
+                    <div class="card-body text-white p-3 p-md-4">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div class="flex-grow-1" style="position: relative; z-index: 2;">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; backdrop-filter: blur(10px);">
+                                        <i class="bi bi-arrow-down-circle" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Despesas</h6>
+                                </div>
+                                <h3 class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                        <i class="bi bi-graph-down-arrow me-1"></i>{{ expense_count }} transações
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -110,12 +124,12 @@
             <!-- Taxa de Economia -->
             <div class="col-12 col-md-6 col-xl-3">
                 <div class="card h-100 border-info border-2">
-                    <div class="card-body">
+                    <div class="card-body p-3">
                         <div class="d-flex align-items-center justify-content-between">
                             <div>
-                                <h6 class="card-subtitle mb-1 text-info">Taxa de Economia</h6>
-                                <h4 class="card-title mb-1 text-info">{{ "{:.1f}".format(savings_rate or 0) }}%</h4>
-                                <small class="text-muted">
+                                <h6 class="card-subtitle mb-1 text-info" style="font-size: 0.85rem;">Taxa de Economia</h6>
+                                <h4 class="card-title mb-1 text-info" style="font-size: 1.35rem;">{{ "{:.1f}".format(savings_rate or 0) }}%</h4>
+                                <small class="text-muted" style="font-size: 0.75rem;">
                                     R$ {{ "{:,.2f}".format(savings or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} economizado
                                 </small>
                             </div>
@@ -131,95 +145,106 @@
 
     <!-- Transações Recentes -->
     <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center bg-transparent">
+        <div class="card" style="border: none; background: transparent; box-shadow: none;">
+            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" style="background: transparent; border: none; padding: 0 0 1.5rem 0;">
                 <div class="mb-2 mb-md-0">
-                    <h5 class="card-title mb-1">Transações Recentes</h5>
+                    <h4 class="mb-1 fw-bold" style="font-size: 1.5rem;">
+                        <i class="bi bi-clock-history me-2" style="color: #3b82f6;"></i>Transações Recentes
+                    </h4>
                     <small class="text-muted">Últimas movimentações da conta</small>
                 </div>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary btn-sm" onclick="abrirModalTransacoes()">
+                    <button class="btn btn-outline-primary" onclick="abrirModalTransacoes()" style="border-radius: 10px;">
                         <i class="bi bi-list-ul me-1"></i> Ver Todas
                     </button>
                 </div>
             </div>
             <div class="card-body p-0">
                 {% if recent_transactions %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="d-none d-md-table-cell">Data</th>
-                                    <th>Descrição</th>
-                                    <th class="d-none d-lg-table-cell">Categoria</th>
-                                    <th class="text-center">Fixo</th>
-                                    <th class="text-end">Valor</th>
-                                    <th width="60" class="d-none d-md-table-cell">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for t in recent_transactions %}
-                                <tr onclick="showTransactionDetails({{ t.id }})" style="cursor: pointer; background-color: {% if t.is_recurring %}#f0f0f0{% else %}transparent{% endif %};">
-                                    <td class="d-none d-md-table-cell">
-                                        <div class="fw-semibold">{{ t.transaction_date.strftime('%d/%m') }}</div>
-                                        <small class="text-muted">{{ t.transaction_date.strftime('%Y') }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="fw-semibold">{{ t.description }}</div>
-                                        <small class="text-muted d-md-none">
-                                            {{ t.transaction_date.strftime('%d/%m/%Y') }}
-                                            {% if t.category %} · {{ t.category.name }}{% endif %}
-                                        </small>
-                                        {% if t.is_fixed %}
-                                            <small class="badge bg-info ms-2">Fixo</small>
-                                        {% endif %}
-                                    </td>
-                                    <td class="d-none d-lg-table-cell">
-                                        {% if t.category %}
-                                            <span class="badge rounded-pill" style="background-color: {{ t.category.color }}20; color: {{ t.category.color }};">
-                                                {{ t.category.icon }} {{ t.category.name }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if t.is_fixed %}
-                                            <span class="badge bg-warning">
-                                                <i class="bi bi-pin-fill me-1"></i>Sim
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Não</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end">
-                                        <span class="fw-bold text-{{ 'success' if t.type == 'income' else 'danger' }}">
-                                            {{ '+' if t.type == 'income' else '-' }}R$ {{ "{:,.2f}".format(t.amount).replace(",", "X").replace(".", ",").replace("X", ".") }}
-                                        </span>
-                                    </td>
-                                    <td class="d-none d-md-table-cell">
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary btn-sm" onclick="editTransaction({{ t.id }}); event.stopPropagation();" title="Editar">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction({{ t.id }}); event.stopPropagation();" title="Excluir">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                    <div id="recentTransactionsTbody" class="d-flex flex-column gap-2">
+                        {% for t in recent_transactions %}
+                        <div data-transaction-id="{{ t.id }}" 
+                             class="transaction-card" 
+                             onclick="showTransactionDetails({{ t.id }})"
+                             style="animation: slideInUp 0.4s ease-out {{ loop.index0 * 0.05 }}s both;">
+                            <div class="card h-100" style="border-radius: 16px; {% if t.is_fixed %}border: 3px solid #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);{% else %}border: 1px solid var(--border-color);{% endif %} cursor: pointer; transition: all 0.3s ease; {% if t.is_recurring %}background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(99, 102, 241, 0.02));{% endif %}{% if t.is_fixed %}background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.03));{% endif %}">
+                                <div class="card-body p-3 p-md-4">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <!-- Ícone da Categoria -->
+                                        <div class="flex-shrink-0">
+                                            <div class="d-flex align-items-center justify-content-center" 
+                                                 style="width: 52px; height: 52px; border-radius: 14px; background: {% if t.type == 'income' %}linear-gradient(135deg, rgba(17, 153, 142, 0.15), rgba(56, 239, 125, 0.1)){% else %}linear-gradient(135deg, rgba(238, 9, 121, 0.15), rgba(255, 106, 0, 0.1)){% endif %}; border: 2px solid {% if t.type == 'income' %}rgba(17, 153, 142, 0.2){% else %}rgba(238, 9, 121, 0.2){% endif %};">
+                                                {% if t.category %}
+                                                    <span style="font-size: 1.5rem;">{{ t.category.icon }}</span>
+                                                {% else %}
+                                                    <i class="bi bi-{% if t.type == 'income' %}arrow-up-circle{% else %}arrow-down-circle{% endif %}" style="font-size: 1.5rem; color: {% if t.type == 'income' %}#11998e{% else %}#ee0979{% endif %};"></i>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+
+                                        <!-- Conteúdo Principal -->
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+                                                <div class="flex-grow-1">
+                                                    <!-- Descrição e Data -->
+                                                    <h6 class="mb-1 fw-semibold" style="font-size: 1rem; line-height: 1.3;">{{ t.description }}</h6>
+                                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                                        <small class="text-muted d-flex align-items-center">
+                                                            <i class="bi bi-calendar3 me-1"></i>
+                                                            {{ t.transaction_date.strftime('%d/%m/%Y') }}
+                                                        </small>
+                                                        {% if t.category %}
+                                                            <span class="badge rounded-pill" style="background-color: {{ t.category.color }}20; color: {{ t.category.color }}; font-size: 0.7rem; padding: 0.35rem 0.65rem;">
+                                                                {{ t.category.icon }} {{ t.category.name }}
+                                                            </span>
+                                                        {% endif %}
+                                                        {% if t.is_fixed %}
+                                                            <span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                                                <i class="bi bi-pin-angle-fill me-1"></i>Fixo
+                                                            </span>
+                                                        {% endif %}
+                                                        {% if t.is_recurring %}
+                                                            <span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                                                <i class="bi bi-arrow-repeat me-1"></i>Recorrente
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Valor e Ações -->
+                                                <div class="d-flex flex-column align-items-end gap-2">
+                                                    <div class="fw-bold" style="font-size: 1.25rem; color: {% if t.type == 'income' %}#11998e{% else %}#ee0979{% endif %};">
+                                                        {{ '+' if t.type == 'income' else '-' }}R$ {{ "{:,.2f}".format(t.amount).replace(",", "X").replace(".", ",").replace("X", ".") }}
+                                                    </div>
+                                                    <div class="btn-group btn-group-sm transaction-actions" style="opacity: 0.7; transition: opacity 0.3s ease;">
+                                                        <button class="btn btn-sm" onclick="editTransaction({{ t.id }}); event.stopPropagation();" title="Editar" style="border: 1px solid var(--border-color); border-radius: 8px 0 0 8px; padding: 0.4rem 0.7rem;">
+                                                            <i class="bi bi-pencil" style="font-size: 0.9rem;"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm" onclick="deleteTransaction({{ t.id }}); event.stopPropagation();" title="Excluir" style="border: 1px solid var(--border-color); border-left: none; border-radius: 0 8px 8px 0; padding: 0.4rem 0.7rem;">
+                                                            <i class="bi bi-trash" style="font-size: 0.9rem; color: #ef4444;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
-                        <h6 class="text-muted mt-3">Nenhuma transação registrada</h6>
-                        <p class="text-muted mb-3">Comece adicionando sua primeira transação</p>
-                        <button class="btn btn-primary" onclick="showAddTransaction('income')">
-                            <i class="bi bi-plus me-1"></i> Primeira Transação
-                        </button>
+                    <div class="card" style="border-radius: 16px; border: 2px dashed var(--border-color);">
+                        <div class="card-body text-center py-5">
+                            <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
+                                <i class="bi bi-inbox"></i>
+                            </div>
+                            <h5 class="mb-2">Nenhuma transação registrada</h5>
+                            <p class="text-muted mb-4">Comece adicionando sua primeira transação e acompanhe suas finanças</p>
+                            <button class="btn btn-primary" onclick="showAddTransaction('income')" style="border-radius: 10px; padding: 0.6rem 1.5rem;">
+                                <i class="bi bi-plus-circle me-2"></i>Primeira Transação
+                            </button>
+                        </div>
                     </div>
                 {% endif %}
             </div>
@@ -228,20 +253,7 @@
 </div>
 
 <!-- Quick Actions Mobile -->
-<div class="d-md-none quick-actions">
-    <button class="btn btn-success" onclick="showAddTransaction('income')">
-        <i class="bi bi-plus-circle"></i> Entrada
-    </button>
-    <button class="btn btn-danger" onclick="showAddTransaction('expense')">
-        <i class="bi bi-dash-circle"></i> Despesa
-    </button>
-    <button class="btn btn-warning" onclick="showMonthlyHistory()">
-        <i class="bi bi-calendar-check"></i> Histórico
-    </button>
-    <button class="btn btn-info" id="closeMonthBtnMobile" onclick="closeMonthConfirm()">
-        <i class="bi bi-lock"></i> Fechar
-    </button>
-</div>
+ 
 
 <!-- Modal Adicionar Transação -->
 <div class="modal fade" id="addTransactionModal" tabindex="-1">
@@ -303,19 +315,116 @@
 
 <!-- Modal Histórico Mensal -->
 <div class="modal fade" id="monthlyHistoryModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
                 <h5 class="modal-title">
-                    <i class="bi bi-calendar-check me-2"></i>Histórico Mensal
+                    <i class="bi bi-calendar-check me-2"></i>Histórico de Transações
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="monthlyHistoryContent" style="max-height: 500px; overflow-y: auto;">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Carregando...</span>
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" id="historyTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions-pane" type="button" role="tab">
+                            <i class="bi bi-list-ul me-1"></i>Transações
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts-pane" type="button" role="tab" onclick="loadCharts()">
+                            <i class="bi bi-bar-chart-line me-1"></i>Gráficos
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="historyTabContent">
+                    <!-- Aba Transações -->
+                    <div class="tab-pane fade show active" id="transactions-pane" role="tabpanel">
+                        <!-- Filtros -->
+                        <div class="card mb-3" style="border-radius: 12px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(99, 102, 241, 0.03));">
+                            <div class="card-body p-3">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Mês</label>
+                                        <select class="form-select" id="historyFilterMonth" onchange="loadMonthlyHistory()">
+                                            <option value="">Todos os meses</option>
+                                            <option value="1">Janeiro</option>
+                                            <option value="2">Fevereiro</option>
+                                            <option value="3">Março</option>
+                                            <option value="4">Abril</option>
+                                            <option value="5">Maio</option>
+                                            <option value="6">Junho</option>
+                                            <option value="7">Julho</option>
+                                            <option value="8">Agosto</option>
+                                            <option value="9">Setembro</option>
+                                            <option value="10">Outubro</option>
+                                            <option value="11">Novembro</option>
+                                            <option value="12">Dezembro</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">Ano</label>
+                                        <select class="form-select" id="historyFilterYear" onchange="loadMonthlyHistory()">
+                                            <option value="">Todos os anos</option>
+                                            <option value="2024">2024</option>
+                                            <option value="2025">2025</option>
+                                            <option value="2026">2026</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-outline-primary w-100" onclick="document.getElementById('historyFilterMonth').value=''; document.getElementById('historyFilterYear').value=''; loadMonthlyHistory();">
+                                            <i class="bi bi-arrow-clockwise me-1"></i>Limpar Filtros
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Conteúdo do histórico -->
+                        <div id="historyContent" style="max-height: 500px; overflow-y: auto;">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aba Gráficos -->
+                    <div class="tab-pane fade" id="charts-pane" role="tabpanel">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card" style="border-radius: 12px;">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Despesas por Categoria</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="categoryChart" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card" style="border-radius: 12px;">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="monthlyChart" height="300"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="card" style="border-radius: 12px;">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparativo Entradas vs Despesas</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="comparisonChart" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -324,19 +433,46 @@
     </div>
 </div>
 
-<!-- Modal Detalhes do Mês -->
-<div class="modal fade" id="monthDetailsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- Modal Gráficos -->
+<div class="modal fade" id="chartsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="monthDetailsTitle">Detalhes do Mês</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-bar-chart-line me-2"></i>Gráficos Financeiros
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="monthDetailsContent" style="max-height: 600px; overflow-y: auto;">
-                    <div class="text-center py-5">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Carregando...</span>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card" style="border-radius: 12px;">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Despesas por Categoria</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="categoryChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card" style="border-radius: 12px;">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="monthlyChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card" style="border-radius: 12px;">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparativo Entradas vs Despesas</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="comparisonChart" height="200"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -604,109 +740,65 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-// Variables
+<script defer>
 let currentEditingId = null;
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    // Set today's date
-    document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+document.addEventListener('DOMContentLoaded', () => {
+    const d = document.getElementById('transactionDate');
+    if (d) d.value = new Date().toISOString().split('T')[0];
+    const f = document.getElementById('addTransactionForm');
+    if (f) f.addEventListener('submit', saveTransaction);
 });
 
-// Show add transaction modal
 function showAddTransaction(type) {
-    const modal = new bootstrap.Modal(document.getElementById('addTransactionModal'));
-    const title = document.getElementById('addTransactionTitle');
-    const typeInput = document.getElementById('transactionType');
-    const saveButton = document.getElementById('saveButton');
-    
-    // Reset form
+    const m = new bootstrap.Modal(document.getElementById('addTransactionModal'));
+    const t = document.getElementById('addTransactionTitle');
+    const ti = document.getElementById('transactionType');
+    const sb = document.getElementById('saveButton');
     document.getElementById('addTransactionForm').reset();
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
     currentEditingId = null;
-    
-    // Configure for type
-    typeInput.value = type;
-    
+    ti.value = type;
     if (type === 'income') {
-        title.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
-        saveButton.className = 'btn btn-success';
-        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Entrada';
-        document.getElementById('dateLabel').textContent = 'Dt de entrada do dinheiro na conta *';
+        t.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
+        sb.className = 'btn btn-success';
+        sb.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Entrada';
     } else {
-        title.innerHTML = '<i class="bi bi-dash-circle text-danger me-2"></i>Nova Despesa';
-        saveButton.className = 'btn btn-danger';
-        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Despesa';
-        document.getElementById('dateLabel').textContent = 'Data da Despesa *';
+        t.innerHTML = '<i class="bi bi-dash-circle text-danger me-2"></i>Nova Despesa';
+        sb.className = 'btn btn-danger';
+        sb.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Despesa';
     }
-    
-    // Load categories
     loadCategories(type);
-    
-    modal.show();
+    m.show();
 }
 
-// Load categories
 async function loadCategories(type) {
     try {
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
-        const data = await response.json();
-        
-        const select = document.getElementById('category');
-        select.innerHTML = '<option value="">Selecione uma categoria</option>';
-        
-        if (data.categories && Array.isArray(data.categories)) {
-            data.categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat.id;
-                option.textContent = `${cat.icon || '💰'} ${cat.name}`;
-                select.appendChild(option);
-            });
-        }
-        
-        // Add event listener to show/hide description field
-        select.addEventListener('change', function() {
-            const descriptionField = document.getElementById('descriptionField');
-            const transactionType = document.getElementById('transactionType').value;
-            
-            // Show description field only for expenses (type = 'expense')
-            if (this.value && transactionType === 'expense') {
-                descriptionField.style.display = 'block';
-                document.getElementById('description').required = true;
-            } else {
-                descriptionField.style.display = 'none';
-                document.getElementById('description').required = false;
-                document.getElementById('description').value = '';
-            }
+        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
+        const d = await r.json();
+        const s = document.getElementById('category');
+        s.innerHTML = '<option value="">Selecione uma categoria</option>';
+        if (d.categories) d.categories.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c.id;
+            o.textContent = `${c.icon || '💰'} ${c.name}`;
+            s.appendChild(o);
         });
-    } catch (error) {
-        console.error('Erro ao carregar categorias:', error);
-        showToast('Erro ao carregar categorias', 'error');
+    } catch (e) {
+        console.error('Erro:', e);
     }
 }
 
-// Handle form submission
-document.getElementById('addTransactionForm').addEventListener('submit', async function(e) {
+async function saveTransaction(e) {
     e.preventDefault();
+    const btn = document.getElementById('saveButton');
+    const sp = btn.querySelector('.spinner-border');
+    btn.disabled = true;
+    sp.classList.remove('d-none');
     
-    const button = document.getElementById('saveButton');
-    const spinner = button.querySelector('.spinner-border');
-    
-    button.disabled = true;
-    spinner.classList.remove('d-none');
-    
-    const transactionType = document.getElementById('transactionType').value;
-    let description = document.getElementById('category').options[document.getElementById('category').selectedIndex].text || 'Transação';
-    
-    // For expenses, use the user-provided description
-    if (transactionType === 'expense' && document.getElementById('description').value) {
-        description = document.getElementById('description').value;
-    }
-    
-    const formData = {
-        type: transactionType,
-        description: description,
+    const fd = {
+        type: document.getElementById('transactionType').value,
+        description: document.getElementById('description').value || document.getElementById('category').options[document.getElementById('category').selectedIndex].text,
         amount: parseFloat(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value,
@@ -716,842 +808,543 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
     };
     
     try {
-        let url = '{{ url_for('gerenciamento_financeiro.api_transactions') }}';
-        let method = 'POST';
+        let url = '/gerenciamento-financeiro/api/transactions';
+        const editingId = currentEditingId;
+        if (editingId) url += `/${editingId}`;
         
-        if (currentEditingId) {
-            url += `/${currentEditingId}`;
-            method = 'PUT';
-        }
-        
-        const response = await fetch(url, {
-            method: method,
+        const r = await fetch(url, {
+            method: editingId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(fd)
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        const res = await r.json();
+        if (r.ok) {
             bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
-            showToast(
-                currentEditingId 
-                    ? 'Transação atualizada com sucesso! 🎉'
-                    : `${formData.type === 'income' ? 'Entrada' : 'Despesa'} registrada com sucesso! 🎉`, 
-                'success'
-            );
-            setTimeout(() => location.reload(), 1000);
+            showToast(editingId ? 'Atualizado!' : 'Salvo!', 'success');
+            document.getElementById('addTransactionForm').reset();
+            currentEditingId = null;
+            if (editingId) {
+                upsertTransactionRow(res);
+            } else {
+                addTransactionToTable(res);
+            }
         } else {
-            showToast(result.error || 'Erro ao salvar transação', 'error');
+            showToast(res.error || 'Erro', 'error');
         }
-    } catch (error) {
-        console.error('Erro ao salvar:', error);
-        showToast('Erro ao salvar transação', 'error');
+    } catch (e) {
+        showToast('Erro', 'error');
     } finally {
-        button.disabled = false;
-        spinner.classList.add('d-none');
+        btn.disabled = false;
+        sp.classList.add('d-none');
     }
-});
+}
 
-// Edit transaction
+function _formatBRL(value) {
+    const n = Number(value || 0);
+    return n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function _getRecentContainer() {
+    return document.getElementById('recentTransactionsTbody');
+}
+
+function _buildTransactionCard(t) {
+    const date = new Date(t.transaction_date);
+    const formattedDate = date.toLocaleDateString('pt-BR');
+    
+    const categoryIcon = t.category?.icon || (t.type === 'income' ? '💵' : '💸');
+    const categoryName = t.category?.name || '';
+    const categoryColor = t.category?.color || (t.type === 'income' ? '#11998e' : '#ee0979');
+    
+    const iconBg = t.type === 'income' 
+        ? 'linear-gradient(135deg, rgba(17, 153, 142, 0.15), rgba(56, 239, 125, 0.1))'
+        : 'linear-gradient(135deg, rgba(238, 9, 121, 0.15), rgba(255, 106, 0, 0.1))';
+    const iconBorder = t.type === 'income' ? 'rgba(17, 153, 142, 0.2)' : 'rgba(238, 9, 121, 0.2)';
+    const iconFallback = t.type === 'income' ? 'arrow-up-circle' : 'arrow-down-circle';
+    const iconColor = t.type === 'income' ? '#11998e' : '#ee0979';
+    
+    const categoryBadge = t.category 
+        ? `<span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor}; font-size: 0.7rem; padding: 0.35rem 0.65rem;">
+                ${categoryIcon} ${categoryName}
+           </span>`
+        : '';
+    
+    const fixedBadge = t.is_fixed
+        ? `<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <i class="bi bi-pin-angle-fill me-1"></i>Fixo
+           </span>`
+        : '';
+    
+    const recurringBadge = t.is_recurring
+        ? `<span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                <i class="bi bi-arrow-repeat me-1"></i>Recorrente
+           </span>`
+        : '';
+    
+    const amountColor = t.type === 'income' ? '#11998e' : '#ee0979';
+    const amountSign = t.type === 'income' ? '+' : '-';
+    
+    const recurringBg = t.is_recurring ? 'background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(99, 102, 241, 0.02));' : '';
+    const fixedHighlight = t.is_fixed
+        ? 'border: 3px solid #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.03));'
+        : 'border: 1px solid var(--border-color);';
+    
+    return `
+        <div class="card h-100" style="border-radius: 16px; ${fixedHighlight} cursor: pointer; transition: all 0.3s ease; ${recurringBg}">
+            <div class="card-body p-3 p-md-4">
+                <div class="d-flex align-items-start gap-3">
+                    <!-- Ícone da Categoria -->
+                    <div class="flex-shrink-0">
+                        <div class="d-flex align-items-center justify-content-center" 
+                             style="width: 52px; height: 52px; border-radius: 14px; background: ${iconBg}; border: 2px solid ${iconBorder};">
+                            ${t.category 
+                                ? `<span style="font-size: 1.5rem;">${categoryIcon}</span>`
+                                : `<i class="bi bi-${iconFallback}" style="font-size: 1.5rem; color: ${iconColor};"></i>`
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo Principal -->
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+                            <div class="flex-grow-1">
+                                <!-- Descrição e Data -->
+                                <h6 class="mb-1 fw-semibold" style="font-size: 1rem; line-height: 1.3;">${t.description || 'Sem descrição'}</h6>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <small class="text-muted d-flex align-items-center">
+                                        <i class="bi bi-calendar3 me-1"></i>
+                                        ${formattedDate}
+                                    </small>
+                                    ${categoryBadge}
+                                    ${fixedBadge}
+                                    ${recurringBadge}
+                                </div>
+                            </div>
+
+                            <!-- Valor e Ações -->
+                            <div class="d-flex flex-column align-items-end gap-2">
+                                <div class="fw-bold" style="font-size: 1.25rem; color: ${amountColor};">
+                                    ${amountSign}R$ ${_formatBRL(t.amount)}
+                                </div>
+                                <div class="btn-group btn-group-sm transaction-actions" style="opacity: 0.7; transition: opacity 0.3s ease;">
+                                    <button class="btn btn-sm" onclick="editTransaction(${t.id}); event.stopPropagation();" title="Editar" style="border: 1px solid var(--border-color); border-radius: 8px 0 0 8px; padding: 0.4rem 0.7rem;">
+                                        <i class="bi bi-pencil" style="font-size: 0.9rem;"></i>
+                                    </button>
+                                    <button class="btn btn-sm" onclick="deleteTransaction(${t.id}); event.stopPropagation();" title="Excluir" style="border: 1px solid var(--border-color); border-left: none; border-radius: 0 8px 8px 0; padding: 0.4rem 0.7rem;">
+                                        <i class="bi bi-trash" style="font-size: 0.9rem; color: #ef4444;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function upsertTransactionRow(t) {
+    const existing = document.querySelector(`[data-transaction-id="${t.id}"]`);
+    if (!existing) {
+        addTransactionToTable(t);
+        return;
+    }
+
+    existing.setAttribute('onclick', `showTransactionDetails(${t.id})`);
+    existing.innerHTML = _buildTransactionCard(t);
+}
+
+function addTransactionToTable(t) {
+    const container = _getRecentContainer();
+    if (!container) return;
+
+    const cardWrapper = document.createElement('div');
+    cardWrapper.setAttribute('data-transaction-id', t.id);
+    cardWrapper.className = 'transaction-card';
+    cardWrapper.setAttribute('onclick', `showTransactionDetails(${t.id})`);
+    cardWrapper.style.animation = 'slideInUp 0.4s ease-out both';
+    cardWrapper.innerHTML = _buildTransactionCard(t);
+    
+    container.insertBefore(cardWrapper, container.firstChild);
+}
+
 async function editTransaction(id) {
     try {
-        // Get transaction data
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?page=1&per_page=1000`);
+        const r = await fetch('/gerenciamento-financeiro/api/transactions?page=1&per_page=1000');
+        const d = await r.json();
+        const t = d.transactions?.find(x => x.id === id);
+        if (!t) return;
+        currentEditingId = id;
+        showAddTransaction(t.type);
+        setTimeout(() => {
+            document.getElementById('amount').value = t.amount;
+            document.getElementById('transactionDate').value = t.transaction_date;
+            document.getElementById('category').value = t.category?.id || '';
+            document.getElementById('description').value = t.description || '';
+        }, 200);
+    } catch (e) {
+        console.error('Erro:', e);
+    }
+}
+
+async function deleteTransaction(id) {
+    if (!confirm('Excluir?')) return;
+    try {
+        const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, { method: 'DELETE' });
+        if (r.ok) {
+            showToast('Excluído!', 'success');
+            const row = document.querySelector(`[data-transaction-id="${id}"]`);
+            if (row) {
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+        }
+    } catch (e) {
+        console.error('Erro:', e);
+    }
+}
+
+async function showMonthlyHistory() {
+    const modal = new bootstrap.Modal(document.getElementById('monthlyHistoryModal'));
+    modal.show();
+    await loadMonthlyHistory();
+}
+
+async function loadMonthlyHistory() {
+    const container = document.getElementById('historyContent');
+    const filterMonth = document.getElementById('historyFilterMonth')?.value;
+    const filterYear = document.getElementById('historyFilterYear')?.value;
+    
+    container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+    
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/transactions?page=1&per_page=1000');
         const data = await response.json();
-        const transaction = data.transactions?.find(t => t.id === id);
         
-        if (!transaction) {
-            showToast('Transação não encontrada', 'error');
+        let transactions = data.transactions || [];
+        
+        // Filtrar por mês/ano se especificado
+        if (filterMonth || filterYear) {
+            transactions = transactions.filter(t => {
+                const date = new Date(t.transaction_date);
+                const matchMonth = !filterMonth || (date.getMonth() + 1) == filterMonth;
+                const matchYear = !filterYear || date.getFullYear() == filterYear;
+                return matchMonth && matchYear;
+            });
+        }
+        
+        if (!transactions.length) {
+            container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-inbox" style="font-size: 3rem;"></i><p class="mt-3">Nenhuma transação encontrada</p></div>';
             return;
         }
         
-        // Set editing mode
-        currentEditingId = id;
-        
-        // Open modal with data
-        showAddTransaction(transaction.type);
-        
-        // Fill form after modal loads
-        setTimeout(() => {
-            document.getElementById('amount').value = transaction.amount;
-            document.getElementById('transactionDate').value = transaction.transaction_date;
-            document.getElementById('isFixed').checked = transaction.is_fixed || false;
-            
-            if (transaction.category && transaction.category.id) {
-                document.getElementById('category').value = transaction.category.id;
-            }
-            
-            // For expenses, show description field and load the description
-            if (transaction.type === 'expense') {
-                document.getElementById('descriptionField').style.display = 'block';
-                document.getElementById('description').value = transaction.description || '';
-                document.getElementById('description').required = true;
-            }
-            
-            // Update title
-            const title = document.getElementById('addTransactionTitle');
-            title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${transaction.type === 'income' ? 'Entrada' : 'Despesa'}`;
-        }, 500);
-        
-    } catch (error) {
-        console.error('Erro ao carregar transação:', error);
-        showToast('Erro ao carregar transação', 'error');
-    }
-}
-
-// Delete transaction
-async function deleteTransaction(id) {
-    if (!confirm('Deseja realmente excluir esta transação?')) return;
-    
-    try {
-        showLoading();
-        
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}/${id}`, {
-            method: 'DELETE'
+        // Agrupar por mês
+        const grouped = {};
+        transactions.forEach(t => {
+            const date = new Date(t.transaction_date);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(t);
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast('Transação excluída com sucesso!', 'success');
-            setTimeout(() => location.reload(), 800);
-        } else {
-            showToast(result.error || 'Erro ao excluir transação', 'error');
-        }
-    } catch (error) {
-        console.error('Erro ao excluir:', error);
-        showToast('Erro ao excluir transação', 'error');
-    } finally {
-        hideLoading();
-    }
-}
-
-// Show transaction details (mobile)
-function showTransactionDetails(id) {
-    if (window.isMobile()) {
-        // On mobile, show details in a toast or modal
-        showToast('Toque nos ícones de ação para editar ou excluir', 'info');
-    }
-}
-
-// ============================================================================
-// FUNÇÕES DE FECHAMENTO MENSAL
-// ============================================================================
-
-// Mostrar histórico mensal
-async function showMonthlyHistory() {
-    const modal = new bootstrap.Modal(document.getElementById('monthlyHistoryModal'));
-    const content = document.getElementById('monthlyHistoryContent');
-    
-    try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_monthly_history") }}');
-        const data = await response.json();
-        
-        if (data.closures && data.closures.length > 0) {
-            let html = '<div class="list-group">';
+        let html = '';
+        Object.keys(grouped).sort().reverse().forEach(key => {
+            const [year, month] = key.split('-');
+            const monthName = new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const items = grouped[key];
             
-            data.closures.forEach(closure => {
-                const monthYear = `${closure.month_name} ${closure.year}`;
-                const balance = parseFloat(closure.balance);
-                const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
-                
-                html += `
-                    <button type="button" class="list-group-item list-group-item-action" onclick="showMonthDetails(${closure.id})">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">${monthYear}</h6>
-                            <small class="${balanceClass} fw-bold">R$ ${balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</small>
-                        </div>
-                        <p class="mb-1 text-muted">
-                            <i class="bi bi-arrow-up text-success me-1"></i>R$ ${parseFloat(closure.total_income).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                            <i class="bi bi-arrow-down text-danger ms-3 me-1"></i>R$ ${parseFloat(closure.total_expense).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                        </p>
-                        <small class="text-muted">Fechado em ${new Date(closure.closed_at).toLocaleDateString('pt-BR')}</small>
-                    </button>
-                `;
-            });
-            
-            html += '</div>';
-            content.innerHTML = html;
-        } else {
-            content.innerHTML = '<div class="alert alert-info">Nenhum mês fechado ainda</div>';
-        }
-    } catch (error) {
-        console.error('Erro ao carregar histórico:', error);
-        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar histórico</div>';
-    }
-    
-    modal.show();
-}
-
-// Mostrar detalhes de um mês específico
-async function showMonthDetails(closureId) {
-    const modal = new bootstrap.Modal(document.getElementById('monthDetailsModal'));
-    const titleEl = document.getElementById('monthDetailsTitle');
-    const content = document.getElementById('monthDetailsContent');
-    
-    try {
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_closure_details", closure_id=0) }}`.replace('/0', `/${closureId}`));
-        const data = await response.json();
-        const closure = data.closure;
-        
-        titleEl.textContent = `${closure.month_name} ${closure.year}`;
-        
-        let html = `
-            <div class="mb-4">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="card border-success">
-                            <div class="card-body">
-                                <h6 class="card-title text-success">Total de Entradas</h6>
-                                <h4>+R$ ${parseFloat(closure.total_income).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card border-danger">
-                            <div class="card-body">
-                                <h6 class="card-title text-danger">Total de Despesas</h6>
-                                <h4>-R$ ${parseFloat(closure.total_expense).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="card border-info mt-3">
-                    <div class="card-body">
-                        <h6 class="card-title text-info">Saldo do Mês</h6>
-                        <h3 class="text-info">R$ ${parseFloat(closure.balance).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
-                    </div>
-                </div>
-            </div>
-            
-            <h6 class="mb-3">Transações do Mês</h6>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th class="text-end">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        data.transactions.forEach(t => {
-            const icon = t.type === 'income' ? '✅' : '❌';
-            const valueClass = t.type === 'income' ? 'text-success' : 'text-danger';
-            const sign = t.type === 'income' ? '+' : '-';
+            const totalIncome = items.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpense = items.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            const balance = totalIncome - totalExpense;
             
             html += `
-                <tr>
-                    <td>${new Date(t.transaction_date).toLocaleDateString('pt-BR')}</td>
-                    <td>
-                        <small>${t.description}</small>
-                        ${t.is_auto_loaded ? '<br><small class="badge bg-info">Auto-carregada</small>' : ''}
-                    </td>
-                    <td class="text-end ${valueClass}"><strong>${sign}R$ ${parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></td>
-                </tr>
+                <div class="card mb-3" style="border-radius: 12px;">
+                    <div class="card-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border-radius: 12px 12px 0 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-capitalize"><i class="bi bi-calendar-month me-2"></i>${monthName}</h6>
+                            <span class="badge bg-light text-dark">${items.length} transações</span>
+                        </div>
+                        <div class="row mt-2 text-center">
+                            <div class="col-4">
+                                <small class="d-block opacity-75">Entradas</small>
+                                <strong>+R$ ${_formatBRL(totalIncome)}</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="d-block opacity-75">Saídas</small>
+                                <strong>-R$ ${_formatBRL(totalExpense)}</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="d-block opacity-75">Saldo</small>
+                                <strong class="${balance >= 0 ? 'text-success' : 'text-danger'}">R$ ${_formatBRL(Math.abs(balance))}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-2">
+                        ${items.map(t => {
+                            const date = new Date(t.transaction_date);
+                            const categoryIcon = t.category?.icon || (t.type === 'income' ? '💵' : '💸');
+                            const amountColor = t.type === 'income' ? '#11998e' : '#ee0979';
+                            const amountSign = t.type === 'income' ? '+' : '-';
+                            return `
+                                <div class="d-flex align-items-center justify-content-between p-2 border-bottom" style="cursor: pointer;" onclick="showTransactionDetails(${t.id})">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span style="font-size: 1.5rem;">${categoryIcon}</span>
+                                        <div>
+                                            <div class="fw-semibold">${t.description}</div>
+                                            <small class="text-muted">${date.toLocaleDateString('pt-BR')}</small>
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold" style="color: ${amountColor};">${amountSign}R$ ${_formatBRL(t.amount)}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
             `;
         });
         
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
-        content.innerHTML = html;
+        container.innerHTML = html;
     } catch (error) {
-        console.error('Erro ao carregar detalhes:', error);
-        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar detalhes</div>';
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar histórico</div>';
+    }
+}
+
+async function closeMonthConfirm() {
+    if (!confirm('Deseja fechar o mês atual?\n\nIsso irá:\n- Finalizar o período atual\n- Criar lançamentos fixos no próximo mês\n- Gerar relatório mensal')) {
+        return;
     }
     
-    modal.show();
-}
-
-// Confirmar fechamento de mês
-async function closeMonthConfirm() {
-    const modal = new bootstrap.Modal(document.getElementById('closeMonthModal'));
-    modal.show();
-}
-
-// Executar fechamento de mês
-async function executeCloseMonth() {
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Fechando...';
-    
     try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_close_month") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+        const response = await fetch('/gerenciamento-financeiro/api/monthly-closure/close-month', {
+            method: 'POST'
         });
         
         const result = await response.json();
         
         if (response.ok) {
-            bootstrap.Modal.getInstance(document.getElementById('closeMonthModal')).hide();
-            showToast(`Mês fechado com sucesso! ${result.closure.fixed_expenses_copied} despesas fixas carregadas 🎉`, 'success');
+            showToast(`Mês fechado! ${result.closure.fixed_expenses_copied} despesas fixas copiadas para o próximo mês`, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
             showToast(result.error || 'Erro ao fechar mês', 'error');
         }
     } catch (error) {
-        console.error('Erro ao fechar mês:', error);
         showToast('Erro ao fechar mês', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-lock me-1"></i>Fechar Mês';
     }
 }
 
-// Verificar se deve mostrar botão de fechar mês (ao carregar)
+// Abrir modal de gráficos
+async function showChartsModal() {
+    const modal = new bootstrap.Modal(document.getElementById('chartsModal'));
+    modal.show();
+    await loadCharts();
+}
+
+// Carregar gráficos
+let categoryChartInstance = null;
+let monthlyChartInstance = null;
+let comparisonChartInstance = null;
+
+async function loadCharts() {
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/transactions?page=1&per_page=1000');
+        const data = await response.json();
+        const transactions = data.transactions || [];
+        
+        // Destruir gráficos existentes
+        if (categoryChartInstance) categoryChartInstance.destroy();
+        if (monthlyChartInstance) monthlyChartInstance.destroy();
+        if (comparisonChartInstance) comparisonChartInstance.destroy();
+        
+        // 1. Gráfico de Pizza - Despesas por Categoria
+        const expensesByCategory = {};
+        transactions.filter(t => t.type === 'expense').forEach(t => {
+            const catName = t.category?.name || 'Sem categoria';
+            expensesByCategory[catName] = (expensesByCategory[catName] || 0) + t.amount;
+        });
+        
+        const categoryCtx = document.getElementById('categoryChart');
+        if (categoryCtx) {
+            categoryChartInstance = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(expensesByCategory),
+                    datasets: [{
+                        data: Object.values(expensesByCategory),
+                        backgroundColor: [
+                            '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6',
+                            '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#6366f1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const value = _formatBRL(context.parsed);
+                                    return `${label}: R$ ${value}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 2. Gráfico de Linha - Evolução Mensal
+        const monthlyData = {};
+        transactions.forEach(t => {
+            const date = new Date(t.transaction_date);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyData[key]) {
+                monthlyData[key] = { income: 0, expense: 0 };
+            }
+            if (t.type === 'income') {
+                monthlyData[key].income += t.amount;
+            } else {
+                monthlyData[key].expense += t.amount;
+            }
+        });
+        
+        const sortedMonths = Object.keys(monthlyData).sort();
+        const monthlyCtx = document.getElementById('monthlyChart');
+        if (monthlyCtx) {
+            monthlyChartInstance = new Chart(monthlyCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths.map(m => {
+                        const [year, month] = m.split('-');
+                        return new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                    }),
+                    datasets: [
+                        {
+                            label: 'Entradas',
+                            data: sortedMonths.map(m => monthlyData[m].income),
+                            borderColor: '#11998e',
+                            backgroundColor: 'rgba(17, 153, 142, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Despesas',
+                            data: sortedMonths.map(m => monthlyData[m].expense),
+                            borderColor: '#ee0979',
+                            backgroundColor: 'rgba(238, 9, 121, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: R$ ${_formatBRL(context.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => 'R$ ' + _formatBRL(value)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 3. Gráfico de Barras - Comparativo
+        const comparisonCtx = document.getElementById('comparisonChart');
+        if (comparisonCtx) {
+            comparisonChartInstance = new Chart(comparisonCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths.map(m => {
+                        const [year, month] = m.split('-');
+                        return new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+                    }),
+                    datasets: [
+                        {
+                            label: 'Entradas',
+                            data: sortedMonths.map(m => monthlyData[m].income),
+                            backgroundColor: '#11998e'
+                        },
+                        {
+                            label: 'Despesas',
+                            data: sortedMonths.map(m => monthlyData[m].expense),
+                            backgroundColor: '#ee0979'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: R$ ${_formatBRL(context.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => 'R$ ' + _formatBRL(value)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar gráficos:', error);
+        showToast('Erro ao carregar gráficos', 'error');
+    }
+}
+
+// Verificar virada de mês automática ao carregar página
 document.addEventListener('DOMContentLoaded', async function() {
     try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_current_month_closure") }}');
-        const data = await response.json();
+        const response = await fetch('/gerenciamento-financeiro/api/monthly-closure/check-auto-close', {
+            method: 'POST'
+        });
         
-        if (data.closure && data.closure.is_last_day_of_month) {
-            document.getElementById('closeMonthBtn').style.display = 'inline-block';
-            document.getElementById('closeMonthBtnMobile').style.display = 'inline-block';
+        if (response.ok) {
+            const result = await response.json();
+            if (result.auto_closed) {
+                showToast(`Novo mês iniciado! ${result.fixed_expenses_copied} despesas fixas foram lançadas automaticamente`, 'info');
+            }
         }
     } catch (error) {
-        console.error('Erro ao verificar data:', error);
+        console.log('Auto-close check failed:', error);
     }
-});
+})
 
-// ============================================================================
-// FUNÇÕES DE COMPARTILHAMENTO DO SISTEMA
-// ============================================================================
-
-// Mostrar modal de compartilhamento
 function showShareModal() {
-    const modal = new bootstrap.Modal(document.getElementById('shareSystemModal'));
-    document.getElementById('shareEmail').value = '';
-    document.getElementById('accessLevel').value = 'editor';
-    document.getElementById('familyRole').value = '';
-    document.getElementById('shareInfo').classList.add('d-none');
-    
-    // Resetar tipo de compartilhamento
-    document.getElementById('shareTypeFamily').checked = true;
-    updateShareTypeOptions();
-    
-    // Voltar para a primeira aba
-    document.getElementById('new-share-tab').click();
-    
-    modal.show();
+    showToast('Funcionalidade em desenvolvimento', 'info');
 }
 
-// Carregar convites pendentes recebidos
-async function loadPendingInvites() {
-    const container = document.getElementById('pendingInvitesContent');
-    
-    try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_pending_invites") }}');
-        const data = await response.json();
-        
-        let html = '';
-        
-        if (data.pending_invites && data.pending_invites.length > 0) {
-            html += '<div class="list-group">';
-            
-            data.pending_invites.forEach(invite => {
-                const typeLabel = invite.share_type === 'family' ? 'Membro da Família' : 'Contador/Consultor';
-                const typeIcon = invite.share_type === 'family' ? 'people' : 'briefcase';
-                
-                html += `
-                    <div class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1">
-                                    <i class="bi bi-${typeIcon} me-2"></i>${typeLabel}
-                                </h6>
-                                <p class="mb-1"><strong>De:</strong> ${invite.owner_email}</p>
-                                <p class="mb-1 text-muted small">
-                                    Enviado em ${new Date(invite.created_at).toLocaleString('pt-BR')}
-                                </p>
-                            </div>
-                            <div class="btn-group-vertical" style="min-width: 100px;">
-                                <button class="btn btn-sm btn-success" onclick="acceptInvite(${invite.id})">
-                                    <i class="bi bi-check-circle me-1"></i>Aceitar
-                                </button>
-                                <button class="btn btn-sm btn-danger mt-1" onclick="rejectInvite(${invite.id})">
-                                    <i class="bi bi-x-circle me-1"></i>Recusar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-        } else {
-            html = '<div class="alert alert-info">Você não tem convites pendentes.</div>';
-        }
-        
-        container.innerHTML = html;
-        
-    } catch (error) {
-        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar convites.</div>';
-        console.error('Erro:', error);
-    }
-}
-
-// Aceitar convite
-async function acceptInvite(inviteId) {
-    if (!confirm('Deseja aceitar este convite?')) return;
-    
-    try {
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_accept_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
-            method: 'POST'
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast('Convite aceito com sucesso!', 'success');
-            loadPendingInvites(); // Recarregar lista
-        } else {
-            showToast(result.error || 'Erro ao aceitar convite', 'error');
-        }
-    } catch (error) {
-        showToast('Erro ao aceitar convite', 'error');
-        console.error('Erro:', error);
-    }
-}
-
-// Recusar convite
-async function rejectInvite(inviteId) {
-    if (!confirm('Deseja recusar este convite?')) return;
-    
-    try {
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_delete_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
-            method: 'DELETE'
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast('Convite recusado', 'info');
-            loadPendingInvites(); // Recarregar lista
-        } else {
-            showToast(result.error || 'Erro ao recusar convite', 'error');
-        }
-    } catch (error) {
-        showToast('Erro ao recusar convite', 'error');
-        console.error('Erro:', error);
-    }
-}
-
-// Carregar lista de compartilhamentos
-async function loadShares() {
-    const container = document.getElementById('sharesListContent');
-    
-    try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_list_shares") }}');
-        const data = await response.json();
-        
-        let html = '';
-        
-        // Convites enviados
-        html += '<div class="mb-4">';
-        html += '<h6 class="text-primary"><i class="bi bi-send me-2"></i>Convites enviados por mim</h6>';
-        
-        if (data.sent_shares && data.sent_shares.length > 0) {
-            html += '<div class="table-responsive"><table class="table table-sm table-hover">';
-            html += '<thead class="table-light"><tr><th>Email</th><th>Tipo</th><th>Status</th><th>Enviado em</th></tr></thead><tbody>';
-            
-            data.sent_shares.forEach(s => {
-                const statusBadge = s.status === 'pending' 
-                    ? '<span class="badge bg-warning text-dark">Pendente</span>'
-                    : '<span class="badge bg-success">Aceito</span>';
-                    
-                const typeLabel = s.share_type === 'family' 
-                    ? '<span class="badge bg-info">Família</span>'
-                    : '<span class="badge bg-secondary">Contador</span>';
-                    
-                html += `<tr>
-                    <td>${s.shared_email}</td>
-                    <td>${typeLabel}</td>
-                    <td>${statusBadge}</td>
-                    <td><small>${new Date(s.created_at).toLocaleString('pt-BR')}</small></td>
-                </tr>`;
-            });
-            
-            html += '</tbody></table></div>';
-        } else {
-            html += '<p class="text-muted small">Nenhum convite enviado ainda.</p>';
-        }
-        html += '</div>';
-        
-        // Compartilhamentos recebidos
-        html += '<div>';
-        html += '<h6 class="text-success"><i class="bi bi-key me-2"></i>Contas que tenho acesso</h6>';
-        
-        if (data.received_shares && data.received_shares.length > 0) {
-            html += '<div class="table-responsive"><table class="table table-sm table-hover">';
-            html += '<thead class="table-light"><tr><th>Proprietário</th><th>Tipo</th><th>Aceito em</th></tr></thead><tbody>';
-            
-            data.received_shares.forEach(s => {
-                const typeLabel = s.share_type === 'family' 
-                    ? '<span class="badge bg-info">Família</span>'
-                    : '<span class="badge bg-secondary">Contador</span>';
-                    
-                html += `<tr>
-                    <td>${s.owner_email}</td>
-                    <td>${typeLabel}</td>
-                    <td><small>${new Date(s.accepted_at).toLocaleString('pt-BR')}</small></td>
-                </tr>`;
-            });
-            
-            html += '</tbody></table></div>';
-        } else {
-            html += '<p class="text-muted small">Nenhum compartilhamento ativo.</p>';
-        }
-        html += '</div>';
-        
-        container.innerHTML = html;
-        
-    } catch (error) {
-        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar compartilhamentos.</div>';
-        console.error('Erro:', error);
-    }
-}
-
-// Alternar entre tipos de compartilhamento
-function updateShareTypeOptions() {
-    const shareType = document.querySelector('input[name="shareType"]:checked').value;
-    const familyOptions = document.getElementById('familyOptions');
-    const accountantOptions = document.getElementById('accountantOptions');
-    
-    if (shareType === 'family') {
-        familyOptions.style.display = 'block';
-        accountantOptions.style.display = 'none';
-    } else {
-        familyOptions.style.display = 'none';
-        accountantOptions.style.display = 'block';
-    }
-}
-
-// Adicionar listeners para alternar tipos
-document.addEventListener('DOMContentLoaded', function() {
-    const shareTypeRadios = document.querySelectorAll('input[name="shareType"]');
-    shareTypeRadios.forEach(radio => {
-        radio.addEventListener('change', updateShareTypeOptions);
-    });
-});
-
-// Executar compartilhamento
-async function executeShare() {
-    const email = document.getElementById('shareEmail').value.trim();
-    const shareType = document.querySelector('input[name="shareType"]:checked').value;
-    const familyRole = document.getElementById('familyRole').value;
-    const accessLevel = document.getElementById('accessLevel').value;
-    
-    if (!email) {
-        showToast('Por favor, insira um email', 'warning');
-        return;
-    }
-    
-    if (!email.includes('@')) {
-        showToast('Email inválido', 'error');
-        return;
-    }
-    
-    if (shareType === 'family' && !familyRole) {
-        showToast('Por favor, selecione o papel na família', 'warning');
-        return;
-    }
-    
-    try {
-        const btn = event.target;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Compartilhando...';
-        
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_share_system") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: email,
-                share_type: shareType,
-                family_role: shareType === 'family' ? familyRole : null,
-                access_level: shareType === 'accountant' ? accessLevel : 'editor'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            bootstrap.Modal.getInstance(document.getElementById('shareSystemModal')).hide();
-            
-            let message = `Sistema compartilhado com ${email}!`;
-            if (result.share.status === 'pending') {
-                message += ' Convite enviado - aguardando aceitação.';
-            } else {
-                message += ' Acesso ativo!';
-            }
-            
-            showToast(message + ' 🎉', 'success');
-        } else {
-            // Mostrar mensagem de erro mais detalhada
-            let errorMessage = result.error || 'Erro ao compartilhar';
-            
-            if (result.status === 'pending') {
-                errorMessage = `⏳ ${result.error}\n${result.details}`;
-            } else if (result.status === 'accepted') {
-                errorMessage = `✅ ${result.error}\nNível: ${result.access_level}`;
-            }
-            
-            showToast(errorMessage, 'warning');
-        }
-    } catch (error) {
-        console.error('Erro ao compartilhar:', error);
-        showToast('Erro ao compartilhar sistema', 'error');
-    } finally {
-        const btn = event.target;
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-check me-1"></i>Compartilhar';
-    }
-}
-
-// ============================================================================
-// FUNÇÕES DE WORKSPACES PARA O MODAL
-// ============================================================================
-
-// Carregar workspaces no modal
-async function loadWorkspacesInModal() {
-    try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}');
-        const data = await response.json();
-        
-        let html = '';
-        
-        // Workspaces próprios
-        if (data.owned && data.owned.length > 0) {
-            html += '<h6 class="mb-3 fw-bold"><i class="bi bi-folder me-2"></i>Meus Workspaces</h6>';
-            data.owned.forEach(ws => {
-                html += `
-                    <div class="card mb-3 border-0 shadow-sm hover-card" style="transition: all 0.3s ease;">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div onclick="selectWorkspace(${ws.id})" style="cursor: pointer; flex-grow: 1;">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                             style="width: 40px; height: 40px; background: ${ws.color}20; border: 2px solid ${ws.color};">
-                                            <i class="bi bi-folder-fill" style="color: ${ws.color}; font-size: 1.2rem;"></i>
-                                        </div>
-                                        <div>
-                                            <h6 class="mb-0 fw-bold">${ws.name}</h6>
-                                            <small class="text-muted">
-                                                <i class="bi bi-shield-check me-1"></i>Proprietário
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-sm btn-outline-warning rounded-pill me-1" 
-                                            onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${ws.name}', '${ws.color}')"
-                                            title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger rounded-pill" 
-                                            onclick="event.stopPropagation(); deleteWorkspace(${ws.id})"
-                                            title="Deletar">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        
-        // Workspaces compartilhados
-        if (data.shared && data.shared.length > 0) {
-            html += '<h6 class="mb-3 mt-4 fw-bold"><i class="bi bi-people me-2"></i>Compartilhados Comigo</h6>';
-            data.shared.forEach(ws => {
-                const roleColors = {
-                    'owner': 'primary',
-                    'editor': 'success',
-                    'viewer': 'info'
-                };
-                const roleColor = roleColors[ws.role] || 'secondary';
-                const roleLabels = {
-                    'owner': 'Proprietário',
-                    'editor': 'Editor',
-                    'viewer': 'Visualizador'
-                };
-                const roleLabel = roleLabels[ws.role] || ws.role;
-                
-                html += `
-                    <div class="card mb-3 border-0 shadow-sm hover-card" style="transition: all 0.3s ease;">
-                        <div class="card-body" onclick="selectWorkspace(${ws.id})" style="cursor: pointer;">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 40px; height: 40px; background: ${ws.color}20; border: 2px solid ${ws.color};">
-                                    <i class="bi bi-folder-shared" style="color: ${ws.color}; font-size: 1.2rem;"></i>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <h6 class="mb-0 fw-bold">${ws.name}</h6>
-                                        <span class="badge bg-${roleColor} rounded-pill" style="font-size: 0.7rem;">
-                                            ${roleLabel}
-                                        </span>
-                                    </div>
-                                    <small class="text-muted">
-                                        <i class="bi bi-person me-1"></i>${ws.owner_email}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        
-        if (!html) {
-            html = '<p class="text-muted">Nenhum workspace encontrado.</p>';
-        }
-        
-        document.getElementById('workspacesListContent').innerHTML = html;
-    } catch (error) {
-        document.getElementById('workspacesListContent').innerHTML = '<p class="text-danger">Erro ao carregar workspaces</p>';
-    }
-}
-
-// Criar workspace do modal
-async function createWorkspaceFromModal() {
-    const name = document.getElementById('newWsName').value.trim();
-    const description = document.getElementById('newWsDesc').value.trim();
-    const color = document.getElementById('newWsColor').value;
-    
-    if (!name) {
-        showToast('Nome do workspace é obrigatório', 'warning');
-        return;
-    }
-    
-    try {
-        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description, color })
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showToast('Workspace criado com sucesso!', 'success');
-            document.getElementById('newWsName').value = '';
-            document.getElementById('newWsDesc').value = '';
-            document.getElementById('newWsColor').value = '#3b82f6';
-            document.getElementById('my-workspaces-tab').click();
-            loadWorkspacesInModal();
-        } else {
-            showToast(result.error || 'Erro ao criar workspace', 'error');
-        }
-    } catch (error) {
-        showToast('Erro ao criar workspace', 'error');
-    }
-}
-
-// Atualizar cor no campo de texto
-document.addEventListener('DOMContentLoaded', function() {
-    const colorInput = document.getElementById('newWsColor');
-    if (colorInput) {
-        colorInput.addEventListener('change', (e) => {
-            document.getElementById('newWsColorText').value = e.target.value;
-        });
-    }
-    
-    // Verificar se é primeiro acesso
-    checkFirstAccess();
-});
-
-// Verificar primeiro acesso e convites pendentes
-async function checkFirstAccess() {
-    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
-    
-    if (!hasSeenWelcome) {
-        try {
-            // Verificar convites pendentes
-            const response = await fetch('{{ url_for("gerenciamento_financeiro.api_pending_invites") }}');
-            const data = await response.json();
-            
-            let html = '';
-            
-            if (data.invites && data.invites.length > 0) {
-                // Tem convites pendentes
-                html = `
-                    <div class="alert alert-info">
-                        <h6><i class="bi bi-envelope me-2"></i>Você tem ${data.invites.length} convite(s) pendente(s)!</h6>
-                        <p class="mb-3">Escolha uma opção:</p>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary" onclick="acceptInviteAndClose(${data.invites[0].id})">
-                            <i class="bi bi-check-circle me-2"></i>Aceitar Convite e Usar Workspace Compartilhado
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="createOwnWorkspaceAndClose()">
-                            <i class="bi bi-folder-plus me-2"></i>Criar Meu Próprio Workspace
-                        </button>
-                    </div>
-                `;
-            } else {
-                // Sem convites, criar workspace próprio
-                html = `
-                    <div class="text-center">
-                        <i class="bi bi-folder-plus" style="font-size: 3rem; color: #3b82f6;"></i>
-                        <h6 class="mt-3">Vamos começar!</h6>
-                        <p class="text-muted">Seu workspace padrão foi criado automaticamente.</p>
-                        <button class="btn btn-primary" onclick="closeWelcomeModal()">
-                            <i class="bi bi-check me-2"></i>Entendi, vamos começar!
-                        </button>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('welcomeContent').innerHTML = html;
-            const modal = new bootstrap.Modal(document.getElementById('welcomeModal'));
-            modal.show();
-            
-        } catch (error) {
-            console.error('Erro ao verificar primeiro acesso:', error);
-        }
-    }
-}
-
-// Aceitar convite e fechar modal
-async function acceptInviteAndClose(inviteId) {
-    try {
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_accept_share", share_id=0) }}`.replace('/0', `/${inviteId}`), {
-            method: 'POST'
-        });
-        
-        if (response.ok) {
-            localStorage.setItem('hasSeenWelcome', 'true');
-            showToast('Convite aceito com sucesso!', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showToast('Erro ao aceitar convite', 'error');
-        }
-    } catch (error) {
-        showToast('Erro ao aceitar convite', 'error');
-    }
-}
-
-// Criar workspace próprio e fechar modal
-function createOwnWorkspaceAndClose() {
-    localStorage.setItem('hasSeenWelcome', 'true');
-    bootstrap.Modal.getInstance(document.getElementById('welcomeModal')).hide();
-    showToast('Workspace criado! Você pode gerenciá-lo no menu.', 'success');
-}
-
-// Fechar modal de boas-vindas
-function closeWelcomeModal() {
-    localStorage.setItem('hasSeenWelcome', 'true');
-    bootstrap.Modal.getInstance(document.getElementById('welcomeModal')).hide();
-}
-
+function loadPendingInvites() {}
+function acceptInvite() {}
+function rejectInvite() {}
+function loadShares() {}
+function updateShareTypeOptions() {}
+function executeShare() {}
+function acceptInviteAndClose() {}
+function createOwnWorkspaceAndClose() {}
+function checkFirstAccess() {}
 </script>
 {% endblock %}

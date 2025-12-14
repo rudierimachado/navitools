@@ -162,21 +162,32 @@ def _get_accessible_user_ids(user_id):
 def home():
     if "finance_user_id" not in session:
         return redirect(url_for("gerenciamento_financeiro.login", next=request.path))
+    
+    # Verificar se tem workspace ativo na sessão
+    if "active_workspace_id" not in session:
+        user_id = session["finance_user_id"]
+        # Tentar obter ou criar workspace padrão automaticamente
+        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
+        if not default_workspace:
+            default_workspace = Workspace(
+                owner_id=user_id,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6"
+            )
+            db.session.add(default_workspace)
+            db.session.commit()
+        
+        # Definir workspace ativo na sessão
+        session["active_workspace_id"] = default_workspace.id
 
     user_id = session["finance_user_id"]
+    workspace_id = session.get("active_workspace_id")
+    
     user = User.query.get(user_id)
     
     # IDs de usuários cujos dados este usuário pode acessar
     accessible_ids = _get_accessible_user_ids(user_id)
-    
-    # Obter workspace ativo
-    workspace_id = session.get("active_workspace_id")
-    if not workspace_id:
-        # Usar primeiro workspace do usuário
-        workspace = Workspace.query.filter_by(owner_id=user_id).first()
-        if workspace:
-            workspace_id = workspace.id
-            session["active_workspace_id"] = workspace_id
     
     # Verificar se há convites pendentes para este usuário
     pending_invites = SystemShare.query.filter_by(
@@ -308,6 +319,29 @@ def home():
         active_workspace=active_workspace,
     )
 
+@gerenciamento_financeiro_bp.route("/select-workspace", methods=["GET"])
+def select_workspace():
+    """Tela de seleção obrigatória de workspace após login - SEM navbar."""
+    if "finance_user_id" not in session:
+        return redirect(url_for("gerenciamento_financeiro.login"))
+    
+    user_id = session["finance_user_id"]
+    user = User.query.get(user_id)
+    
+    # Buscar workspaces próprios
+    owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
+    
+    # Buscar workspaces compartilhados
+    shared_workspace_members = WorkspaceMember.query.filter_by(user_id=user_id).all()
+    shared_workspaces = [member.workspace for member in shared_workspace_members if member.workspace]
+    
+    return render_template(
+        "workspace_selection_standalone.html",
+        user=user,
+        owned_workspaces=owned_workspaces,
+        shared_workspaces=shared_workspaces
+    )
+
 @gerenciamento_financeiro_bp.route("/login", methods=["GET", "POST"])
 def login():
     """Tela de login do módulo financeiro.
@@ -335,18 +369,6 @@ def login():
         # Autenticação bem-sucedida
         session["finance_user_id"] = user.id
         session["finance_user_email"] = user.email
-        
-        # Garantir que o usuário tenha pelo menos um workspace
-        workspace_count = Workspace.query.filter_by(owner_id=user.id).count()
-        if workspace_count == 0:
-            default_workspace = Workspace(
-                owner_id=user.id,
-                name="Meu Workspace",
-                description="Workspace padrão",
-                color="#3b82f6"
-            )
-            db.session.add(default_workspace)
-            db.session.commit()
         
         flash("Bem-vindo ao painel financeiro!", "success")
         _log_attempt(email, True, user_id=user.id)
@@ -383,8 +405,8 @@ def login():
                 db.session.rollback()
                 print(f"Erro ao aceitar convite de compartilhamento no login: {e}")
 
-        next_url = request.args.get("next") or url_for("gerenciamento_financeiro.home")
-        return redirect(next_url)
+        # Redirecionar para seleção de workspace
+        return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
     return render_template("finance_login.html", user=None)
 
@@ -752,6 +774,13 @@ def logout():
 def api_transactions():
     origin = request.headers.get("Origin", "*")
 
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return (resp, status) if status != 200 else resp
+
     # Pré-flight CORS
     if request.method == "OPTIONS":
         resp = jsonify({"ok": True})
@@ -772,22 +801,43 @@ def api_transactions():
         user_id = request.args.get("user_id", type=int)
 
     if not user_id:
-        resp = jsonify({"error": "Não autorizado"})
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp, 401
+        return _json({"error": "Não autorizado"}, 401)
 
     accessible_ids = _get_accessible_user_ids(user_id)
     
-    # Obter workspace_id da sessão ou usar o padrão
+    # Obter workspace_id da sessão (obrigatório para API)
     workspace_id = session.get("active_workspace_id")
     if not workspace_id:
-        # Usar primeiro workspace do usuário
-        workspace = Workspace.query.filter_by(owner_id=user_id).first()
-        if workspace:
-            workspace_id = workspace.id
-            session["active_workspace_id"] = workspace_id
+        # Tentar obter ou criar workspace padrão automaticamente
+        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
+        if not default_workspace:
+            default_workspace = Workspace(
+                owner_id=user_id,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6"
+            )
+            db.session.add(default_workspace)
+            db.session.commit()
+        
+        # Definir workspace ativo na sessão
+        session["active_workspace_id"] = default_workspace.id
+        workspace_id = default_workspace.id
+
+    # Garantir que o workspace exista (sessão pode ficar com id inválido)
+    if workspace_id and not Workspace.query.get(workspace_id):
+        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
+        if not default_workspace:
+            default_workspace = Workspace(
+                owner_id=user_id,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6",
+            )
+            db.session.add(default_workspace)
+            db.session.commit()
+        session["active_workspace_id"] = default_workspace.id
+        workspace_id = default_workspace.id
     
     if request.method == "POST":
         try:
@@ -795,7 +845,7 @@ def api_transactions():
             
             # Validação melhorada
             if not data:
-                return jsonify({"error": "Dados não fornecidos"}), 400
+                return _json({"error": "Dados não fornecidos"}, 400)
                 
             description = data.get("description", "").strip()
             amount = data.get("amount")
@@ -803,23 +853,46 @@ def api_transactions():
             frequency = data.get("frequency", "").strip()
             category_id = data.get("category_id")
             is_active = data.get("is_active", True)
-                
-            if not amount or amount <= 0:
-                return jsonify({"error": "Valor deve ser maior que zero"}), 400
+            
+            if not description:
+                return _json({"error": "Descrição é obrigatória"}, 400)
+            
+            # Validar e converter amount
+            try:
+                import math
+                amount = float(amount) if amount is not None and str(amount).strip() != "" else 0.0
+                if (not math.isfinite(amount)) or amount <= 0:
+                    return _json({"error": "Valor deve ser maior que zero"}, 400)
+            except (ValueError, TypeError):
+                return _json({"error": "Valor inválido"}, 400)
+
+            # Validar e converter category_id (normalmente vem como string do <select>)
+            try:
+                category_id = int(category_id)
+            except (ValueError, TypeError):
+                return _json({"error": "Categoria inválida"}, 400)
             
             if not frequency:
-                return jsonify({"error": "Frequência é obrigatória"}), 400
+                return _json({"error": "Frequência é obrigatória"}, 400)
             
-            if not category_id:
-                return jsonify({"error": "Categoria é obrigatória"}), 400
+            if not category_id or category_id <= 0:
+                return _json({"error": "Categoria é obrigatória"}, 400)
                 
             if transaction_type not in ['income', 'expense']:
-                return jsonify({"error": "Tipo deve ser 'income' ou 'expense'"}), 400
+                return _json({"error": "Tipo deve ser 'income' ou 'expense'"}, 400)
             
             # Garantir categorias padrão antes de criar transação
             _ensure_default_categories(user_id)
             
-            transaction_date = datetime.strptime(data["transaction_date"], "%Y-%m-%d").date() if data.get("transaction_date") else date.today()
+            # Validar e obter data da transação
+            if data.get("transaction_date"):
+                try:
+                    transaction_date = datetime.strptime(data["transaction_date"], "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    return _json({"error": "Data inválida. Use o formato YYYY-MM-DD"}, 400)
+            else:
+                transaction_date = date.today()
+            
             is_recurring = data.get("is_recurring", False)
             
             # Se é recorrente, criar transações para os próximos 12 meses
@@ -872,24 +945,36 @@ def api_transactions():
                 
                 db.session.add(transaction)
                 db.session.commit()
-                
-                resp = jsonify({"message": "Transação criada com sucesso!", "id": transaction.id})
-                resp.headers["Access-Control-Allow-Origin"] = origin
-                resp.headers["Vary"] = "Origin"
-                resp.headers["Access-Control-Allow-Credentials"] = "true"
-                return resp
+
+                category = Category.query.get(transaction.category_id) if transaction.category_id else None
+                return _json({
+                    "message": "Transação criada com sucesso!",
+                    "id": transaction.id,
+                    "description": transaction.description,
+                    "amount": float(transaction.amount),
+                    "type": transaction.type,
+                    "transaction_date": transaction.transaction_date.isoformat(),
+                    "frequency": getattr(transaction, "frequency", "once"),
+                    "is_recurring": getattr(transaction, "is_recurring", False),
+                    "is_fixed": getattr(transaction, "is_fixed", False),
+                    "category": {
+                        "id": category.id,
+                        "name": category.name,
+                        "icon": category.icon,
+                        "color": category.color,
+                    } if category else None,
+                }, 200)
             
         except ValueError as ve:
             db.session.rollback()
-            return jsonify({"error": f"Erro de validação: {str(ve)}"}), 400
+            return _json({"error": f"Erro de validação: {str(ve)}"}, 400)
         except Exception as e:
             db.session.rollback()
-            print(f"Erro ao criar transação: {e}")  # Log para debug
-            resp = jsonify({"error": "Erro interno do servidor"})
-            resp.headers["Access-Control-Allow-Origin"] = origin
-            resp.headers["Vary"] = "Origin"
-            resp.headers["Access-Control-Allow-Credentials"] = "true"
-            return resp, 500
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Erro ao criar transação: {e}")
+            print(f"Detalhes do erro:\n{error_details}")
+            return _json({"error": f"Erro interno do servidor: {str(e)}"}, 500)
     
     else:  # GET
         try:
@@ -965,10 +1050,25 @@ def api_transaction_detail(transaction_id):
         return jsonify({"error": "Não autorizado"}), 401
         
     user_id = session["finance_user_id"]
-    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
+
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return (resp, status) if status != 200 else resp
+
+    # Se existir workspace ativo, filtrar por ele também
+    workspace_id = session.get("active_workspace_id")
+    tx_query = Transaction.query.filter_by(id=transaction_id, user_id=user_id)
+    if workspace_id:
+        tx_query = tx_query.filter_by(workspace_id=workspace_id)
+    transaction = tx_query.first()
     
     if not transaction:
-        return jsonify({"error": "Transação não encontrada"}), 404
+        return _json({"error": "Transação não encontrada"}, 404)
     
     if request.method == "PUT":
         try:
@@ -994,8 +1094,25 @@ def api_transaction_detail(transaction_id):
                 transaction.paid_date = datetime.strptime(data["paid_date"], "%Y-%m-%d").date()
             
             db.session.commit()
-            
-            resp = jsonify({"message": "Transação atualizada com sucesso!"})
+
+            category = Category.query.get(transaction.category_id) if transaction.category_id else None
+            resp = jsonify({
+                "message": "Transação atualizada com sucesso!",
+                "id": transaction.id,
+                "description": transaction.description,
+                "amount": float(transaction.amount),
+                "type": transaction.type,
+                "transaction_date": transaction.transaction_date.isoformat(),
+                "frequency": getattr(transaction, 'frequency', 'once'),
+                "is_recurring": getattr(transaction, 'is_recurring', False),
+                "is_fixed": getattr(transaction, 'is_fixed', False),
+                "category": {
+                    "id": category.id,
+                    "name": category.name,
+                    "icon": category.icon,
+                    "color": category.color,
+                } if category else None,
+            })
             resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
             resp.headers["Vary"] = "Origin"
             resp.headers["Access-Control-Allow-Credentials"] = "true"
@@ -1003,11 +1120,18 @@ def api_transaction_detail(transaction_id):
             
         except Exception as e:
             db.session.rollback()
-            resp = jsonify({"error": str(e)})
-            resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-            resp.headers["Vary"] = "Origin"
-            resp.headers["Access-Control-Allow-Credentials"] = "true"
-            return resp, 500
+            return _json({"error": str(e)}, 500)
+
+    if request.method == "DELETE":
+        try:
+            db.session.delete(transaction)
+            db.session.commit()
+            return _json({"message": "Transação excluída com sucesso", "id": transaction_id}, 200)
+        except Exception as e:
+            db.session.rollback()
+            return _json({"error": str(e)}, 500)
+
+    return _json({"error": "Método não suportado"}, 405)
 
 @gerenciamento_financeiro_bp.route("/api/dashboard-stats", methods=["GET", "OPTIONS"])
 @gerenciamento_financeiro_bp.route("/api/dashboard-stats/", methods=["GET", "OPTIONS"])
@@ -1510,6 +1634,145 @@ def api_close_month():
         return jsonify({"error": str(e)}), 500
 
 
+@gerenciamento_financeiro_bp.route("/api/monthly-closure/check-auto-close", methods=["POST"])
+def api_check_auto_close():
+    """Verifica se precisa fechar mês automaticamente na virada"""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    user_id = session["finance_user_id"]
+    
+    try:
+        today = datetime.utcnow().date()
+        year = today.year
+        month = today.month
+        
+        # Verificar se já existe closure para o mês atual
+        current_closure = MonthlyClosure.query.filter_by(
+            user_id=user_id,
+            year=year,
+            month=month
+        ).first()
+        
+        # Se já existe e está aberto, não precisa fazer nada
+        if current_closure and current_closure.status == "open":
+            return jsonify({"auto_closed": False}), 200
+        
+        # Se não existe closure para o mês atual, verificar se o mês anterior está fechado
+        prev_month = month - 1 if month > 1 else 12
+        prev_year = year if month > 1 else year - 1
+        
+        prev_closure = MonthlyClosure.query.filter_by(
+            user_id=user_id,
+            year=prev_year,
+            month=prev_month
+        ).first()
+        
+        # Se mês anterior não está fechado, fechar automaticamente
+        if prev_closure and prev_closure.status == "open":
+            # Calcular totais do mês anterior
+            month_start = date(prev_year, prev_month, 1)
+            if prev_month == 12:
+                month_end = date(prev_year + 1, 1, 1) - timedelta(days=1)
+            else:
+                month_end = date(prev_year, prev_month + 1, 1) - timedelta(days=1)
+            
+            total_income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.user_id == user_id,
+                Transaction.type == "income",
+                Transaction.transaction_date >= month_start,
+                Transaction.transaction_date <= month_end
+            ).scalar()
+            
+            total_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.user_id == user_id,
+                Transaction.type == "expense",
+                Transaction.transaction_date >= month_start,
+                Transaction.transaction_date <= month_end
+            ).scalar()
+            
+            balance = float(total_income) - float(total_expense)
+            
+            # Fechar mês anterior
+            prev_closure.status = "closed"
+            prev_closure.total_income = total_income
+            prev_closure.total_expense = total_expense
+            prev_closure.balance = balance
+            prev_closure.closed_at = datetime.utcnow()
+            
+            # Criar closure para mês atual se não existir
+            if not current_closure:
+                current_closure = MonthlyClosure(
+                    user_id=user_id,
+                    year=year,
+                    month=month,
+                    status="open",
+                    total_income=0,
+                    total_expense=0,
+                    balance=0
+                )
+                db.session.add(current_closure)
+                db.session.flush()
+            
+            # Copiar despesas fixas para o mês atual
+            fixed_expenses = Transaction.query.filter(
+                Transaction.user_id == user_id,
+                Transaction.type == "expense",
+                Transaction.is_fixed == True,
+                Transaction.transaction_date >= month_start,
+                Transaction.transaction_date <= month_end
+            ).all()
+            
+            fixed_count = 0
+            for expense in fixed_expenses:
+                # Criar snapshot
+                snapshot = MonthlyFixedExpense(
+                    monthly_closure_id=prev_closure.id,
+                    original_transaction_id=expense.id,
+                    description=expense.description,
+                    amount=expense.amount,
+                    category_id=expense.category_id
+                )
+                db.session.add(snapshot)
+                
+                # Criar transação no mês atual
+                try:
+                    current_month_date = date(year, month, expense.transaction_date.day)
+                except ValueError:
+                    # Se o dia não existe no mês atual (ex: 31 em fevereiro), usar último dia
+                    last_day = calendar.monthrange(year, month)[1]
+                    current_month_date = date(year, month, last_day)
+                
+                new_transaction = Transaction(
+                    user_id=user_id,
+                    category_id=expense.category_id,
+                    description=expense.description,
+                    amount=expense.amount,
+                    type="expense",
+                    transaction_date=current_month_date,
+                    is_fixed=True,
+                    is_auto_loaded=True,
+                    monthly_closure_id=current_closure.id
+                )
+                db.session.add(new_transaction)
+                fixed_count += 1
+            
+            db.session.commit()
+            
+            return jsonify({
+                "auto_closed": True,
+                "previous_month": prev_month,
+                "previous_year": prev_year,
+                "fixed_expenses_copied": fixed_count
+            }), 200
+        
+        return jsonify({"auto_closed": False}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 @gerenciamento_financeiro_bp.route("/api/monthly-closure/history", methods=["GET"])
 def api_monthly_history():
     """Retorna histórico de fechamentos mensais"""
@@ -1967,8 +2230,10 @@ def api_select_workspace(workspace_id):
         
         # Salvar na sessão
         session["active_workspace_id"] = workspace_id
+        session.modified = True
         
         return jsonify({
+            "success": True,
             "message": "Workspace selecionado",
             "workspace_id": workspace_id,
             "workspace_name": workspace.name
@@ -2018,8 +2283,6 @@ def api_workspaces():
     
     else:  # GET
         try:
-            from models import Workspace, WorkspaceMember
-            
             # Workspaces que o usuário é dono
             owned = Workspace.query.filter_by(owner_id=user_id).all()
             
@@ -2064,8 +2327,6 @@ def api_share_workspace(workspace_id):
     user_id = session["finance_user_id"]
     
     try:
-        from models import Workspace, WorkspaceMember
-        
         workspace = Workspace.query.get(workspace_id)
         if not workspace or workspace.owner_id != user_id:
             return jsonify({"error": "Workspace não encontrado ou sem permissão"}), 404
@@ -2119,8 +2380,6 @@ def api_workspace_members(workspace_id):
     user_id = session["finance_user_id"]
     
     try:
-        from models import Workspace, WorkspaceMember
-        
         workspace = Workspace.query.get(workspace_id)
         if not workspace:
             return jsonify({"error": "Workspace não encontrado"}), 404
@@ -2157,8 +2416,6 @@ def api_update_workspace(workspace_id):
     user_id = session["finance_user_id"]
     
     try:
-        from models import Workspace
-        
         workspace = Workspace.query.get(workspace_id)
         if not workspace:
             return jsonify({"error": "Workspace não encontrado"}), 404

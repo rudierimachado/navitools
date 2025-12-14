@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selecionar Workspace · NEXUSRDR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .workspace-selection-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.9));
+        }
+
+        .workspace-selection-card {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            padding: 2.5rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+            color: white;
+        }
+
+        .workspace-selection-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .workspace-selection-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .workspace-selection-header p {
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.95rem;
+        }
+
+        .workspace-list {
+            margin-bottom: 1.5rem;
+        }
+
+        .workspace-item {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .workspace-item:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .workspace-item-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .workspace-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .workspace-details h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .workspace-details p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .create-workspace-btn {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .create-workspace-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-header {
+            border-color: var(--border-color);
+        }
+
+        .form-control, .form-select {
+            background: var(--bg-primary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-primary);
+            border-color: #3b82f6;
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+
+        @media (max-width: 576px) {
+            .workspace-selection-card {
+                padding: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="workspace-selection-wrapper">
+        <div class="workspace-selection-card">
+            <div class="workspace-selection-header">
+                <h1>Selecione um Workspace</h1>
+                <p>Escolha ou crie um workspace para começar</p>
+            </div>
+
+            {% if owned_workspaces %}
+            <div class="workspace-list">
+                <div class="section-title">Meus Workspaces</div>
+                {% for ws in owned_workspaces %}
+                <div class="workspace-item" onclick="selectWorkspace({{ ws.id }})">
+                    <div class="workspace-item-info">
+                        <div class="workspace-icon" style="background-color: {{ ws.color }};">
+                            <i class="bi bi-folder-fill"></i>
+                        </div>
+                        <div class="workspace-details">
+                            <h3>{{ ws.name }}</h3>
+                            {% if ws.description %}
+                            <p>{{ ws.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if shared_workspaces %}
+            <div class="workspace-list">
+                <div class="section-title">Compartilhados Comigo</div>
+                {% for ws in shared_workspaces %}
+                <div class="workspace-item" onclick="selectWorkspace({{ ws.id }})">
+                    <div class="workspace-item-info">
+                        <div class="workspace-icon" style="background-color: {{ ws.color }};">
+                            <i class="bi bi-folder-shared"></i>
+                        </div>
+                        <div class="workspace-details">
+                            <h3>{{ ws.name }}</h3>
+                            <p>Compartilhado por {{ ws.owner.email }}</p>
+                        </div>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <button type="button" class="create-workspace-btn" onclick="showCreateWorkspaceModal()">
+                <i class="bi bi-plus-circle me-2"></i>Criar Novo Workspace
+            </button>
+        </div>
+    </section>
+
+    <!-- Modal Criar Workspace -->
+    <div class="modal fade" id="createWorkspaceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-plus me-2"></i>Novo Workspace
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="wsName" class="form-label">Nome *</label>
+                        <input type="text" class="form-control" id="wsName" placeholder="Ex: Finanças Pessoais, Empresa..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="wsDesc" class="form-label">Descrição (opcional)</label>
+                        <input type="text" class="form-control" id="wsDesc" placeholder="Descrição do workspace">
+                    </div>
+                    <div class="mb-3">
+                        <label for="wsColor" class="form-label">Cor</label>
+                        <div class="d-flex gap-2">
+                            <input type="color" class="form-control" id="wsColor" value="#3b82f6" style="width: 60px;">
+                            <input type="text" class="form-control" id="wsColorText" value="#3b82f6" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="createAndSelectWorkspace()">
+                        <i class="bi bi-check me-1"></i>Criar e Usar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('wsColor').addEventListener('change', (e) => {
+            document.getElementById('wsColorText').value = e.target.value;
+        });
+
+        function showCreateWorkspaceModal() {
+            new bootstrap.Modal(document.getElementById('createWorkspaceModal')).show();
+        }
+
+        async function selectWorkspace(workspaceId) {
+            console.log('Selecionando workspace:', workspaceId);
+            try {
+                const response = await fetch(`/gerenciamento-financeiro/api/workspaces/select/${workspaceId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    console.log('Workspace selecionado, redirecionando...');
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    window.location.replace('/gerenciamento-financeiro/');
+                } else {
+                    alert(result.error || 'Erro ao selecionar workspace');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao selecionar workspace: ' + error.message);
+            }
+        }
+
+        async function createAndSelectWorkspace() {
+            const name = document.getElementById('wsName').value.trim();
+            const description = document.getElementById('wsDesc').value.trim();
+            const color = document.getElementById('wsColor').value;
+            
+            if (!name) {
+                alert('Nome do workspace é obrigatório');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/gerenciamento-financeiro/api/workspaces', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, color })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('createWorkspaceModal')).hide();
+                    console.log('Workspace criado, selecionando...');
+                    await selectWorkspace(result.id);
+                } else {
+                    alert(result.error || 'Erro ao criar workspace');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao criar workspace: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

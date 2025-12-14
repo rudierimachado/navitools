@@ -168,21 +168,6 @@
             <p>Entre para visualizar e controlar seu painel financeiro pessoal</p>
         </div>
 
-        <div id="mobile-app-banner" style="display:none; padding:0.75rem 1rem; margin-bottom:0.75rem; background:rgba(56, 189, 248, 0.15); border-radius:0.75rem; border:1px solid rgba(56, 189, 248, 0.4);">
-            <strong style="font-size:0.9rem;">Está acessando pelo celular?</strong>
-            <p style="margin:4px 0 8px; font-size:0.85rem; color:rgba(255,255,255,0.85);">
-                Você pode continuar usando o painel no navegador ou instalar o aplicativo Android para uma experiência otimizada.
-            </p>
-            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <a href="{{ url_for('gerenciamento_financeiro.download_app') }}" class="btn btn-sm btn-primary">
-                    <i class="bi bi-download me-1"></i> Baixar app Android (APK)
-                </a>
-                <button type="button" class="btn btn-sm btn-outline-light" onclick="document.getElementById('mobile-app-banner').style.display='none'">
-                    Continuar no navegador
-                </button>
-            </div>
-        </div>
-
         {% with messages = get_flashed_messages(with_categories=True) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -228,17 +213,4 @@
         </div>
     </div>
 </section>
-<script>
-    (function() {
-        var ua = navigator.userAgent || navigator.vendor || window.opera;
-        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-
-        if (isMobile) {
-            var banner = document.getElementById('mobile-app-banner');
-            if (banner) {
-                banner.style.display = 'block';
-            }
-        }
-    })();
-    </script>
 {% endblock %}

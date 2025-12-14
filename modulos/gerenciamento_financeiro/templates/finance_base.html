@@ -57,18 +57,117 @@
         }
         
         .value-card {
-            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .value-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
         }
         
         .income-card {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             color: white;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(17, 153, 142, 0.3);
+        }
+        
+        .income-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .income-card:hover::before {
+            left: 100%;
+        }
+        
+        .income-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, 30%);
         }
         
         .expense-card {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
+            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
             color: white;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(238, 9, 121, 0.3);
+        }
+        
+        .expense-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .expense-card:hover::before {
+            left: 100%;
+        }
+        
+        .expense-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, 30%);
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(1.1);
+            }
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px var(--shadow);
+        }
+        
+        .income-card:hover,
+        .expense-card:hover,
+        .value-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
         }
         
         /* Dark Mode - Navbar */
@@ -119,6 +218,97 @@
             .container-fluid {
                 padding: 0.5rem;
             }
+
+            main.container-fluid {
+                padding-bottom: calc(90px + env(safe-area-inset-bottom));
+            }
+            
+            .navbar {
+                padding: 0.5rem 0.75rem;
+            }
+            
+            .navbar-brand {
+                font-size: 0.95rem;
+            }
+            
+            .navbar .btn-sm {
+                padding: 0.35rem 0.5rem;
+                font-size: 0.875rem;
+            }
+            
+            .navbar .dropdown-toggle {
+                font-size: 0.85rem;
+                padding: 0.4rem 0.65rem;
+            }
+        }
+
+        .mobile-action-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1030;
+            padding: 0.75rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+            border-top: 1px solid rgba(59, 130, 246, 0.2);
+            backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .mobile-action-bar .mobile-action-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            padding: 0.7rem 0.3rem;
+            border-radius: 16px;
+            border: none;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.05));
+            color: rgba(241, 245, 249, 0.9);
+            font-weight: 600;
+            font-size: 0.7rem;
+            line-height: 1.2;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .mobile-action-bar .mobile-action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.2));
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .mobile-action-bar .mobile-action-btn:hover::before {
+            opacity: 1;
+        }
+
+        .mobile-action-bar .mobile-action-btn i {
+            font-size: 1.25rem;
+            position: relative;
+            z-index: 1;
+            transition: transform 0.2s ease;
+        }
+        
+        .mobile-action-bar .mobile-action-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mobile-action-bar .mobile-action-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .mobile-action-bar .mobile-action-btn:active i {
+            transform: scale(1.1);
         }
         
         .modal-backdrop {
@@ -129,6 +319,78 @@
             border-color: #3b82f6;
             box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
         }
+        
+        /* Modais responsivos */
+        @media (max-width: 576px) {
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            
+            .modal-content {
+                border-radius: 16px;
+            }
+            
+            .modal-header, .modal-body, .modal-footer {
+                padding: 1rem;
+            }
+        }
+        
+        /* Animações de entrada */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        /* Transações - Hover states */
+        .transaction-card:hover .card {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-color: rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        .transaction-card:hover .transaction-actions {
+            opacity: 1 !important;
+        }
+        
+        .transaction-card .card {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .transaction-card .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.05), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .transaction-card:hover .card::before {
+            left: 100%;
+        }
+        
+        /* Smooth transitions */
+        * {
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -137,20 +399,25 @@
     <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold text-primary" href="{{ url_for('gerenciamento_financeiro.home') }}">
-                <i class="bi bi-folder-fill me-2"></i>
-                <span id="navbarWorkspaceName">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
+                <i class="bi bi-folder-fill me-1 me-md-2"></i>
+                <span id="navbarWorkspaceName" class="d-none d-sm-inline">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
+                <span class="d-inline d-sm-none">{{ (active_workspace.name if active_workspace else 'Meu Workspace')[:12] }}...</span>
             </a>
             
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-1 gap-md-2">
+                <a href="{{ url_for('gerenciamento_financeiro.download_app') }}" class="btn btn-outline-secondary btn-sm" id="downloadAppBtn" title="Baixar App">
+                    <i class="bi bi-download"></i>
+                </a>
                 <!-- Botão Dark Mode -->
-                <button class="btn btn-outline-secondary btn-sm" id="themeToggle" onclick="toggleTheme()">
+                <button class="btn btn-outline-secondary btn-sm" id="themeToggle" onclick="toggleTheme()" title="Alternar tema">
                     <i class="bi bi-sun-fill" id="themeIcon"></i>
                 </button>
                 
                 <div class="dropdown">
-                <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle me-1"></i>
-                    {{ user.email }}
+                <button class="btn btn-outline-primary dropdown-toggle btn-sm" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle me-1 d-none d-md-inline"></i>
+                    <span class="d-none d-md-inline">{{ user.email }}</span>
+                    <span class="d-inline d-md-none">{{ user.email.split('@')[0][:8] }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="px-3 py-2 text-muted small">
@@ -192,21 +459,49 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% if user %}
+    <div class="d-md-none mobile-action-bar" id="financeMobileActionBar">
+        <div class="d-flex gap-2">
+            <button type="button" class="mobile-action-btn" onclick="financeMobileAction('add_income')">
+                <i class="bi bi-plus-circle"></i>
+                <span>Entrada</span>
+            </button>
+            <button type="button" class="mobile-action-btn" onclick="financeMobileAction('add_expense')">
+                <i class="bi bi-dash-circle"></i>
+                <span>Despesa</span>
+            </button>
+            <button type="button" class="mobile-action-btn" onclick="financeMobileAction('history')">
+                <i class="bi bi-calendar-check"></i>
+                <span>Histórico</span>
+            </button>
+            <button type="button" class="mobile-action-btn" onclick="financeMobileAction('charts')">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Gráficos</span>
+            </button>
+            <button type="button" class="mobile-action-btn" onclick="financeMobileAction('close_month')">
+                <i class="bi bi-lock"></i>
+                <span>Fechar</span>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
     <script>
-        // Toast simples
         window.showToast = function(message, type = 'success') {
             const container = document.querySelector('.toast-container');
+            if (!container) return;
+
             const id = 'toast-' + Date.now();
-            
             const bgClass = {
-                'success': 'text-bg-success',
-                'error': 'text-bg-danger',
-                'warning': 'text-bg-warning',
-                'info': 'text-bg-info'
+                success: 'text-bg-success',
+                error: 'text-bg-danger',
+                warning: 'text-bg-warning',
+                info: 'text-bg-info'
             }[type] || 'text-bg-success';
-            
+
             container.innerHTML += `
                 <div id="${id}" class="toast ${bgClass}" role="alert">
                     <div class="d-flex">
@@ -215,88 +510,97 @@
                     </div>
                 </div>
             `;
-            
+
             const toast = new bootstrap.Toast(document.getElementById(id));
             toast.show();
         };
 
-        // Mostrar modal de workspaces
         window.showWorkspaceMenu = function() {
             const modal = new bootstrap.Modal(document.getElementById('workspacesModal'));
             modal.show();
-            loadWorkspacesInModal();
+            if (typeof loadWorkspacesInModal === 'function') {
+                loadWorkspacesInModal();
+            }
         };
-        
-        // Carregar workspaces no modal
+
         window.loadWorkspacesInModal = async function() {
+            const container = document.getElementById('workspacesListContent');
+            if (container) {
+
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                `;
+            }
+
             try {
                 const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}');
                 
                 if (!response.ok) {
                     showToast('Erro ao carregar workspaces', 'error');
+                    if (container) {
+                        container.innerHTML = '<div class="alert alert-danger m-3">Erro ao carregar workspaces.</div>';
+                    }
                     return;
                 }
                 
                 const data = await response.json();
-                
-                let html = '<div style="max-width: 350px; max-height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 10px;">';
-                
-                // Workspaces próprios
-                if (data.owned && data.owned.length > 0) {
-                    html += '<div style="font-weight: bold; padding: 8px; background: rgba(0,0,0,0.05); margin-bottom: 5px;">Meus Workspaces</div>';
-                    data.owned.forEach(ws => {
-                        html += `<div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectWorkspace(${ws.id})">
-                            <i class="bi bi-folder" style="color: ${ws.color};"></i> <strong>${ws.name}</strong>
-                            <button onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${ws.name}', '${ws.color}')" class="btn btn-sm btn-outline-warning" style="float: right; margin-left: 5px;"><i class="bi bi-pencil"></i></button>
-                            <button onclick="event.stopPropagation(); deleteWorkspace(${ws.id})" class="btn btn-sm btn-outline-danger" style="float: right;"><i class="bi bi-trash"></i></button>
-                        </div>`;
-                    });
-                }
-                
-                // Workspaces compartilhados
-                if (data.shared && data.shared.length > 0) {
-                    html += '<div style="font-weight: bold; padding: 8px; background: rgba(0,0,0,0.05); margin: 10px 0 5px 0;">Compartilhados</div>';
-                    data.shared.forEach(ws => {
-                        html += `<div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" onclick="selectWorkspace(${ws.id})">
-                            <i class="bi bi-folder-shared" style="color: ${ws.color};"></i> <strong>${ws.name}</strong>
-                            <small style="display: block; color: #999;">De: ${ws.owner_email}</small>
-                        </div>`;
-                    });
-                }
-                
-                html += '<div style="padding: 10px; background: rgba(0,0,0,0.05); margin-top: 10px;"><button class="btn btn-sm btn-success w-100" id="btnNewWs"><i class="bi bi-plus me-1"></i>Novo Workspace</button></div>';
-                html += '</div>';
-                
-                // Remover menu anterior
-                const oldMenu = document.getElementById('workspaceMenuPopup');
-                if (oldMenu) oldMenu.remove();
-                
-                // Criar popup
-                const popup = document.createElement('div');
-                popup.id = 'workspaceMenuPopup';
-                popup.innerHTML = html;
-                popup.style.position = 'fixed';
-                popup.style.top = '60px';
-                popup.style.right = '20px';
-                popup.style.zIndex = '1000';
-                document.body.appendChild(popup);
-                
-                // Adicionar listener ao botão
-                document.getElementById('btnNewWs').onclick = function() {
-                    showCreateWorkspaceModal();
+
+                if (!container) return;
+
+                const renderWsCard = (ws, isShared=false) => {
+                    const icon = isShared ? 'bi-folder-symlink' : 'bi-folder';
+                    const subtitle = isShared && ws.owner_email ? `<small class="text-muted d-block">De: ${ws.owner_email}</small>` : (ws.description ? `<small class="text-muted d-block">${ws.description}</small>` : '');
+                    const roleBadge = isShared ? `<span class="badge bg-secondary ms-2">${ws.role || 'viewer'}</span>` : '';
+                    const actions = !isShared ? `
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-warning" onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${(ws.name || '').replace(/'/g, "\\'")}', '${ws.color}')" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="event.stopPropagation(); deleteWorkspace(${ws.id})" title="Excluir">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    ` : '';
+
+                    return `
+                        <div class="card hover-card mb-2" style="cursor:pointer; border-left: 6px solid ${ws.color || '#3b82f6'}" onclick="selectWorkspace(${ws.id})">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold"><i class="bi ${icon} me-2" style="color:${ws.color || '#3b82f6'}"></i>${ws.name || 'Workspace'}${roleBadge}</div>
+                                        ${subtitle}
+                                    </div>
+                                    ${actions}
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 };
-                
-                // Fechar ao clicar fora
-                setTimeout(() => {
-                    document.addEventListener('click', function closeMenu(e) {
-                        if (!popup.contains(e.target)) {
-                            popup.remove();
-                        }
-                    }, {once: true});
-                }, 100);
+
+                let html = '';
+                if (data.owned && data.owned.length) {
+                    html += '<h6 class="text-muted mb-2">Meus Workspaces</h6>';
+                    data.owned.forEach(ws => { html += renderWsCard(ws, false); });
+                }
+                if (data.shared && data.shared.length) {
+                    html += '<h6 class="text-muted mt-3 mb-2">Compartilhados</h6>';
+                    data.shared.forEach(ws => { html += renderWsCard(ws, true); });
+                }
+                if (!html) {
+                    html = '<div class="text-center text-muted py-4">Nenhum workspace encontrado.</div>';
+                }
+
+                container.innerHTML = html;
                 
             } catch (error) {
                 showToast('Erro ao carregar workspaces', 'error');
+                if (container) {
+                    container.innerHTML = '<div class="alert alert-danger m-3">Erro ao carregar workspaces.</div>';
+                }
             }
         };
 
@@ -311,13 +615,14 @@
                 
                 if (response.ok) {
                     showToast('Workspace selecionado!', 'success');
-                    
-                    // Fechar menu
-                    const menu = document.getElementById('workspaceMenu');
-                    if (menu) menu.remove();
-                    
-                    // Recarregar página após 500ms
-                    setTimeout(() => location.reload(), 500);
+
+                    // Fechar modal
+                    const modalEl = document.getElementById('workspacesModal');
+                    const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                    if (modal) modal.hide();
+
+                    // Recarregar página após 300ms
+                    setTimeout(() => location.reload(), 300);
                 } else {
                     showToast(result.error || 'Erro ao selecionar workspace', 'error');
                 }
@@ -326,6 +631,64 @@
                 console.error(error);
             }
         };
+
+        // Criar workspace a partir do modal do dashboard
+        window.createWorkspaceFromModal = async function() {
+            const nameEl = document.getElementById('newWsName');
+            const descEl = document.getElementById('newWsDesc');
+            const colorEl = document.getElementById('newWsColor');
+
+            const name = nameEl ? nameEl.value.trim() : '';
+            const description = descEl ? descEl.value.trim() : '';
+            const color = colorEl ? colorEl.value : '#3b82f6';
+
+            if (!name) {
+                showToast('Nome do workspace é obrigatório', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('{{ url_for("gerenciamento_financeiro.api_workspaces") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, color })
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    showToast(result.error || 'Erro ao criar workspace', 'error');
+                    return;
+                }
+
+                showToast('Workspace criado com sucesso!', 'success');
+
+                // Limpar inputs
+                if (nameEl) nameEl.value = '';
+                if (descEl) descEl.value = '';
+
+                // Voltar para aba "Meus Workspaces" e recarregar lista
+                const tabBtn = document.getElementById('my-workspaces-tab');
+                if (tabBtn) {
+                    new bootstrap.Tab(tabBtn).show();
+                }
+                await loadWorkspacesInModal();
+            } catch (error) {
+                showToast('Erro ao criar workspace', 'error');
+                console.error(error);
+            }
+        };
+
+        // Sincronizar campo de cor do modal do dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            const colorEl = document.getElementById('newWsColor');
+            const colorTextEl = document.getElementById('newWsColorText');
+            if (colorEl && colorTextEl) {
+                colorTextEl.value = colorEl.value;
+                colorEl.addEventListener('change', (e) => {
+                    colorTextEl.value = e.target.value;
+                });
+            }
+        });
 
         // Mostrar modal para criar workspace
         window.showCreateWorkspaceModal = function() {
@@ -507,9 +870,16 @@
                 
                 if (response.ok) {
                     showToast('Workspace deletado com sucesso!', 'success');
-                    const menu = document.getElementById('workspaceMenu');
-                    if (menu) menu.remove();
-                    setTimeout(() => location.reload(), 1000);
+                    // Atualizar lista no modal (se estiver aberto)
+                    if (typeof loadWorkspacesInModal === 'function') {
+                        await loadWorkspacesInModal();
+                    }
+
+                    // Fechar modal (se existir) e recarregar para atualizar workspace ativo
+                    const modalEl = document.getElementById('workspacesModal');
+                    const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                    if (modal) modal.hide();
+                    setTimeout(() => location.reload(), 600);
                 } else {
                     showToast(result.error || 'Erro ao deletar workspace', 'error');
                 }
@@ -549,7 +919,44 @@
                     icon.className = 'bi bi-moon-fill';
                 }
             }
+
+            const isRunningInApp = (function() {
+                try {
+                    if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+                        return window.Capacitor.isNativePlatform();
+                    }
+                } catch (e) {}
+
+                const ua = navigator.userAgent || '';
+                return /Capacitor/i.test(ua) || /; wv\)/i.test(ua) || /Android.*wv/i.test(ua);
+            })();
+
+            const downloadBtn = document.getElementById('downloadAppBtn');
+            if (downloadBtn && isRunningInApp) {
+                downloadBtn.style.display = 'none';
+            }
         });
+
+        window.financeMobileAction = function(action) {
+            if (action === 'add_income' && typeof window.showAddTransaction === 'function') {
+                return window.showAddTransaction('income');
+            }
+            if (action === 'add_expense' && typeof window.showAddTransaction === 'function') {
+                return window.showAddTransaction('expense');
+            }
+            if (action === 'history' && typeof window.showMonthlyHistory === 'function') {
+                return window.showMonthlyHistory();
+            }
+            if (action === 'charts' && typeof window.showChartsModal === 'function') {
+                return window.showChartsModal();
+            }
+            if (action === 'close_month' && typeof window.closeMonthConfirm === 'function') {
+                return window.closeMonthConfirm();
+            }
+
+            const baseUrl = '{{ url_for("gerenciamento_financeiro.home") }}';
+            window.location.href = baseUrl + '?action=' + encodeURIComponent(action);
+        };
     </script>
     
     {% block scripts %}{% endblock %}
