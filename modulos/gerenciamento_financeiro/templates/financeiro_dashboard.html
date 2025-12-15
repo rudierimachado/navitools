@@ -404,7 +404,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="transactionDate" class="form-label" id="dateLabel">Dt de entrada do dinheiro na conta *</label>
+                                <label for="transactionDate" class="form-label" id="dateLabel">Data *</label>
                                 <input type="date" class="form-control" id="transactionDate" required>
                             </div>
                         </div>
@@ -418,12 +418,24 @@
                     </div>
                     
                     <div class="mb-3" id="fixedDurationContainer" style="display: none;">
-                        <label class="form-label">Por quantos meses? *</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <input type="number" class="form-control" id="fixedMonths" min="1" max="12" value="12" style="width: 100px;">
-                            <span>meses</span>
+                        <label class="form-label" id="fixedDurationLabel">Por quantos meses? *</label>
+
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <div class="input-group" style="width: 180px;">
+                                <button class="btn btn-outline-secondary" type="button" onclick="stepFixedMonths(-1)">-</button>
+                                <input type="number" class="form-control text-center" id="fixedMonths" min="1" max="120" value="12">
+                                <button class="btn btn-outline-secondary" type="button" onclick="stepFixedMonths(1)">+</button>
+                            </div>
+
+                            <div class="d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setFixedMonths(6)">6</button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setFixedMonths(12)">12</button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setFixedMonths(24)">24</button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="setFixedMonths(36)">36</button>
+                            </div>
                         </div>
-                        <small class="text-muted">Máximo 12 meses. Será criada uma transação para cada mês.</small>
+
+                        <small class="text-muted" id="fixedDurationHint">Será criada uma transação para cada mês.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1268,6 +1280,46 @@ function toggleFixedDuration() {
     if (container) {
         container.style.display = isFixed ? 'block' : 'none';
     }
+
+    if (isFixed) {
+        updateFixedDurationUI();
+    }
+}
+
+function _normalizeFixedMonths(value) {
+    const input = document.getElementById('fixedMonths');
+    const min = Number(input?.min || 1);
+    const max = Number(input?.max || 120);
+    const n = parseInt(value, 10);
+    if (Number.isNaN(n)) return Math.max(min, Math.min(12, max));
+    return Math.max(min, Math.min(n, max));
+}
+
+function setFixedMonths(value) {
+    const input = document.getElementById('fixedMonths');
+    if (!input) return;
+    input.value = _normalizeFixedMonths(value);
+}
+
+function stepFixedMonths(delta) {
+    const input = document.getElementById('fixedMonths');
+    if (!input) return;
+    const current = _normalizeFixedMonths(input.value);
+    setFixedMonths(current + delta);
+}
+
+function updateFixedDurationUI() {
+    const type = document.getElementById('transactionType')?.value;
+    const label = document.getElementById('fixedDurationLabel');
+    const hint = document.getElementById('fixedDurationHint');
+
+    if (type === 'expense') {
+        if (label) label.textContent = 'Qtd de parcelas *';
+        if (hint) hint.textContent = 'Será criada uma despesa para cada parcela (mês).';
+    } else {
+        if (label) label.textContent = 'Por quantos meses? *';
+        if (hint) hint.textContent = 'Será criada uma transação para cada mês.';
+    }
 }
 
 function showAddTransaction(type) {
@@ -1275,6 +1327,7 @@ function showAddTransaction(type) {
     const t = document.getElementById('addTransactionTitle');
     const ti = document.getElementById('transactionType');
     const sb = document.getElementById('saveButton');
+    const dateLabel = document.getElementById('dateLabel');
     document.getElementById('addTransactionForm').reset();
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
     
@@ -1288,11 +1341,15 @@ function showAddTransaction(type) {
         t.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
         sb.className = 'btn btn-success';
         sb.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Entrada';
+        if (dateLabel) dateLabel.textContent = 'Dt de entrada do dinheiro na conta *';
     } else {
         t.innerHTML = '<i class="bi bi-dash-circle text-danger me-2"></i>Nova Despesa';
         sb.className = 'btn btn-danger';
         sb.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Salvar Despesa';
+        if (dateLabel) dateLabel.textContent = 'Data de vencimento *';
     }
+
+    updateFixedDurationUI();
     loadCategories(type);
     m.show();
 }
@@ -1322,7 +1379,7 @@ async function saveTransaction(e) {
     sp.classList.remove('d-none');
     
     const isFixed = document.getElementById('isFixed').checked;
-    const fixedMonths = Math.min(12, Math.max(1, parseInt(document.getElementById('fixedMonths')?.value) || 12));
+    const fixedMonths = Math.min(120, Math.max(1, parseInt(document.getElementById('fixedMonths')?.value) || 12));
     
     const fd = {
         type: document.getElementById('transactionType').value,

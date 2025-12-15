@@ -440,6 +440,7 @@ def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        remember_me = request.form.get("remember_me")
 
         if not email or not password:
             flash("Informe e-mail e senha.", "danger")
@@ -453,6 +454,7 @@ def login():
             return render_template("finance_login.html", user=None)
 
         # Autenticação bem-sucedida
+        session.permanent = bool(remember_me)
         session["finance_user_id"] = user.id
         session["finance_user_email"] = user.email
 
@@ -1098,7 +1100,7 @@ def api_transactions():
                 if fixed_duration_type == "months" and fixed_months:
                     try:
                         num_months = int(fixed_months)
-                        num_months = max(1, min(num_months, 12))
+                        num_months = max(1, min(num_months, 120))
                     except (ValueError, TypeError):
                         num_months = 12
                 else:
