@@ -468,6 +468,22 @@
     <!-- Toast Container -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
 
+    <div class="modal fade" id="confirmActionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmActionTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmActionBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn" id="confirmActionBtn"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=True) %}
         {% if messages %}
@@ -614,6 +630,50 @@
             const toast = new bootstrap.Toast(document.getElementById(id));
             toast.show();
         };
+
+        if (!window._openConfirmModal) {
+            window._openConfirmModal = ({ title, body, confirmText, confirmClass } = {}) => {
+                const modalEl = document.getElementById('confirmActionModal');
+                const titleEl = document.getElementById('confirmActionTitle');
+                const bodyEl = document.getElementById('confirmActionBody');
+                const btn = document.getElementById('confirmActionBtn');
+                if (!modalEl || !titleEl || !bodyEl || !btn || !window.bootstrap) {
+                    return Promise.resolve(window.confirm(body || 'Confirmar?'));
+                }
+
+                titleEl.textContent = title || 'Confirmar';
+                bodyEl.textContent = body || '';
+                btn.textContent = confirmText || 'Confirmar';
+                btn.className = `btn ${confirmClass || 'btn-danger'}`;
+
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                let resolved = false;
+
+                return new Promise((resolve) => {
+                    const onConfirm = () => {
+                        if (resolved) return;
+                        resolved = true;
+                        cleanup();
+                        resolve(true);
+                        try { modal.hide(); } catch (e) {}
+                    };
+                    const onHidden = () => {
+                        if (resolved) return;
+                        resolved = true;
+                        cleanup();
+                        resolve(false);
+                    };
+                    const cleanup = () => {
+                        try { btn.removeEventListener('click', onConfirm); } catch (e) {}
+                        try { modalEl.removeEventListener('hidden.bs.modal', onHidden); } catch (e) {}
+                    };
+
+                    btn.addEventListener('click', onConfirm);
+                    modalEl.addEventListener('hidden.bs.modal', onHidden);
+                    modal.show();
+                });
+            };
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.alert.alert-dismissible').forEach((el) => {
@@ -803,12 +863,10 @@
             try {
                 const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/members`);
                 const data = await resp.json();
-
                 if (!resp.ok) {
                     content.innerHTML = `<div class="alert alert-danger">${data.error || 'Erro ao carregar membros.'}</div>`;
                     return;
                 }
-
                 const canManage = !!data.can_manage;
                 const ownerId = data.owner_id;
                 const ownerEmail = data.owner_email;
@@ -897,7 +955,13 @@
 
         // Remover membro do workspace
         window.removeWorkspaceMember = async function(workspaceId, memberId) {
-            if (!confirm('Remover este membro do workspace?')) return;
+            const ok = await window._openConfirmModal({
+                title: 'Remover membro',
+                body: 'Remover este membro do workspace?',
+                confirmText: 'Remover',
+                confirmClass: 'btn-danger',
+            });
+            if (!ok) return;
             try {
                 const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/members/${memberId}`, {
                     method: 'DELETE'
@@ -1165,18 +1229,22 @@
 
         // Deletar workspace
         window.deleteWorkspace = async function(workspaceId) {
-            if (!confirm('Tem certeza que deseja deletar este workspace? As transações não serão perdidas.')) {
-                return;
-            }
+            const ok = await window._openConfirmModal({
+                title: 'Deletar workspace',
+                body: 'Tem certeza que deseja deletar este workspace? As transações não serão perdidas.',
+                confirmText: 'Deletar',
+                confirmClass: 'btn-danger',
+            });
+            if (!ok) return;
             
             try {
-                const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_update_workspace", workspace_id=0) }}`.replace('/0', `/${workspaceId}`), {
+                const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}`, {
                     method: 'DELETE'
                 });
                 
-                const result = await response.json();
+                const result = await resp.json();
                 
-                if (response.ok) {
+                if (resp.ok) {
                     showToast('Workspace deletado com sucesso!', 'success');
                     // Atualizar lista no modal (se estiver aberto)
                     if (typeof loadWorkspacesInModal === 'function') {

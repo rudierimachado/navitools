@@ -1,5 +1,4 @@
 {% extends 'finance_base.html' %}
-
 {% block title %}Dashboard Financeiro · NEXUSRDR{% endblock %}
 
 {% block content %}
@@ -34,6 +33,25 @@
                         <select id="filterYear" class="form-select form-select-sm border-0 bg-transparent" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.3rem; font-size: 0.8rem;" onchange="applyGlobalFilter()">
                         </select>
                     </div>
+
+<div class="modal fade" id="editScopeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar parcelas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Deseja editar somente esta parcela ou todas as parcelas?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-outline-primary" id="editScopeSingleBtn">Só esta parcela</button>
+                <button type="button" class="btn btn-primary" id="editScopeSeriesBtn">Todas as parcelas</button>
+            </div>
+        </div>
+    </div>
+</div>
                 </div>
             </div>
 
@@ -399,7 +417,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Valor (R$) *</label>
-                                <input type="number" class="form-control" id="amount" step="0.01" min="0" required placeholder="0,00">
+                                <input type="text" class="form-control" id="amount" inputmode="decimal" required placeholder="0,00" autocomplete="off">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -829,6 +847,86 @@
 
 {% block scripts %}
 <script defer>
+let __editScopeResolve = null;
+let currentEditScope = 'single';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const scopeEl = document.getElementById('editScopeModal');
+    const singleBtn = document.getElementById('editScopeSingleBtn');
+    const seriesBtn = document.getElementById('editScopeSeriesBtn');
+    if (scopeEl && singleBtn && seriesBtn) {
+        singleBtn.addEventListener('click', () => {
+            if (__editScopeResolve) __editScopeResolve('single');
+            __editScopeResolve = null;
+            try { bootstrap.Modal.getInstance(scopeEl)?.hide(); } catch (e) {}
+        });
+        seriesBtn.addEventListener('click', () => {
+            if (__editScopeResolve) __editScopeResolve('series');
+            __editScopeResolve = null;
+            try { bootstrap.Modal.getInstance(scopeEl)?.hide(); } catch (e) {}
+        });
+        scopeEl.addEventListener('hidden.bs.modal', () => {
+            if (__editScopeResolve) {
+                __editScopeResolve(null);
+                __editScopeResolve = null;
+            }
+        });
+    }
+});
+
+function _chooseEditScope() {
+    const scopeEl = document.getElementById('editScopeModal');
+    if (!scopeEl) return Promise.resolve('single');
+    const modal = bootstrap.Modal.getOrCreateInstance(scopeEl);
+    return new Promise((resolve) => {
+        __editScopeResolve = resolve;
+        modal.show();
+    });
+}
+
+function _parseBRL(value) {
+    const s = String(value ?? '').trim();
+    if (!s) return 0;
+    const cleaned = s.replace(/[^0-9,.-]/g, '');
+    if (!cleaned) return 0;
+    if (cleaned.includes(',')) {
+        const parts = cleaned.split(',');
+        const dec = (parts.pop() || '').replace(/\./g, '').replace(/[^0-9]/g, '');
+        const intPart = parts.join('').replace(/\./g, '').replace(/[^0-9-]/g, '');
+        const numStr = `${intPart || '0'}.${dec}`;
+        const n = parseFloat(numStr);
+        return Number.isFinite(n) ? n : 0;
+    }
+    const numStr = cleaned.replace(/\./g, '');
+    const n = parseFloat(numStr);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function _formatBRLInputFromDigits(digits) {
+    const d = String(digits || '').replace(/\D/g, '');
+    if (!d) return '';
+    const n = Number(d) / 100;
+    if (!Number.isFinite(n)) return '';
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function _setupAmountMask() {
+    const el = document.getElementById('amount');
+    if (!el) return;
+    if (el.dataset.masked === '1') return;
+    el.dataset.masked = '1';
+
+    const handler = () => {
+        const digits = el.value.replace(/\D/g, '');
+        const formatted = _formatBRLInputFromDigits(digits);
+        el.value = formatted;
+        try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {}
+    };
+
+    el.addEventListener('input', handler);
+    el.addEventListener('blur', handler);
+}
+
 window.showAiRecommendationsModal = function() {
     const modalEl = document.getElementById('aiRecommendationsModal');
     if (!modalEl) return;
@@ -1330,6 +1428,7 @@ function showAddTransaction(type) {
     const dateLabel = document.getElementById('dateLabel');
     document.getElementById('addTransactionForm').reset();
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    _setupAmountMask();
     
     // Reset fixed duration fields
     const fixedContainer = document.getElementById('fixedDurationContainer');
@@ -1385,14 +1484,15 @@ async function saveTransaction(e) {
         type: document.getElementById('transactionType').value,
         description: document.getElementById('description').value || document.getElementById('category').options[document.getElementById('category').selectedIndex].text,
         notes: document.getElementById('notes') ? (document.getElementById('notes').value || null) : null,
-        amount: parseFloat(document.getElementById('amount').value),
+        amount: _parseBRL(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value,
         frequency: 'once',
         is_recurring: isFixed,
         is_fixed: isFixed,
         fixed_duration_type: isFixed ? 'months' : null,
-        fixed_months: isFixed ? fixedMonths : null
+        fixed_months: isFixed ? fixedMonths : null,
+        apply_scope: currentEditScope
     };
     
     try {
@@ -1417,8 +1517,13 @@ async function saveTransaction(e) {
                 showToast(res.message || `${res.created} transações criadas!`, 'success');
                 setTimeout(() => location.reload(), 800);
             } else if (editingId) {
-                showToast('Atualizado!', 'success');
-                upsertTransactionRow(res);
+                if (currentEditScope === 'series' && res.updated_count && res.updated_count > 1) {
+                    showToast(res.message || 'Atualizado!', 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast('Atualizado!', 'success');
+                    upsertTransactionRow(res);
+                }
             } else {
                 showToast('Salvo!', 'success');
                 addTransactionToTable(res);
@@ -1577,23 +1682,71 @@ async function editTransaction(id) {
         const d = await r.json();
         const t = d.transactions?.find(x => x.id === id);
         if (!t) return;
+        
+        const isInstallment = t.type === 'expense' && (t.is_fixed || t.is_recurring) && !!t.recurring_transaction_id;
+        if (isInstallment) {
+            const scope = await _chooseEditScope();
+            if (!scope) return;
+            currentEditScope = scope;
+        } else {
+            currentEditScope = 'single';
+        }
+
+        // Set editing mode FIRST
         currentEditingId = id;
-        showAddTransaction(t.type);
-        setTimeout(() => {
-            document.getElementById('amount').value = t.amount;
-            document.getElementById('transactionDate').value = t.transaction_date;
-            document.getElementById('category').value = t.category?.id || '';
-            document.getElementById('description').value = t.description || '';
-            const notesEl = document.getElementById('notes');
-            if (notesEl) notesEl.value = t.notes || '';
-        }, 200);
+        
+        // Get modal elements
+        const modalEl = document.getElementById('addTransactionModal');
+        const title = document.getElementById('addTransactionTitle');
+        const typeInput = document.getElementById('transactionType');
+        const saveButton = document.getElementById('saveButton');
+        
+        // Configure modal for EDIT mode (not "Nova")
+        typeInput.value = t.type;
+        title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${t.type === 'income' ? 'Entrada' : 'Despesa'}`;
+        
+        if (t.type === 'income') {
+            saveButton.className = 'btn btn-success';
+        } else {
+            saveButton.className = 'btn btn-danger';
+        }
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Atualizar Transação';
+        
+        // Fill form fields
+        _setupAmountMask();
+        document.getElementById('description').value = t.description || '';
+        document.getElementById('amount').value = (typeof t.amount === 'number') 
+            ? t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) 
+            : String(t.amount || '');
+        document.getElementById('transactionDate').value = t.transaction_date;
+        const notesEl = document.getElementById('notes');
+        if (notesEl) notesEl.value = t.notes || '';
+        
+        // Load categories and set current one
+        await loadCategories(t.type);
+        document.getElementById('category').value = t.category?.id || '';
+        
+        // Hide fixed duration section when editing
+        const fixedSection = document.getElementById('fixedDurationSection');
+        if (fixedSection) fixedSection.classList.add('d-none');
+        
+        // Show modal
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
     } catch (e) {
         console.error('Erro:', e);
     }
 }
 
 async function deleteTransaction(id) {
-    if (!confirm('Excluir?')) return;
+    const ok = await window._openConfirmModal({
+        title: 'Excluir transação',
+        body: 'Tem certeza que deseja excluir esta transação?',
+        confirmText: 'Excluir',
+        confirmClass: 'btn-danger'
+    });
+    if (!ok) return;
     try {
         const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, { method: 'DELETE' });
         if (r.ok) {
@@ -1715,9 +1868,13 @@ async function loadMonthlyHistory() {
 }
 
 async function closeMonthConfirm() {
-    if (!confirm('Deseja fechar o mês atual?\n\nIsso irá:\n- Finalizar o período atual\n- Criar lançamentos fixos no próximo mês\n- Gerar relatório mensal')) {
-        return;
-    }
+    const ok = await window._openConfirmModal({
+        title: 'Fechar mês',
+        body: 'Deseja fechar o mês atual?\n\nIsso irá:\n- Finalizar o período atual\n- Criar lançamentos fixos no próximo mês\n- Gerar relatório mensal',
+        confirmText: 'Fechar mês',
+        confirmClass: 'btn-warning',
+    });
+    if (!ok) return;
     
     try {
         const response = await fetch('/gerenciamento-financeiro/api/monthly-closure/close-month', {
@@ -2117,7 +2274,13 @@ async function acceptInvite(inviteId) {
 }
 
 async function rejectInvite(inviteId) {
-    if (!confirm('Tem certeza que deseja recusar este convite?')) return;
+    const ok = await window._openConfirmModal({
+        title: 'Recusar convite',
+        body: 'Tem certeza que deseja recusar este convite?'
+        ,confirmText: 'Recusar'
+        ,confirmClass: 'btn-danger'
+    });
+    if (!ok) return;
     
     try {
         const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/reject`, {

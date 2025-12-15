@@ -1105,6 +1105,27 @@ def api_transactions():
                         num_months = 12
                 else:
                     num_months = 12
+
+                recurring_source = None
+                try:
+                    recurring_source = RecurringTransaction(
+                        user_id=user_id,
+                        category_id=category_id,
+                        description=description,
+                        amount=float(amount),
+                        type=transaction_type,
+                        frequency="monthly",
+                        day_of_month=transaction_date.day,
+                        start_date=transaction_date,
+                        end_date=(transaction_date + relativedelta(months=(num_months - 1))) if num_months else None,
+                        is_active=False,
+                        payment_method=None,
+                        notes=notes,
+                    )
+                    db.session.add(recurring_source)
+                    db.session.flush()
+                except Exception:
+                    recurring_source = None
                 
                 for month_offset in range(num_months):
                     new_date = transaction_date + relativedelta(months=month_offset)
@@ -1121,7 +1142,8 @@ def api_transactions():
                         frequency=frequency,
                         is_recurring=True,
                         is_paid=True,
-                        is_fixed=data.get("is_fixed", False)
+                        is_fixed=data.get("is_fixed", False),
+                        recurring_transaction_id=(recurring_source.id if recurring_source else None),
                     )
                     db.session.add(transaction)
                     transactions_created.append(transaction)
@@ -1172,6 +1194,7 @@ def api_transactions():
                     "frequency": getattr(transaction, "frequency", "once"),
                     "is_recurring": getattr(transaction, "is_recurring", False),
                     "is_fixed": getattr(transaction, "is_fixed", False),
+                    "recurring_transaction_id": getattr(transaction, "recurring_transaction_id", None),
                     "category": {
                         "id": category.id,
                         "name": category.name,
@@ -1242,6 +1265,7 @@ def api_transactions():
                         "frequency": getattr(t, 'frequency', 'once'),
                         "is_recurring": getattr(t, 'is_recurring', False),
                         "is_fixed": getattr(t, 'is_fixed', False),
+                        "recurring_transaction_id": getattr(t, 'recurring_transaction_id', None),
                         "category": {
                             "id": t.category.id,
                             "name": t.category.name,
@@ -1269,6 +1293,7 @@ def api_transactions():
                         "frequency": getattr(t, 'frequency', 'once'),
                         "is_recurring": getattr(t, 'is_recurring', False),
                         "is_fixed": getattr(t, 'is_fixed', False),
+                        "recurring_transaction_id": getattr(t, 'recurring_transaction_id', None),
                         "category": {
                             "id": t.category.id,
                             "name": t.category.name,
@@ -1336,6 +1361,40 @@ def api_transaction_detail(transaction_id):
                 return _json({"error": "Sem permissão para editar (somente visualização)"}, 403)
 
             data = request.get_json()
+
+            apply_scope = (data or {}).get("apply_scope") or "single"
+            apply_scope = str(apply_scope).lower().strip() if apply_scope else "single"
+
+            if apply_scope == "series" and getattr(transaction, "recurring_transaction_id", None):
+                series_id = transaction.recurring_transaction_id
+                series_transactions = (
+                    Transaction.query
+                    .filter_by(workspace_id=workspace_id, recurring_transaction_id=series_id)
+                    .all()
+                )
+
+                updated = 0
+                for tx in series_transactions:
+                    if "description" in data:
+                        tx.description = data["description"]
+                    if "notes" in data:
+                        tx.notes = data["notes"]
+                    if "amount" in data:
+                        tx.amount = float(data["amount"])
+                    if "category_id" in data:
+                        tx.category_id = data["category_id"] or None
+                    updated += 1
+
+                db.session.commit()
+
+                resp = jsonify({
+                    "message": "Parcelas atualizadas com sucesso!",
+                    "updated_count": updated,
+                })
+                resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp
             
             if "description" in data:
                 transaction.description = data["description"]
@@ -1372,6 +1431,7 @@ def api_transaction_detail(transaction_id):
                 "frequency": getattr(transaction, 'frequency', 'once'),
                 "is_recurring": getattr(transaction, 'is_recurring', False),
                 "is_fixed": getattr(transaction, 'is_fixed', False),
+                "recurring_transaction_id": getattr(transaction, 'recurring_transaction_id', None),
                 "category": {
                     "id": category.id,
                     "name": category.name,

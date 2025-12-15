@@ -141,7 +141,15 @@ async function saveTransaction() {
 
 // Deletar transação
 async function deleteTransaction(id) {
-    if (!confirm('Excluir esta transação?')) return;
+    const ok = (window._openConfirmModal)
+        ? await window._openConfirmModal({
+            title: 'Excluir transação',
+            body: 'Tem certeza que deseja excluir esta transação?',
+            confirmText: 'Excluir',
+            confirmClass: 'btn-danger',
+        })
+        : window.confirm('Excluir esta transação?');
+    if (!ok) return;
     
     try {
         const response = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, {

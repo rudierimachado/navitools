@@ -12,10 +12,10 @@
                 <p class="text-muted mb-0">Gerencie seu histórico financeiro completo</p>
             </div>
             <div class="d-flex gap-2 mt-3 mt-md-0">
-                <button class="btn btn-success" onclick="showAddTransaction('income')">
+                <button class="btn btn-success" onclick="window.transactionsPage.showAddTransaction('income')">
                     <i class="bi bi-plus-circle me-1"></i> Nova Entrada
                 </button>
-                <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+                <button class="btn btn-danger" onclick="window.transactionsPage.showAddTransaction('expense')">
                     <i class="bi bi-dash-circle me-1"></i> Nova Despesa
                 </button>
             </div>
@@ -118,7 +118,7 @@
                     <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
                     <h6 class="text-muted mt-3">Nenhuma transação encontrada</h6>
                     <p class="text-muted mb-3">Ajuste os filtros ou adicione uma nova transação</p>
-                    <button class="btn btn-primary" onclick="showAddTransaction('income')">
+                    <button class="btn btn-primary" onclick="window.transactionsPage.showAddTransaction('income')">
                         <i class="bi bi-plus me-1"></i> Nova Transação
                     </button>
                 </div>
@@ -153,10 +153,10 @@
     <button class="btn btn-primary" onclick="document.getElementById('filterType').focus()">
         <i class="bi bi-funnel"></i> Filtros
     </button>
-    <button class="btn btn-success" onclick="showAddTransaction('income')">
+    <button class="btn btn-success" onclick="window.transactionsPage.showAddTransaction('income')">
         <i class="bi bi-plus-circle"></i> Entrada
     </button>
-    <button class="btn btn-danger" onclick="showAddTransaction('expense')">
+    <button class="btn btn-danger" onclick="window.transactionsPage.showAddTransaction('expense')">
         <i class="bi bi-dash-circle"></i> Despesa
     </button>
 </div>
@@ -183,7 +183,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Valor (R$) *</label>
-                                <input type="number" class="form-control" id="amount" step="0.01" min="0" required placeholder="0,00">
+                                <input type="text" class="form-control" id="amount" inputmode="decimal" required placeholder="0,00" autocomplete="off">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -222,14 +222,18 @@
 {% block scripts %}
 <script>
 // Variables
+window.transactionsPage = window.transactionsPage || {};
 let currentPage = 1;
 let totalPages = 1;
 let currentEditingId = null;
 let allCategories = [];
+let pendingCategoryId = null;
+let pendingCategoryLabel = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    setupAmountMask();
     loadAllCategories();
     loadTransactions();
     
@@ -241,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load categories for filters
 async function loadAllCategories() {
     try {
-        const response = await fetch('{{ url_for('gerenciamento_financeiro.api_categories') }}');
+        const response = await fetch('{{ url_for("gerenciamento_financeiro.api_categories") }}');
         const data = await response.json();
         allCategories = data.categories || [];
         
@@ -286,7 +290,7 @@ async function loadTransactions(page = 1) {
         if (startDate) params.append('start_date', startDate);
         if (endDate) params.append('end_date', endDate);
         
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?${params}`);
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}?${params}`);
         const data = await response.json();
         
         hideElement('loadingTransactions');
@@ -354,10 +358,10 @@ function displayTableView(transactions) {
             </td>
             <td class="d-none d-md-table-cell">
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary btn-sm" onclick="editTransaction(${t.id})" title="Editar">
+                    <button class="btn btn-outline-primary btn-sm" onclick="window.transactionsPage.editTransaction(${t.id})" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction(${t.id})" title="Excluir">
+                    <button class="btn btn-outline-danger btn-sm" onclick="window.transactionsPage.deleteTransaction(${t.id})" title="Excluir">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -379,10 +383,10 @@ function displayCardView(transactions) {
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="card-title mb-0">${t.description}</h6>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary btn-sm" onclick="editTransaction(${t.id})" title="Editar">
+                            <button class="btn btn-outline-primary btn-sm" onclick="window.transactionsPage.editTransaction(${t.id})" title="Editar">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="deleteTransaction(${t.id})" title="Excluir">
+                            <button class="btn btn-outline-danger btn-sm" onclick="window.transactionsPage.deleteTransaction(${t.id})" title="Excluir">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -491,11 +495,82 @@ function hideElement(id) {
     document.getElementById(id).style.display = 'none';
 }
 
+function parseBRL(value) {
+    const s = String(value ?? '').trim();
+    if (!s) return 0;
+    const cleaned = s.replace(/[^0-9,.-]/g, '');
+    if (!cleaned) return 0;
+    if (cleaned.includes(',')) {
+        const parts = cleaned.split(',');
+        const dec = (parts.pop() || '').replace(/\./g, '').replace(/[^0-9]/g, '');
+        const intPart = parts.join('').replace(/\./g, '').replace(/[^0-9-]/g, '');
+        const numStr = `${intPart || '0'}.${dec}`;
+        const n = parseFloat(numStr);
+        return Number.isFinite(n) ? n : 0;
+    }
+    const numStr = cleaned.replace(/\./g, '');
+    const n = parseFloat(numStr);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function setupAmountMask() {
+    const el = document.getElementById('amount');
+    if (!el) return;
+    if (el.dataset.masked === '1') return;
+    el.dataset.masked = '1';
+
+    const handler = () => {
+        const digits = el.value.replace(/\D/g, '');
+        if (!digits) {
+            el.value = '';
+            return;
+        }
+        const n = Number(digits) / 100;
+        el.value = n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {}
+    };
+
+    el.addEventListener('input', handler);
+    el.addEventListener('blur', handler);
+}
+
+function setCategoryValue(categoryId) {
+    const select = document.getElementById('category');
+    if (!select) return;
+
+    if (!categoryId) {
+        select.value = '';
+        pendingCategoryId = null;
+        pendingCategoryLabel = null;
+        return;
+    }
+
+    const target = String(categoryId);
+    const exists = Array.from(select.options).some(opt => String(opt.value) === target);
+    if (exists) {
+        select.value = target;
+        pendingCategoryId = null;
+        pendingCategoryLabel = null;
+    } else {
+        if (pendingCategoryLabel) {
+            const option = document.createElement('option');
+            option.value = target;
+            option.textContent = pendingCategoryLabel;
+            select.appendChild(option);
+            select.value = target;
+            pendingCategoryId = null;
+            pendingCategoryLabel = null;
+        } else {
+            pendingCategoryId = target;
+        }
+    }
+}
+
 // Include transaction modal functions from dashboard
 // (Same functions: showAddTransaction, loadCategories, editTransaction, deleteTransaction, form submit handler)
 
 // Show add transaction modal
-function showAddTransaction(type) {
+window.transactionsPage.showAddTransaction = function(type, options = {}) {
     const modal = new bootstrap.Modal(document.getElementById('addTransactionModal'));
     const title = document.getElementById('addTransactionTitle');
     const typeInput = document.getElementById('transactionType');
@@ -504,7 +579,10 @@ function showAddTransaction(type) {
     // Reset form
     document.getElementById('addTransactionForm').reset();
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
-    currentEditingId = null;
+    setupAmountMask();
+    if (!options.keepEditingId) {
+        currentEditingId = null;
+    }
     
     // Configure for type
     typeInput.value = type;
@@ -528,7 +606,7 @@ function showAddTransaction(type) {
 // Load categories for transaction
 async function loadCategories(type) {
     try {
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_categories") }}?type=${type}`);
         const data = await response.json();
         
         const select = document.getElementById('category');
@@ -541,6 +619,10 @@ async function loadCategories(type) {
                 option.textContent = `${cat.icon || '💰'} ${cat.name}`;
                 select.appendChild(option);
             });
+        }
+
+        if (pendingCategoryId) {
+            setCategoryValue(pendingCategoryId);
         }
     } catch (error) {
         console.error('Erro ao carregar categorias:', error);
@@ -561,14 +643,14 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
     const formData = {
         type: document.getElementById('transactionType').value,
         description: document.getElementById('description').value,
-        amount: parseFloat(document.getElementById('amount').value),
+        amount: parseBRL(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value || null,
         notes: document.getElementById('notes').value || null
     };
     
     try {
-        let url = '{{ url_for('gerenciamento_financeiro.api_transactions') }}';
+        let url = '{{ url_for("gerenciamento_financeiro.api_transactions") }}';
         let method = 'POST';
         
         if (currentEditingId) {
@@ -606,42 +688,64 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
 });
 
 // Edit transaction
-async function editTransaction(id) {
+window.transactionsPage.editTransaction = async function(id) {
     try {
-        // Find transaction in current loaded data or fetch it
-        let transaction = null;
-        
-        // Try to find in current table/card view first
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}?page=1&per_page=1000`);
+        // Fetch transaction data
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}?page=1&per_page=1000`);
         const data = await response.json();
-        transaction = data.transactions?.find(t => t.id === id);
+        const transaction = data.transactions?.find(t => t.id === id);
         
         if (!transaction) {
             showToast('Transação não encontrada', 'error');
             return;
         }
         
-        // Set editing mode
+        // Set editing mode FIRST
         currentEditingId = id;
         
-        // Open modal with data
-        showAddTransaction(transaction.type);
+        // Prepare category selection
+        pendingCategoryId = transaction.category?.id || transaction.category_id || null;
+        pendingCategoryLabel = transaction.category
+            ? `${transaction.category.icon || '💰'} ${transaction.category.name}`
+            : null;
         
-        // Fill form after modal loads
-        setTimeout(() => {
-            document.getElementById('description').value = transaction.description || '';
-            document.getElementById('amount').value = transaction.amount;
-            document.getElementById('transactionDate').value = transaction.transaction_date;
-            document.getElementById('notes').value = transaction.notes || '';
-            
-            if (transaction.category && transaction.category.id) {
-                document.getElementById('category').value = transaction.category.id;
-            }
-            
-            // Update title
-            const title = document.getElementById('addTransactionTitle');
-            title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${transaction.type === 'income' ? 'Entrada' : 'Despesa'}`;
-        }, 500);
+        // Get modal elements
+        const modalEl = document.getElementById('addTransactionModal');
+        const title = document.getElementById('addTransactionTitle');
+        const typeInput = document.getElementById('transactionType');
+        const saveButton = document.getElementById('saveButton');
+        
+        // Configure modal for EDIT mode (not "Nova")
+        typeInput.value = transaction.type;
+        title.innerHTML = `<i class="bi bi-pencil me-2"></i>Editar ${transaction.type === 'income' ? 'Entrada' : 'Despesa'}`;
+        
+        if (transaction.type === 'income') {
+            saveButton.className = 'btn btn-success';
+        } else {
+            saveButton.className = 'btn btn-danger';
+        }
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm d-none me-2"></span>Atualizar Transação';
+        
+        // Fill form fields with transaction data
+        document.getElementById('description').value = transaction.description || '';
+        document.getElementById('amount').value = (typeof transaction.amount === 'number')
+            ? transaction.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : String(transaction.amount || '');
+        document.getElementById('transactionDate').value = transaction.transaction_date;
+        document.getElementById('notes').value = transaction.notes || '';
+        
+        // Setup mask
+        setupAmountMask();
+        
+        // Load categories (async) - will apply pendingCategoryId when done
+        loadCategories(transaction.type);
+        
+        // Also try to set category immediately if options already exist
+        setCategoryValue(pendingCategoryId);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
         
     } catch (error) {
         console.error('Erro ao carregar transação:', error);
@@ -650,13 +754,21 @@ async function editTransaction(id) {
 }
 
 // Delete transaction
-async function deleteTransaction(id) {
-    if (!confirm('Deseja realmente excluir esta transação?')) return;
+window.transactionsPage.deleteTransaction = async function(id) {
+    const ok = (window._openConfirmModal)
+        ? await window._openConfirmModal({
+            title: 'Excluir transação',
+            body: 'Deseja realmente excluir esta transação?',
+            confirmText: 'Excluir',
+            confirmClass: 'btn-danger',
+        })
+        : window.confirm('Deseja realmente excluir esta transação?');
+    if (!ok) return;
     
     try {
         showLoading();
         
-        const response = await fetch(`{{ url_for('gerenciamento_financeiro.api_transactions') }}/${id}`, {
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}`, {
             method: 'DELETE'
         });
         
