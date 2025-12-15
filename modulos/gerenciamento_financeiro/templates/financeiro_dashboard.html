@@ -49,6 +49,21 @@
         </div>
     </div>
 
+    <!-- Alerta de Convites Pendentes -->
+    <div class="col-12" id="pendingInvitesAlert" style="display: none;">
+        <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center" role="alert">
+            <i class="bi bi-envelope-exclamation fs-4 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>Você tem convites pendentes!</strong>
+                <span id="pendingInvitesText">Alguém quer compartilhar um workspace com você.</span>
+            </div>
+            <button class="btn btn-warning btn-sm me-2" onclick="showPendingInvitesModal()">
+                <i class="bi bi-eye me-1"></i>Ver Convites
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+
     <!-- Cards de Status -->
     <div class="col-12">
         <div class="row g-3 g-md-4 mb-4">
@@ -597,116 +612,67 @@
     </div>
 </div>
 
-<!-- Modal Compartilhamentos Completo -->
-<div class="modal fade" id="shareSystemModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<!-- Modal Compartilhar Workspace -->
+<div class="modal fade" id="shareWorkspaceModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white;">
                 <h5 class="modal-title">
-                    <i class="bi bi-share me-2"></i>Gerenciar Compartilhamentos
+                    <i class="bi bi-share me-2"></i>Compartilhar Workspace
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Abas -->
-                <ul class="nav nav-tabs mb-3" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="pending-invites-tab" data-bs-toggle="tab" data-bs-target="#pending-invites" type="button" role="tab" onclick="loadPendingInvites()">
-                            <i class="bi bi-envelope me-1"></i>Convites Recebidos
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="new-share-tab" data-bs-toggle="tab" data-bs-target="#new-share" type="button" role="tab">
-                            <i class="bi bi-plus-circle me-1"></i>Novo Compartilhamento
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="list-shares-tab" data-bs-toggle="tab" data-bs-target="#list-shares" type="button" role="tab" onclick="loadShares()">
-                            <i class="bi bi-list-ul me-1"></i>Meus Compartilhamentos
-                        </button>
-                    </li>
-                </ul>
-
-                <!-- Conteúdo das Abas -->
-                <div class="tab-content">
-                    <!-- Aba: Convites Recebidos -->
-                    <div class="tab-pane fade" id="pending-invites" role="tabpanel">
-                        <div id="pendingInvitesContent">
-                            <div class="text-center py-4">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Carregando...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Aba: Novo Compartilhamento -->
-                    <div class="tab-pane fade show active" id="new-share" role="tabpanel">
                 <div class="mb-3">
-                    <label for="shareEmail" class="form-label">Email do usuário *</label>
-                    <input type="email" class="form-control" id="shareEmail" placeholder="usuario@exemplo.com" required>
+                    <label for="shareWorkspaceSelect" class="form-label">Workspace a compartilhar *</label>
+                    <select class="form-select" id="shareWorkspaceSelect">
+                        <option value="">Carregando workspaces...</option>
+                    </select>
                 </div>
                 
                 <div class="mb-3">
-                    <label class="form-label">Tipo de Compartilhamento *</label>
-                    <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="shareType" id="shareTypeFamily" value="family" checked>
-                        <label class="btn btn-outline-primary" for="shareTypeFamily">
-                            <i class="bi bi-people me-2"></i>Membro da Família
-                        </label>
-                        
-                        <input type="radio" class="btn-check" name="shareType" id="shareTypeAccountant" value="accountant">
-                        <label class="btn btn-outline-primary" for="shareTypeAccountant">
-                            <i class="bi bi-briefcase me-2"></i>Contador/Consultor
-                        </label>
-                    </div>
+                    <label for="inviteEmail" class="form-label">Email do usuário *</label>
+                    <input type="email" class="form-control" id="inviteEmail" placeholder="usuario@exemplo.com">
                 </div>
-
-                <div id="familyOptions" class="mb-3">
-                    <label for="familyRole" class="form-label">Papel na Família *</label>
-                    <select class="form-select" id="familyRole">
-                        <option value="">Selecione o papel</option>
-                        <option value="spouse">Cônjuge</option>
-                        <option value="child">Filho(a)</option>
-                        <option value="parent">Pai/Mãe</option>
-                        <option value="other">Outro</option>
+                
+                <div class="mb-3">
+                    <label for="inviteRole" class="form-label">Função no Workspace *</label>
+                    <select class="form-select" id="inviteRole">
+                        <option value="viewer">👁️ Visualizador - Apenas visualiza transações</option>
+                        <option value="editor" selected>✏️ Editor - Pode criar e editar transações</option>
+                        <option value="owner">👑 Co-proprietário - Controle total</option>
                     </select>
-                </div>
-
-                <div id="accountantOptions" class="mb-3" style="display: none;">
-                    <label for="accessLevel" class="form-label">Nível de Acesso *</label>
-                    <select class="form-select" id="accessLevel">
-                        <option value="viewer">Visualizador (apenas leitura)</option>
-                        <option value="editor" selected>Editor (pode editar)</option>
-                        <option value="admin">Administrador (controle total)</option>
-                    </select>
-                </div>
-
-                        <div id="shareInfo" class="alert alert-info d-none">
-                            <small id="shareInfoText"></small>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-primary" onclick="executeShare()">
-                                <i class="bi bi-check me-1"></i>Enviar Convite
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Aba: Lista de Compartilhamentos -->
-                    <div class="tab-pane fade" id="list-shares" role="tabpanel">
-                        <div id="sharesListContent">
-                            <div class="text-center py-4">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Carregando...</span>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-text">
+                        A pessoa receberá um email com o convite e poderá aceitar ou recusar.
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="sendInvite()">
+                    <i class="bi bi-send me-1"></i>Enviar Convite
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Convites Pendentes -->
+<div class="modal fade" id="pendingInvitesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-envelope-open me-2"></i>Convites Pendentes
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pendingInvitesList">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1317,6 +1283,7 @@ async function loadCharts() {
 
 // Verificar virada de mês automática ao carregar página
 document.addEventListener('DOMContentLoaded', async function() {
+    // Verificar auto-close do mês
     try {
         const response = await fetch('/gerenciamento-financeiro/api/monthly-closure/check-auto-close', {
             method: 'POST'
@@ -1331,18 +1298,213 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (error) {
         console.log('Auto-close check failed:', error);
     }
-})
+    
+    // Verificar convites pendentes
+    checkPendingInvites();
+});
 
-function showShareModal() {
-    showToast('Funcionalidade em desenvolvimento', 'info');
+// ============================================================================
+// SISTEMA DE CONVITES
+// ============================================================================
+
+async function checkPendingInvites() {
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/invites/pending');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.count > 0) {
+                document.getElementById('pendingInvitesAlert').style.display = 'block';
+                document.getElementById('pendingInvitesText').textContent = 
+                    data.count === 1 
+                        ? `${data.invites[0].invited_by.split('@')[0]} quer compartilhar "${data.invites[0].workspace_name}" com você.`
+                        : `Você tem ${data.count} convites pendentes.`;
+            }
+        }
+    } catch (error) {
+        console.log('Erro ao verificar convites:', error);
+    }
 }
 
-function loadPendingInvites() {}
-function acceptInvite() {}
-function rejectInvite() {}
+async function showShareModal() {
+    const modal = new bootstrap.Modal(document.getElementById('shareWorkspaceModal'));
+    modal.show();
+    
+    // Carregar workspaces do usuário
+    const select = document.getElementById('shareWorkspaceSelect');
+    select.innerHTML = '<option value="">Carregando...</option>';
+    
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/workspaces');
+        const data = await response.json();
+        
+        let options = '<option value="">Selecione um workspace</option>';
+        
+        if (data.owned && data.owned.length > 0) {
+            data.owned.forEach(ws => {
+                options += `<option value="${ws.id}">${ws.name}</option>`;
+            });
+        }
+        
+        select.innerHTML = options;
+        
+        if (!data.owned || data.owned.length === 0) {
+            select.innerHTML = '<option value="">Você não possui workspaces</option>';
+        }
+    } catch (error) {
+        select.innerHTML = '<option value="">Erro ao carregar</option>';
+        console.error(error);
+    }
+}
+
+async function sendInvite() {
+    const workspaceId = document.getElementById('shareWorkspaceSelect').value;
+    const email = document.getElementById('inviteEmail').value.trim();
+    const role = document.getElementById('inviteRole').value;
+    
+    if (!workspaceId) {
+        showToast('Selecione um workspace', 'warning');
+        return;
+    }
+    
+    if (!email) {
+        showToast('Digite o email do usuário', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            document.getElementById('inviteEmail').value = '';
+            bootstrap.Modal.getInstance(document.getElementById('shareWorkspaceModal')).hide();
+        } else {
+            showToast(result.error || 'Erro ao enviar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao enviar convite', 'error');
+        console.error(error);
+    }
+}
+
+function showPendingInvitesModal() {
+    const modal = new bootstrap.Modal(document.getElementById('pendingInvitesModal'));
+    modal.show();
+    loadPendingInvitesList();
+}
+
+async function loadPendingInvitesList() {
+    const container = document.getElementById('pendingInvitesList');
+    
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/invites/pending');
+        const data = await response.json();
+        
+        if (!response.ok) {
+            container.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            return;
+        }
+        
+        if (!data.invites || data.invites.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-envelope-open fs-1 text-muted d-block mb-2"></i>
+                    <p class="text-muted">Nenhum convite pendente</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        data.invites.forEach(invite => {
+            const roleLabel = invite.role === 'owner' ? 'Co-proprietário' : 
+                             invite.role === 'editor' ? 'Editor' : 'Visualizador';
+            html += `
+                <div class="card mb-3" style="border-left: 4px solid ${invite.workspace_color || '#3b82f6'};">
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">
+                            <i class="bi bi-folder-fill me-2" style="color: ${invite.workspace_color || '#3b82f6'}"></i>
+                            ${invite.workspace_name}
+                        </h6>
+                        <p class="text-muted small mb-2">
+                            <strong>${invite.invited_by.split('@')[0]}</strong> convidou você como <strong>${roleLabel}</strong>
+                        </p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-sm flex-grow-1" onclick="acceptInvite(${invite.id})">
+                                <i class="bi bi-check-lg me-1"></i>Aceitar
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="rejectInvite(${invite.id})">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar convites</div>';
+        console.error(error);
+    }
+}
+
+async function acceptInvite(inviteId) {
+    try {
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/accept`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast(result.message, 'success');
+            // Fechar modal e recarregar página para mostrar novo workspace
+            bootstrap.Modal.getInstance(document.getElementById('pendingInvitesModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.error || 'Erro ao aceitar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao aceitar convite', 'error');
+        console.error(error);
+    }
+}
+
+async function rejectInvite(inviteId) {
+    if (!confirm('Tem certeza que deseja recusar este convite?')) return;
+    
+    try {
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/reject`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Convite recusado', 'info');
+            loadPendingInvitesList();
+            checkPendingInvites();
+        } else {
+            showToast(result.error || 'Erro ao recusar convite', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao recusar convite', 'error');
+    }
+}
+
+// Funções stub para compatibilidade
+function loadPendingInvites() { loadPendingInvitesList(); }
 function loadShares() {}
 function updateShareTypeOptions() {}
-function executeShare() {}
+function executeShare() { sendInvite(); }
 function acceptInviteAndClose() {}
 function createOwnWorkspaceAndClose() {}
 function checkFirstAccess() {}

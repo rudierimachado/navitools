@@ -16,7 +16,7 @@ import calendar
 import os
 
 from extensions import db
-from email_service import send_share_invitation, send_share_accepted, send_verification_code, send_password_reset
+from email_service import send_share_invitation, send_share_accepted, send_verification_code, send_password_reset, send_workspace_invitation
 from models import (
     User,
     LoginAudit,
@@ -32,6 +32,7 @@ from models import (
     PasswordReset,
     Workspace,
     WorkspaceMember,
+    WorkspaceInvite,
 )
 import random
 import secrets
@@ -157,6 +158,19 @@ def _get_accessible_user_ids(user_id):
         user_ids.append(share.owner_id)
     
     return user_ids
+
+
+def _get_user_workspace_role(user_id: int, workspace_id: int) -> str | None:
+    """Retorna a role do usuário no workspace: owner/editor/viewer ou None."""
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        return None
+
+    if workspace.owner_id == user_id:
+        return "owner"
+
+    member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+    return member.role if member else None
 
 @gerenciamento_financeiro_bp.route("/")
 def home():
@@ -330,10 +344,20 @@ def select_workspace():
     
     # Buscar workspaces próprios
     owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
+    owned_ids = {ws.id for ws in owned_workspaces}
     
-    # Buscar workspaces compartilhados
+    # Buscar workspaces compartilhados (excluindo os que o usuário é dono)
     shared_workspace_members = WorkspaceMember.query.filter_by(user_id=user_id).all()
-    shared_workspaces = [member.workspace for member in shared_workspace_members if member.workspace]
+    shared_workspaces = [
+        member.workspace for member in shared_workspace_members 
+        if member.workspace and member.workspace.id not in owned_ids
+    ]
+    
+    # Debug
+    print(f"[SELECT_WORKSPACE] user_id={user_id} owned_count={len(owned_workspaces)} shared_count={len(shared_workspaces)}")
+    print(f"[SELECT_WORKSPACE] owned_ids={owned_ids}")
+    for m in shared_workspace_members:
+        print(f"[SELECT_WORKSPACE] member: workspace_id={m.workspace_id} user_id={m.user_id} role={m.role}")
     
     return render_template(
         "workspace_selection_standalone.html",
@@ -369,11 +393,11 @@ def login():
         # Autenticação bem-sucedida
         session["finance_user_id"] = user.id
         session["finance_user_email"] = user.email
-        
+
         flash("Bem-vindo ao painel financeiro!", "success")
         _log_attempt(email, True, user_id=user.id)
 
-        # Verificar se há convite de compartilhamento a aceitar
+        # Verificar se há convite de compartilhamento (SystemShare) a aceitar
         accept_share_id = request.args.get("accept_share_id")
         if accept_share_id and accept_share_id.isdigit():
             try:
@@ -381,16 +405,12 @@ def login():
                 share = SystemShare.query.get(share_id_int)
 
                 if share and share.status == "pending" and share.shared_email.lower() == user.email.lower():
-                    # Aceitar convite para este usuário
                     share.shared_user_id = user.id
                     share.status = "accepted"
                     share.accepted_at = datetime.utcnow()
                     db.session.commit()
-
-                    # Feedback visual para o usuário
                     flash("Convite de compartilhamento encontrado e aceito com sucesso!", "success")
 
-                    # Enviar email de confirmação para o dono
                     try:
                         from flask import current_app
                         send_share_accepted(
@@ -398,17 +418,100 @@ def login():
                             shared_email=user.email,
                             app=current_app,
                         )
-                    except Exception as e:  # pragma: no cover - apenas loga erro de email
+                    except Exception as e:  # pragma: no cover
                         print(f"Erro ao enviar email de confirmação de compartilhamento: {e}")
-
             except Exception as e:
                 db.session.rollback()
                 print(f"Erro ao aceitar convite de compartilhamento no login: {e}")
 
-        # Redirecionar para seleção de workspace
+        # Verificar se há convite de WORKSPACE (WorkspaceInvite) a aceitar via token
+        accept_invite_token = request.args.get("accept_invite_token")
+        if accept_invite_token:
+            try:
+                invite = WorkspaceInvite.query.filter_by(token=accept_invite_token).first()
+                if invite and invite.status == "pending" and invite.expires_at > datetime.utcnow():
+                    if invite.invited_email.lower() == user.email.lower() or invite.invited_user_id == user.id:
+                        existing = WorkspaceMember.query.filter_by(
+                            workspace_id=invite.workspace_id,
+                            user_id=user.id,
+                        ).first()
+
+                        if not existing:
+                            member = WorkspaceMember(
+                                workspace_id=invite.workspace_id,
+                                user_id=user.id,
+                                role=invite.role,
+                            )
+                            db.session.add(member)
+
+                        invite.status = "accepted"
+                        invite.responded_at = datetime.utcnow()
+                        invite.invited_user_id = user.id
+                        db.session.commit()
+                        flash("Convite de workspace aceito com sucesso!", "success")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Erro ao aceitar convite de workspace no login: {e}")
+
         return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
     return render_template("finance_login.html", user=None)
+
+
+@gerenciamento_financeiro_bp.route("/invites/<string:token>", methods=["GET"])
+def open_workspace_invite(token):
+    """Link simples de convite. Se estiver logado, aceita; se não, redireciona para login."""
+    print(f"[OPEN_INVITE] Token recebido: {token[:20]}...")
+    
+    if "finance_user_id" not in session:
+        print(f"[OPEN_INVITE] Usuário não logado, redirecionando para login")
+        return redirect(url_for("gerenciamento_financeiro.login", accept_invite_token=token))
+
+    user_id = session["finance_user_id"]
+    user = User.query.get(user_id)
+    print(f"[OPEN_INVITE] Usuário logado: id={user_id} email={user.email}")
+
+    try:
+        invite = WorkspaceInvite.query.filter_by(token=token).first()
+        if not invite:
+            print(f"[OPEN_INVITE] Convite não encontrado para token")
+            flash("Convite inválido.", "danger")
+            return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+
+        print(f"[OPEN_INVITE] Convite encontrado: id={invite.id} status={invite.status} workspace_id={invite.workspace_id} invited_email={invite.invited_email}")
+
+        if invite.status != "pending" or invite.expires_at < datetime.utcnow():
+            print(f"[OPEN_INVITE] Convite expirado ou já usado: status={invite.status} expires={invite.expires_at}")
+            flash("Convite expirado ou já utilizado.", "warning")
+            return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+
+        if invite.invited_email.lower() != user.email.lower() and invite.invited_user_id not in (None, user.id):
+            print(f"[OPEN_INVITE] Convite não é para este usuário: invited_email={invite.invited_email} user_email={user.email}")
+            flash("Este convite não é para o seu usuário.", "danger")
+            return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+
+        existing = WorkspaceMember.query.filter_by(workspace_id=invite.workspace_id, user_id=user.id).first()
+        if not existing:
+            member = WorkspaceMember(workspace_id=invite.workspace_id, user_id=user.id, role=invite.role)
+            db.session.add(member)
+            print(f"[OPEN_INVITE] Novo membro criado: workspace_id={invite.workspace_id} user_id={user.id} role={invite.role}")
+        else:
+            print(f"[OPEN_INVITE] Usuário já é membro do workspace")
+
+        invite.status = "accepted"
+        invite.responded_at = datetime.utcnow()
+        invite.invited_user_id = user.id
+        db.session.commit()
+        print(f"[OPEN_INVITE] Convite aceito com sucesso!")
+
+        flash("Convite aceito! Agora você tem acesso ao workspace.", "success")
+        return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao aceitar convite por token: {e}")
+        flash("Erro ao aceitar convite.", "danger")
+        return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
 @gerenciamento_financeiro_bp.route("/api/login", methods=["POST", "OPTIONS"])
 @gerenciamento_financeiro_bp.route("/api/login/", methods=["POST", "OPTIONS"])
@@ -541,51 +644,57 @@ def register():
             flash("Este e-mail já está cadastrado.", "warning")
             return render_template("finance_register.html", user=None)
 
-        # Criar usuário (ainda não verificado)
-        user = User(email=email, password_hash=generate_password_hash(password))
-        db.session.add(user)
-        db.session.commit()
+        try:
+            user = User(email=email, password_hash=generate_password_hash(password))
+            db.session.add(user)
+            db.session.flush()
 
-        # Criar workspace padrão
-        default_workspace = Workspace(
-            owner_id=user.id,
-            name="Meu Workspace",
-            description="Workspace padrão",
-            color="#3b82f6"
-        )
-        db.session.add(default_workspace)
-        db.session.commit()
+            default_workspace = Workspace(
+                owner_id=user.id,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6"
+            )
+            db.session.add(default_workspace)
+            db.session.flush()
 
-        # Garantir categorias padrão
-        _ensure_default_categories(user.id)
+            verification_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+            expires_at = datetime.utcnow() + timedelta(minutes=15)
 
-        # Gerar código de verificação de 6 dígitos
-        verification_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        expires_at = datetime.utcnow() + timedelta(minutes=15)
-        
-        verification = EmailVerification(
-            email=email,
-            code=verification_code,
-            expires_at=expires_at
-        )
-        db.session.add(verification)
-        db.session.commit()
+            verification = EmailVerification(
+                email=email,
+                code=verification_code,
+                expires_at=expires_at
+            )
+            db.session.add(verification)
+            db.session.flush()
 
-        # Enviar código por email
-        from flask import current_app
-        send_verification_code(email, verification_code, current_app)
+            from flask import current_app
+            email_ok = send_verification_code(email, verification_code, current_app)
+            if not email_ok:
+                db.session.rollback()
+                flash("Não foi possível enviar o código de verificação por e-mail. Tente novamente mais tarde.", "danger")
+                return render_template("finance_register.html", user=None)
 
-        # Guardar email na sessão para verificação
-        session['pending_verification_email'] = email
-        session['pending_verification_user_id'] = user.id
+            db.session.commit()
 
-        # Se o usuário chegou aqui a partir de um link de convite, guardar para depois
-        accept_share_id = request.args.get("accept_share_id")
-        if accept_share_id:
-            session['pending_share_id'] = accept_share_id
+            _ensure_default_categories(user.id)
 
-        flash("Conta criada! Verifique seu email e insira o código de 6 dígitos.", "success")
-        return redirect(url_for("gerenciamento_financeiro.verify_email"))
+            session['pending_verification_email'] = email
+            session['pending_verification_user_id'] = user.id
+
+            accept_share_id = request.args.get("accept_share_id")
+            if accept_share_id:
+                session['pending_share_id'] = accept_share_id
+
+            flash("Conta criada! Verifique seu email e insira o código de 6 dígitos.", "success")
+            return redirect(url_for("gerenciamento_financeiro.verify_email"))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Erro no cadastro/verificação de email: {e}")
+            flash("Erro ao criar conta. Tente novamente.", "danger")
+            return render_template("finance_register.html", user=None)
 
     return render_template("finance_register.html", user=None)
 
@@ -663,30 +772,41 @@ def forgot_password():
             return render_template("finance_forgot_password.html")
         
         user = User.query.filter(func.lower(User.email) == email).first()
-        
-        # Sempre mostrar mensagem de sucesso (segurança)
-        flash("Se este email estiver cadastrado, você receberá um link de recuperação.", "info")
-        
-        if user:
-            # Gerar token único
+
+        if not user:
+            flash("Se este email estiver cadastrado, você receberá um link de recuperação.", "info")
+            return redirect(url_for("gerenciamento_financeiro.login"))
+
+        try:
             token = secrets.token_urlsafe(32)
             expires_at = datetime.utcnow() + timedelta(hours=1)
-            
+
             reset = PasswordReset(
                 user_id=user.id,
                 token=token,
                 expires_at=expires_at
             )
             db.session.add(reset)
-            db.session.commit()
-            
-            # Enviar email com link
+            db.session.flush()
+
             from flask import current_app
             base_url = current_app.config.get('APP_BASE_URL', request.host_url.rstrip('/'))
             reset_link = f"{base_url}{url_for('gerenciamento_financeiro.reset_password', token=token)}"
-            send_password_reset(email, reset_link, current_app)
-        
-        return redirect(url_for("gerenciamento_financeiro.login"))
+            email_ok = send_password_reset(email, reset_link, current_app)
+            if not email_ok:
+                db.session.rollback()
+                flash("Não foi possível enviar o e-mail de recuperação agora. Tente novamente mais tarde.", "danger")
+                return render_template("finance_forgot_password.html")
+
+            db.session.commit()
+            flash("Link de recuperação enviado. Verifique seu email.", "success")
+            return redirect(url_for("gerenciamento_financeiro.login"))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"Erro ao solicitar recuperação de senha: {e}")
+            flash("Não foi possível processar sua solicitação agora. Tente novamente.", "danger")
+            return render_template("finance_forgot_password.html")
     
     return render_template("finance_forgot_password.html")
 
@@ -824,6 +944,11 @@ def api_transactions():
         session["active_workspace_id"] = default_workspace.id
         workspace_id = default_workspace.id
 
+    # Permissão do usuário no workspace ativo
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
     # Garantir que o workspace exista (sessão pode ficar com id inválido)
     if workspace_id and not Workspace.query.get(workspace_id):
         default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
@@ -841,6 +966,9 @@ def api_transactions():
     
     if request.method == "POST":
         try:
+            if workspace_role == "viewer":
+                return _json({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}, 403)
+
             data = request.get_json()
             
             # Validação melhorada
@@ -1062,16 +1190,25 @@ def api_transaction_detail(transaction_id):
 
     # Se existir workspace ativo, filtrar por ele também
     workspace_id = session.get("active_workspace_id")
-    tx_query = Transaction.query.filter_by(id=transaction_id, user_id=user_id)
-    if workspace_id:
-        tx_query = tx_query.filter_by(workspace_id=workspace_id)
-    transaction = tx_query.first()
+
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    # A partir daqui, transações são do workspace (não do criador)
+    transaction = Transaction.query.filter_by(id=transaction_id, workspace_id=workspace_id).first()
     
     if not transaction:
         return _json({"error": "Transação não encontrada"}, 404)
     
     if request.method == "PUT":
         try:
+            if workspace_role == "viewer":
+                return _json({"error": "Sem permissão para editar (somente visualização)"}, 403)
+
             data = request.get_json()
             
             if "description" in data:
@@ -1124,6 +1261,9 @@ def api_transaction_detail(transaction_id):
 
     if request.method == "DELETE":
         try:
+            if workspace_role == "viewer":
+                return _json({"error": "Sem permissão para excluir (somente visualização)"}, 403)
+
             db.session.delete(transaction)
             db.session.commit()
             return _json({"message": "Transação excluída com sucesso", "id": transaction_id}, 200)
@@ -1631,7 +1771,11 @@ def api_close_month():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        resp = jsonify({"error": str(e)})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 500
 
 
 @gerenciamento_financeiro_bp.route("/api/monthly-closure/check-auto-close", methods=["POST"])
@@ -1770,7 +1914,11 @@ def api_check_auto_close():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        resp = jsonify({"error": str(e)})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 500
 
 
 @gerenciamento_financeiro_bp.route("/api/monthly-closure/history", methods=["GET"])
@@ -1920,17 +2068,44 @@ def api_current_month_closure():
 # ENDPOINTS DE COMPARTILHAMENTO DO SISTEMA
 # ============================================================================
 
-@gerenciamento_financeiro_bp.route("/api/system/share", methods=["POST"])
+@gerenciamento_financeiro_bp.route("/api/system/share", methods=["POST", "OPTIONS"])
 def api_share_system():
     """Compartilha o sistema com outro usuário via email"""
+    origin = request.headers.get("Origin", "*")
+
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    try:
+        payload_preview = request.get_json(silent=True)
+    except Exception:
+        payload_preview = None
+    print(f"[SYSTEM SHARE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')} payload={payload_preview}", flush=True)
+
     if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
+        print("[SYSTEM SHARE] 401 - finance_user_id ausente na sessão", flush=True)
+        resp = jsonify({"error": "Não autorizado"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
     
     user_id = session["finance_user_id"]
     data = request.get_json()
     
     if not data or not data.get("email"):
-        return jsonify({"error": "Email é obrigatório"}), 400
+        print(f"[SYSTEM SHARE] 400 - payload inválido: {data}", flush=True)
+        resp = jsonify({"error": "Email é obrigatório"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 400
     
     shared_email = data.get("email").lower().strip()
     share_type = data.get("share_type", "accountant")  # family ou accountant
@@ -1997,22 +2172,34 @@ def api_share_system():
                 family_role=family_role if share_type == "family" else None,
                 access_level=access_level
             )
-        
+
         db.session.add(share)
+        db.session.flush()
+
+        email_ok = None
+        if share.status == "pending":
+            from flask import current_app
+            email_ok = send_share_invitation(
+                recipient_email=shared_email,
+                owner_email=user.email,
+                access_level=access_level,
+                share_id=share.id,
+                app=current_app
+            )
+
+            if not email_ok:
+                db.session.rollback()
+                return jsonify({
+                    "error": "Não foi possível enviar o convite por e-mail.",
+                    "details": "Verifique a configuração SMTP (Brevo) e tente novamente.",
+                    "email_sent": False,
+                }), 502
+
         db.session.commit()
-        
-        # Enviar email de convite
-        from flask import current_app
-        send_share_invitation(
-            recipient_email=shared_email,
-            owner_email=user.email,
-            access_level=access_level,
-            share_id=share.id,
-            app=current_app
-        )
-        
-        return jsonify({
+
+        response_payload = {
             "message": "Compartilhamento criado com sucesso!",
+            "email_sent": bool(email_ok) if email_ok is not None else None,
             "share": {
                 "id": share.id,
                 "email": share.shared_email,
@@ -2020,7 +2207,9 @@ def api_share_system():
                 "access_level": share.access_level,
                 "created_at": share.created_at.isoformat()
             }
-        }), 201
+        }
+
+        return jsonify(response_payload), 201
         
     except Exception as e:
         db.session.rollback()
@@ -2217,7 +2406,11 @@ def api_select_workspace(workspace_id):
     try:
         workspace = Workspace.query.get(workspace_id)
         if not workspace:
-            return jsonify({"error": "Workspace não encontrado"}), 404
+            resp = jsonify({"error": "Workspace não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
         
         # Verificar permissão (dono ou membro)
         if workspace.owner_id != user_id:
@@ -2285,10 +2478,11 @@ def api_workspaces():
         try:
             # Workspaces que o usuário é dono
             owned = Workspace.query.filter_by(owner_id=user_id).all()
+            owned_ids = {w.id for w in owned}
             
-            # Workspaces compartilhados com o usuário
+            # Workspaces compartilhados com o usuário (excluindo os que é dono)
             shared_members = WorkspaceMember.query.filter_by(user_id=user_id).all()
-            shared_workspace_ids = [m.workspace_id for m in shared_members]
+            shared_workspace_ids = [m.workspace_id for m in shared_members if m.workspace_id not in owned_ids]
             shared = Workspace.query.filter(Workspace.id.in_(shared_workspace_ids)).all() if shared_workspace_ids else []
             
             # Criar dicionário de roles para workspaces compartilhados
@@ -2318,59 +2512,6 @@ def api_workspaces():
             print(f"Erro ao listar workspaces: {e}")
             return jsonify({"error": str(e)}), 500
 
-@gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>/share", methods=["POST"])
-def api_share_workspace(workspace_id):
-    """Compartilha um workspace com um usuário"""
-    if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
-    
-    user_id = session["finance_user_id"]
-    
-    try:
-        workspace = Workspace.query.get(workspace_id)
-        if not workspace or workspace.owner_id != user_id:
-            return jsonify({"error": "Workspace não encontrado ou sem permissão"}), 404
-        
-        data = request.get_json()
-        email = data.get("email", "").strip().lower()
-        role = data.get("role", "editor")
-        
-        if not email:
-            return jsonify({"error": "Email é obrigatório"}), 400
-        
-        # Buscar usuário
-        target_user = User.query.filter(func.lower(User.email) == email).first()
-        if not target_user:
-            return jsonify({"error": "Usuário não encontrado"}), 404
-        
-        # Verificar se já é membro
-        existing = WorkspaceMember.query.filter_by(
-            workspace_id=workspace_id,
-            user_id=target_user.id
-        ).first()
-        
-        if existing:
-            return jsonify({"error": "Usuário já é membro deste workspace"}), 400
-        
-        # Adicionar membro
-        member = WorkspaceMember(
-            workspace_id=workspace_id,
-            user_id=target_user.id,
-            role=role
-        )
-        db.session.add(member)
-        db.session.commit()
-        
-        return jsonify({
-            "message": "Workspace compartilhado com sucesso",
-            "user_email": target_user.email,
-            "role": role
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
 @gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>/members", methods=["GET"])
 def api_workspace_members(workspace_id):
     """Lista membros de um workspace"""
@@ -2378,11 +2519,16 @@ def api_workspace_members(workspace_id):
         return jsonify({"error": "Não autorizado"}), 401
     
     user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
     
     try:
         workspace = Workspace.query.get(workspace_id)
         if not workspace:
-            return jsonify({"error": "Workspace não encontrado"}), 404
+            resp = jsonify({"error": "Workspace não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
         
         # Verificar permissão (dono ou membro)
         if workspace.owner_id != user_id:
@@ -2393,11 +2539,18 @@ def api_workspace_members(workspace_id):
             if not member:
                 return jsonify({"error": "Sem permissão"}), 403
         
+        manager_member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+        can_manage = bool(workspace.owner_id == user_id or (manager_member and manager_member.role == "owner"))
+        
         members = WorkspaceMember.query.filter_by(workspace_id=workspace_id).all()
         
         return jsonify({
+            "can_manage": can_manage,
+            "owner_id": workspace.owner_id,
+            "owner_email": workspace.owner.email if workspace.owner else None,
             "members": [{
                 "id": m.id,
+                "user_id": m.user_id,
                 "email": m.user.email,
                 "role": m.role,
                 "joined_at": m.joined_at.isoformat()
@@ -2407,6 +2560,89 @@ def api_workspace_members(workspace_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>/members/<int:member_id>", methods=["PUT", "DELETE"])
+def api_manage_workspace_member(workspace_id, member_id):
+    """Atualiza role ou remove um membro do workspace (dono ou co-owner)."""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
+
+    try:
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            resp = jsonify({"error": "Workspace não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
+
+        manager_member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+        can_manage = bool(workspace.owner_id == user_id or (manager_member and manager_member.role == "owner"))
+        if not can_manage:
+            resp = jsonify({"error": "Sem permissão"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 403
+
+        member = WorkspaceMember.query.filter_by(id=member_id, workspace_id=workspace_id).first()
+        if not member:
+            resp = jsonify({"error": "Membro não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
+
+        if member.user_id == workspace.owner_id:
+            resp = jsonify({"error": "Não é possível alterar ou remover o dono do workspace"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 400
+
+        if request.method == "PUT":
+            data = request.get_json() or {}
+            new_role = (data.get("role") or "").strip().lower()
+            if new_role not in ["editor", "viewer"]:
+                resp = jsonify({"error": "Função inválida"})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp, 400
+
+            member.role = new_role
+            db.session.commit()
+
+            resp = jsonify({
+                "message": "Permissão atualizada",
+                "member_id": member.id,
+                "role": member.role,
+            })
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 200
+
+        # DELETE
+        db.session.delete(member)
+        db.session.commit()
+        resp = jsonify({"message": "Membro removido"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 200
+
+    except Exception as e:
+        db.session.rollback()
+        resp = jsonify({"error": str(e)})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 500
+
 @gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>", methods=["PUT", "DELETE"])
 def api_update_workspace(workspace_id):
     """Atualiza ou deleta um workspace"""
@@ -2414,11 +2650,16 @@ def api_update_workspace(workspace_id):
         return jsonify({"error": "Não autorizado"}), 401
     
     user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
     
     try:
         workspace = Workspace.query.get(workspace_id)
         if not workspace:
-            return jsonify({"error": "Workspace não encontrado"}), 404
+            resp = jsonify({"error": "Workspace não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
         
         # Apenas o dono pode atualizar/deletar
         if workspace.owner_id != user_id:
@@ -2475,6 +2716,323 @@ def api_update_workspace(workspace_id):
             return jsonify({
                 "message": "Workspace deletado com sucesso"
             }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# CONVITES DE WORKSPACE
+# ============================================================================
+
+@gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>/invite", methods=["POST", "OPTIONS"])
+def api_invite_to_workspace(workspace_id):
+    """Envia convite para workspace por email"""
+    origin = request.headers.get("Origin", "*")
+
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    try:
+        payload_preview = request.get_json(silent=True)
+    except Exception:
+        payload_preview = None
+    print(f"[WORKSPACE INVITE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')} workspace_id={workspace_id} payload={payload_preview}", flush=True)
+
+    if "finance_user_id" not in session:
+        resp = jsonify({"error": "Não autorizado"})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 401
+    
+    user_id = session["finance_user_id"]
+    
+    try:
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            resp = jsonify({"error": "Workspace não encontrado"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 404
+        
+        # Verificar se é dono do workspace ou co-owner
+        if workspace.owner_id != user_id:
+            member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+            if not member or member.role != "owner":
+                resp = jsonify({"error": "Apenas o dono pode convidar"})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp, 403
+
+            # Se chegou aqui, é co-owner (role=owner)
+            pass
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+
+        
+        data = request.get_json()
+        email = data.get("email", "").strip().lower()
+        role = data.get("role", "editor")
+        
+        if not email:
+            resp = jsonify({"error": "Email é obrigatório"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 400
+        
+        if role not in ["owner", "editor", "viewer"]:
+            resp = jsonify({"error": "Função inválida"})
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            return resp, 400
+        
+        # Verificar se já é membro
+        target_user = User.query.filter(func.lower(User.email) == email).first()
+        if target_user:
+            existing_member = WorkspaceMember.query.filter_by(
+                workspace_id=workspace_id, user_id=target_user.id
+            ).first()
+            if existing_member:
+                resp = jsonify({"error": "Usuário já é membro deste workspace"})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp, 400
+            
+            if target_user.id == workspace.owner_id:
+                resp = jsonify({"error": "Não é possível convidar o dono do workspace"})
+                resp.headers["Access-Control-Allow-Origin"] = origin
+                resp.headers["Vary"] = "Origin"
+                resp.headers["Access-Control-Allow-Credentials"] = "true"
+                return resp, 400
+        
+        # Verificar se já existe convite pendente - se existir, atualiza
+        existing_invite = WorkspaceInvite.query.filter_by(
+            workspace_id=workspace_id,
+            invited_email=email,
+            status="pending"
+        ).first()
+        
+        if existing_invite:
+            # Atualizar convite existente
+            existing_invite.role = role
+            existing_invite.token = secrets.token_urlsafe(32)
+            existing_invite.expires_at = datetime.utcnow() + timedelta(days=7)
+            existing_invite.created_at = datetime.utcnow()
+            existing_invite.invited_user_id = target_user.id if target_user else None
+            invite = existing_invite
+        else:
+            # Criar novo convite
+            token = secrets.token_urlsafe(32)
+            invite = WorkspaceInvite(
+                workspace_id=workspace_id,
+                invited_by_id=user_id,
+                invited_email=email,
+                invited_user_id=target_user.id if target_user else None,
+                role=role,
+                token=token,
+                expires_at=datetime.utcnow() + timedelta(days=7)
+            )
+            db.session.add(invite)
+        db.session.commit()
+        
+        # Enviar email de convite
+        inviter = User.query.get(user_id)
+        email_ok = None
+        try:
+            from flask import current_app
+            email_ok = send_workspace_invitation(
+                recipient_email=email,
+                inviter_email=inviter.email,
+                token=invite.token,
+                workspace_name=workspace.name,
+                role=role,
+                app=current_app._get_current_object()
+            )
+            print(f"[INVITE] send_workspace_invitation retornou={email_ok}")
+        except Exception as e:
+            print(f"Erro ao enviar email de convite: {e}")
+        
+        invite_url = url_for("gerenciamento_financeiro.open_workspace_invite", token=invite.token, _external=True)
+
+        resp = jsonify({
+            "message": "Convite criado com sucesso!" if email_ok else "Convite criado, mas o email não pôde ser enviado.",
+            "invite_id": invite.id,
+            "email": email,
+            "role": role,
+            "email_sent": bool(email_ok),
+            "invite_url": invite_url
+        })
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WORKSPACE INVITE] 500 - {e}", flush=True)
+        resp = jsonify({"error": str(e)})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, 500
+
+
+@gerenciamento_financeiro_bp.route("/api/invites/pending", methods=["GET"])
+def api_my_pending_invites():
+    """Lista convites pendentes do usuário logado"""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    user_id = session["finance_user_id"]
+    user = User.query.get(user_id)
+    
+    try:
+        invites = WorkspaceInvite.query.filter(
+            or_(
+                WorkspaceInvite.invited_user_id == user_id,
+                func.lower(WorkspaceInvite.invited_email) == user.email.lower()
+            ),
+            WorkspaceInvite.status == "pending",
+            WorkspaceInvite.expires_at > datetime.utcnow()
+        ).all()
+        
+        return jsonify({
+            "count": len(invites),
+            "invites": [{
+                "id": i.id,
+                "workspace_id": i.workspace_id,
+                "workspace_name": i.workspace.name,
+                "workspace_color": i.workspace.color,
+                "invited_by": i.invited_by.email,
+                "role": i.role,
+                "created_at": i.created_at.isoformat()
+            } for i in invites]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/invites/<int:invite_id>/accept", methods=["POST"])
+def api_accept_invite(invite_id):
+    """Aceita um convite de workspace"""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    user_id = session["finance_user_id"]
+    user = User.query.get(user_id)
+    
+    try:
+        invite = WorkspaceInvite.query.get(invite_id)
+        if not invite:
+            return jsonify({"error": "Convite não encontrado"}), 404
+        
+        # Verificar se o convite é para este usuário
+        is_for_user = (
+            invite.invited_user_id == user_id or
+            invite.invited_email.lower() == user.email.lower()
+        )
+        
+        if not is_for_user:
+            return jsonify({"error": "Este convite não é para você"}), 403
+        
+        if invite.status != "pending":
+            return jsonify({"error": f"Convite já foi {invite.status}"}), 400
+        
+        if invite.expires_at < datetime.utcnow():
+            invite.status = "expired"
+            db.session.commit()
+            return jsonify({"error": "Convite expirado"}), 400
+        
+        # Verificar se já é membro
+        existing_member = WorkspaceMember.query.filter_by(
+            workspace_id=invite.workspace_id,
+            user_id=user_id
+        ).first()
+        
+        if not existing_member:
+            # Adicionar como membro
+            member = WorkspaceMember(
+                workspace_id=invite.workspace_id,
+                user_id=user_id,
+                role=invite.role
+            )
+            db.session.add(member)
+            print(f"[ACCEPT_INVITE] Novo membro adicionado: user_id={user_id} workspace_id={invite.workspace_id}")
+        else:
+            print(f"[ACCEPT_INVITE] Usuário já é membro: user_id={user_id} workspace_id={invite.workspace_id}")
+        
+        invite.status = "accepted"
+        invite.responded_at = datetime.utcnow()
+        invite.invited_user_id = user_id
+        db.session.commit()
+        
+        # Notificar quem convidou
+        try:
+            send_share_accepted(
+                to_email=invite.invited_by.email,
+                accepter_email=user.email,
+                workspace_name=invite.workspace.name
+            )
+        except Exception as e:
+            print(f"Erro ao enviar email de aceitação: {e}")
+        
+        return jsonify({
+            "message": "Convite aceito! Você agora faz parte do workspace.",
+            "workspace_id": invite.workspace_id,
+            "workspace_name": invite.workspace.name
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/invites/<int:invite_id>/reject", methods=["POST"])
+def api_reject_invite(invite_id):
+    """Rejeita um convite de workspace"""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    user_id = session["finance_user_id"]
+    user = User.query.get(user_id)
+    
+    try:
+        invite = WorkspaceInvite.query.get(invite_id)
+        if not invite:
+            return jsonify({"error": "Convite não encontrado"}), 404
+        
+        is_for_user = (
+            invite.invited_user_id == user_id or
+            invite.invited_email.lower() == user.email.lower()
+        )
+        
+        if not is_for_user:
+            return jsonify({"error": "Este convite não é para você"}), 403
+        
+        if invite.status != "pending":
+            return jsonify({"error": f"Convite já foi {invite.status}"}), 400
+        
+        invite.status = "rejected"
+        invite.responded_at = datetime.utcnow()
+        invite.invited_user_id = user_id
+        db.session.commit()
+        
+        return jsonify({"message": "Convite recusado"}), 200
         
     except Exception as e:
         db.session.rollback()

@@ -188,7 +188,15 @@
                         </div>
                         <div class="workspace-details">
                             <h3>{{ ws.name }}</h3>
-                            {% if ws.description %}
+                            {% if ws.members %}
+                            <p style="font-size: 0.8rem; opacity: 0.7;">
+                                <i class="bi bi-people-fill me-1"></i>
+                                Compartilhado com: 
+                                {% for member in ws.members %}
+                                    {{ member.user.email.split('@')[0] }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </p>
+                            {% elif ws.description %}
                             <p>{{ ws.description }}</p>
                             {% endif %}
                         </div>

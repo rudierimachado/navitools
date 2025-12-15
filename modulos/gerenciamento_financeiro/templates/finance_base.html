@@ -515,6 +515,26 @@
             toast.show();
         };
 
+        if (!window.__nexus_fetch_patched) {
+            window.__nexus_fetch_patched = true;
+            const __origFetch = window.fetch.bind(window);
+            window.fetch = async (...args) => {
+                const resp = await __origFetch(...args);
+                if (resp && (resp.status === 401 || resp.status === 403)) {
+                    try {
+                        const data = await resp.clone().json();
+                        window.showToast(
+                            (data && data.error) ? data.error : (resp.status === 401 ? 'Não autorizado' : 'Sem permissão'),
+                            'warning'
+                        );
+                    } catch (e) {
+                        window.showToast(resp.status === 401 ? 'Não autorizado' : 'Sem permissão', 'warning');
+                    }
+                }
+                return resp;
+            };
+        }
+
         window.showWorkspaceMenu = function() {
             const modal = new bootstrap.Modal(document.getElementById('workspacesModal'));
             modal.show();
@@ -554,9 +574,13 @@
                 const renderWsCard = (ws, isShared=false) => {
                     const icon = isShared ? 'bi-folder-symlink' : 'bi-folder';
                     const subtitle = isShared && ws.owner_email ? `<small class="text-muted d-block">De: ${ws.owner_email}</small>` : (ws.description ? `<small class="text-muted d-block">${ws.description}</small>` : '');
-                    const roleBadge = isShared ? `<span class="badge bg-secondary ms-2">${ws.role || 'viewer'}</span>` : '';
+                    const roleLabel = (ws.role === 'editor' || ws.role === 'owner') ? 'Acesso total' : 'Visualização';
+                    const roleBadge = isShared ? `<span class="badge bg-secondary ms-2">${roleLabel}</span>` : '';
                     const actions = !isShared ? `
                         <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="return window.openWorkspaceMembersModal(event, ${ws.id}, '${(ws.name || '').replace(/'/g, "\\'")}')" title="Membros e permissões">
+                                <i class="bi bi-people"></i>
+                            </button>
                             <button class="btn btn-outline-warning" onclick="event.stopPropagation(); showEditWorkspaceModal(${ws.id}, '${(ws.name || '').replace(/'/g, "\\'")}', '${ws.color}')" title="Editar">
                                 <i class="bi bi-pencil"></i>
                             </button>
@@ -601,6 +625,174 @@
                 if (container) {
                     container.innerHTML = '<div class="alert alert-danger m-3">Erro ao carregar workspaces.</div>';
                 }
+            }
+        };
+
+        // Abrir modal de membros (wrapper síncrono para stopPropagation)
+        window.openWorkspaceMembersModal = function(evt, workspaceId, workspaceName) {
+            try {
+                if (evt) {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                }
+            } catch (e) {}
+            window.showWorkspaceMembersModal(workspaceId, workspaceName);
+            return false;
+        };
+
+        // Mostrar modal de membros do workspace
+        window.showWorkspaceMembersModal = async function(workspaceId, workspaceName) {
+            const html = `
+                <div class="modal fade" id="workspaceMembersModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="bi bi-people me-2"></i>Membros · ${workspaceName || 'Workspace'}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="workspaceMembersContent">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            document.body.appendChild(container);
+
+            const modalEl = document.getElementById('workspaceMembersModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                container.remove();
+            });
+
+            await window.loadWorkspaceMembers(workspaceId);
+        };
+
+        // Carregar membros do workspace
+        window.loadWorkspaceMembers = async function(workspaceId) {
+            const content = document.getElementById('workspaceMembersContent');
+            if (!content) return;
+
+            try {
+                const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/members`);
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    content.innerHTML = `<div class="alert alert-danger">${data.error || 'Erro ao carregar membros.'}</div>`;
+                    return;
+                }
+
+                const canManage = !!data.can_manage;
+                const ownerId = data.owner_id;
+                const ownerEmail = data.owner_email;
+
+                let rows = '';
+                if (ownerEmail) {
+                    rows += `
+                        <tr>
+                            <td>${ownerEmail}</td>
+                            <td><span class="badge bg-success">Proprietário (dono)</span></td>
+                            <td class="text-end text-muted">—</td>
+                        </tr>
+                    `;
+                }
+
+                (data.members || []).forEach(m => {
+                    if (m.user_id === ownerId) return;
+
+                    const roleBadge = m.role === 'owner' ? 'bg-warning text-dark' : (m.role === 'editor' ? 'bg-primary' : 'bg-secondary');
+                    const roleLabels = { viewer: 'Visualização', editor: 'Acesso total', owner: 'Acesso total' };
+                    const roleCell = canManage ? `
+                        <select class="form-select form-select-sm" onchange="updateWorkspaceMemberRole(${workspaceId}, ${m.id}, this.value)">
+                            <option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>Visualização</option>
+                            <option value="editor" ${m.role === 'editor' || m.role === 'owner' ? 'selected' : ''}>Acesso total</option>
+                        </select>
+                    ` : `<span class="badge ${roleBadge}">${roleLabels[m.role] || m.role}</span>`;
+
+                    const removeBtn = canManage ? `
+                        <button class="btn btn-outline-danger btn-sm" onclick="removeWorkspaceMember(${workspaceId}, ${m.id})" title="Remover">
+                            <i class="bi bi-person-x"></i>
+                        </button>
+                    ` : `<span class="text-muted">—</span>`;
+
+                    rows += `
+                        <tr>
+                            <td>${m.email}</td>
+                            <td style="width: 200px;">${roleCell}</td>
+                            <td class="text-end">${removeBtn}</td>
+                        </tr>
+                    `;
+                });
+
+                content.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="text-muted small">${canManage ? 'Você pode gerenciar permissões.' : 'Você não tem permissão para alterar membros.'}</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th style="width: 200px;">Permissão</th>
+                                    <th class="text-end" style="width: 80px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows || '<tr><td colspan="3" class="text-center text-muted py-3">Nenhum membro.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (e) {
+                content.innerHTML = '<div class="alert alert-danger">Erro ao carregar membros.</div>';
+            }
+        };
+
+        // Atualizar role de membro
+        window.updateWorkspaceMemberRole = async function(workspaceId, memberId, role) {
+            try {
+                const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/members/${memberId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.error || 'Erro ao atualizar permissão', 'error');
+                    await window.loadWorkspaceMembers(workspaceId);
+                    return;
+                }
+                showToast('Permissão atualizada', 'success');
+            } catch (e) {
+                showToast('Erro ao atualizar permissão', 'error');
+            }
+        };
+
+        // Remover membro do workspace
+        window.removeWorkspaceMember = async function(workspaceId, memberId) {
+            if (!confirm('Remover este membro do workspace?')) return;
+            try {
+                const resp = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/members/${memberId}`, {
+                    method: 'DELETE'
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.error || 'Erro ao remover membro', 'error');
+                    return;
+                }
+                showToast('Membro removido', 'success');
+                await window.loadWorkspaceMembers(workspaceId);
+            } catch (e) {
+                showToast('Erro ao remover membro', 'error');
             }
         };
 

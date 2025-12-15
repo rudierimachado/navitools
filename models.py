@@ -95,6 +95,30 @@ class WorkspaceMember(db.Model):
         return f"<WorkspaceMember {self.workspace_id}:{self.user_id}>"
 
 
+class WorkspaceInvite(db.Model):
+    """Convites para workspace por email"""
+    __tablename__ = "workspace_invites"
+
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    invited_email = db.Column(db.String(255), nullable=False)
+    invited_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    role = db.Column(db.String(20), default="editor")  # owner, editor, viewer
+    token = db.Column(db.String(100), unique=True, nullable=False)
+    status = db.Column(db.String(20), default="pending")  # pending, accepted, rejected
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    responded_at = db.Column(db.DateTime)
+
+    workspace = db.relationship("Workspace", backref="invites")
+    invited_by = db.relationship("User", foreign_keys=[invited_by_id], backref="invites_sent")
+    invited_user = db.relationship("User", foreign_keys=[invited_user_id], backref="invites_received")
+
+    def __repr__(self) -> str:
+        return f"<WorkspaceInvite {self.invited_email} -> {self.workspace_id}>"
+
+
 # ============================================================================
 # MODELS DE GERENCIAMENTO FINANCEIRO
 # ============================================================================

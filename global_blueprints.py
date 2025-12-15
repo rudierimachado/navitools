@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     abort,
     send_from_directory,
@@ -434,6 +435,58 @@ def sitemap():
 
     xml_content = "\n".join(xml_lines)
     return Response(xml_content, mimetype="application/xml")
+
+@main_bp.route("/api/system/share", methods=["POST", "OPTIONS"])
+def api_share_system_alias():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        resp = Response("", status=204)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    print(f"[SYSTEM SHARE ALIAS] HIT path={request.path} method={request.method}", flush=True)
+    resp = current_app.view_functions["gerenciamento_financeiro.api_share_system"]()
+    try:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+    except Exception:
+        pass
+    return resp
+
+@main_bp.route("/api/system/shares", methods=["GET", "OPTIONS"])
+def api_list_shares_alias():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        resp = Response("", status=204)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    print(f"[SYSTEM SHARES ALIAS] HIT path={request.path} method={request.method}", flush=True)
+    resp = current_app.view_functions["gerenciamento_financeiro.api_list_shares"]()
+    try:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+    except Exception:
+        pass
+    return resp
+
+@main_bp.route("/api/system/share/<int:share_id>/accept", methods=["POST"])
+def api_accept_share_alias(share_id: int):
+    return current_app.view_functions["gerenciamento_financeiro.api_accept_share"](share_id)
+
+@main_bp.route("/api/system/share/<int:share_id>", methods=["DELETE"])
+def api_delete_share_alias(share_id: int):
+    return current_app.view_functions["gerenciamento_financeiro.api_delete_share"](share_id)
 
 def register_blueprints(app):
     """Registra todos os blueprints globais da aplicação."""
