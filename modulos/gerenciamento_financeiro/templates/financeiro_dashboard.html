@@ -2,9 +2,6 @@
 
 {% block title %}Dashboard Financeiro · NEXUSRDR{% endblock %}
 
-{% block extra_scripts %}
-{% endblock %}
-
 {% block content %}
 <div class="row g-4">
     <!-- Header Dashboard -->
@@ -12,23 +9,36 @@
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4">
             <div class="flex-grow-1">
                 <h1 class="h3 h2-md mb-1">Dashboard Financeiro</h1>
-                <p class="text-muted mb-0 small">
-                    <i class="bi bi-person-circle me-1"></i>
-                    {{ user.email.split('@')[0] if user }} · 
-                    <i class="bi bi-calendar me-1"></i>
-                    {{ now.strftime('%B %Y') if now }}
-                </p>
-                <p class="mb-0 mt-2">
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                     <span class="badge rounded-pill" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; background: linear-gradient(135deg, #3b82f6, #1e40af);">
                         <i class="bi bi-folder-fill me-1"></i>
                         <span id="currentWorkspaceName">{{ active_workspace.name if active_workspace else 'Meu Workspace' }}</span>
                     </span>
-                </p>
+                    <!-- Filtro de Mês/Ano -->
+                    <div class="d-flex align-items-center gap-1" style="background: var(--bg-secondary); border-radius: 8px; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color);">
+                        <i class="bi bi-calendar3 text-primary" style="font-size: 0.85rem;"></i>
+                        <select id="filterMonth" class="form-select form-select-sm border-0 bg-transparent" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.3rem; font-size: 0.8rem;" onchange="applyGlobalFilter()">
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                        <select id="filterYear" class="form-select form-select-sm border-0 bg-transparent" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.3rem; font-size: 0.8rem;" onchange="applyGlobalFilter()">
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex flex-column align-items-stretch align-items-md-end gap-2 mt-3 mt-md-0">
-                <!-- Quick Actions -->
-                <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
+                <div class="d-none d-md-flex flex-wrap justify-content-start justify-content-md-end gap-2">
                 <button class="btn btn-success" onclick="showAddTransaction('income')">
                     <i class="bi bi-plus-circle me-1"></i> Nova Entrada
                 </button>
@@ -44,6 +54,72 @@
                 <button class="btn btn-info" id="closeMonthBtn" onclick="closeMonthConfirm()">
                     <i class="bi bi-lock me-1"></i> Fechar Mês
                 </button>
+                <button class="btn btn-dark" onclick="showAiRecommendationsModal()">
+                    <i class="bi bi-stars me-1"></i> Recomendação de IA
+                </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aiRecommendationsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Recomendação de IA</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="aiRecommendationPreset" class="form-label">Tipo de recomendação</label>
+                        <select id="aiRecommendationPreset" class="form-select">
+                            <option value="general" selected>Recomendação geral (automática)</option>
+                            <option value="vacation">Planejar férias</option>
+                            <option value="debt">Quitar dívidas / organizar parcelas</option>
+                            <option value="cut_expenses">Cortar gastos</option>
+                            <option value="increase_income">Aumentar renda</option>
+                            <option value="emergency_fund">Montar reserva de emergência</option>
+                        </select>
+                        <div class="form-text">A IA usa automaticamente os dados do seu workspace (período selecionado) + o tipo escolhido.</div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label for="aiRecommendationPeriod" class="form-label">Período</label>
+                            <select id="aiRecommendationPeriod" class="form-select">
+                                <option value="30" selected>Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                                <option value="365">Últimos 12 meses</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="aiRecommendationFocus" class="form-label">Foco (do sistema)</label>
+                            <select id="aiRecommendationFocus" class="form-select">
+                                <option value="overall" selected>Visão geral</option>
+                                <option value="category">Categoria específica</option>
+                            </select>
+                        </div>
+                        <div class="col-12" id="aiRecommendationCategoryWrap" style="display:none;">
+                            <label for="aiRecommendationCategory" class="form-label">Categoria</label>
+                            <select id="aiRecommendationCategory" class="form-select">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="aiRecommendationError" class="alert alert-warning" style="display:none;"></div>
+
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span id="aiRecommendationCached" class="badge bg-secondary" style="display:none;">cache</span>
+                        </div>
+                        <button id="aiRecommendationBtn" type="button" class="btn btn-primary" onclick="requestAiRecommendations()">
+                            <span id="aiRecommendationSpinner" class="spinner-border spinner-border-sm me-2" role="status" style="display:none;"></span>
+                            Gerar recomendação
+                        </button>
+                    </div>
+
+                    <pre id="aiRecommendationOutput" class="p-3" style="background: #0b1220; color: #e5e7eb; border-radius: 12px; white-space: pre-wrap; word-break: break-word; min-height: 180px;"></pre>
                 </div>
             </div>
         </div>
@@ -100,7 +176,7 @@
                                     </div>
                                     <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Entradas</h6>
                                 </div>
-                                <h3 class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <h3 id="totalIncome" class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
                                         <i class="bi bi-graph-up-arrow me-1"></i>{{ income_count }} transações
@@ -124,7 +200,7 @@
                                     </div>
                                     <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Despesas</h6>
                                 </div>
-                                <h3 class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                                <h3 id="totalExpense" class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
                                         <i class="bi bi-graph-down-arrow me-1"></i>{{ expense_count }} transações
@@ -161,19 +237,33 @@
     <!-- Transações Recentes -->
     <div class="col-12">
         <div class="card" style="border: none; background: transparent; box-shadow: none;">
-            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" style="background: transparent; border: none; padding: 0 0 1.5rem 0;">
+            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" style="background: transparent; border: none; padding: 0 0 1rem 0;">
                 <div class="mb-2 mb-md-0">
                     <h4 class="mb-1 fw-bold" style="font-size: 1.5rem;">
-                        <i class="bi bi-clock-history me-2" style="color: #3b82f6;"></i>Transações Recentes
+                        <i class="bi bi-clock-history me-2" style="color: #3b82f6;"></i>Transações
                     </h4>
-                    <small class="text-muted">Últimas movimentações da conta</small>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary" onclick="abrirModalTransacoes()" style="border-radius: 10px;">
-                        <i class="bi bi-list-ul me-1"></i> Ver Todas
-                    </button>
                 </div>
             </div>
+            
+            <!-- Abas modernas -->
+            <div class="d-flex align-items-center gap-2 mb-3" style="border-bottom: 2px solid var(--border-color); padding-bottom: 0;">
+                <button class="btn px-4 py-2 fw-semibold transactions-tab active" 
+                        id="tabMesAtual" 
+                        onclick="switchTransactionsTab('mesAtual')"
+                        style="border: none; border-bottom: 3px solid #3b82f6; border-radius: 0; background: transparent; color: #3b82f6; margin-bottom: -2px;">
+                    <i class="bi bi-calendar-month me-1"></i>Mês Atual
+                </button>
+                <button class="btn px-4 py-2 fw-semibold transactions-tab" 
+                        id="tabTodas" 
+                        onclick="switchTransactionsTab('todas')"
+                        style="border: none; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--text-secondary); margin-bottom: -2px;">
+                    <i class="bi bi-list-ul me-1"></i>Todas
+                </button>
+                <div class="ms-auto">
+                    <span id="transactionsCount" class="badge bg-primary rounded-pill" style="font-size: 0.75rem;">{{ (recent_transactions|length) }} este mês</span>
+                </div>
+            </div>
+            
             <div class="card-body p-0">
                 {% if recent_transactions %}
                     <div id="recentTransactionsTbody" class="d-flex flex-column gap-2">
@@ -208,6 +298,12 @@
                                                             <i class="bi bi-calendar3 me-1"></i>
                                                             {{ t.transaction_date.strftime('%d/%m/%Y') }}
                                                         </small>
+                                                        {% if t.notes %}
+                                                            <small class="text-muted d-flex align-items-center">
+                                                                <i class="bi bi-person-badge me-1"></i>
+                                                                {{ t.notes }}
+                                                            </small>
+                                                        {% endif %}
                                                         {% if t.category %}
                                                             <span class="badge rounded-pill" style="background-color: {{ t.category.color }}20; color: {{ t.category.color }}; font-size: 0.7rem; padding: 0.35rem 0.65rem;">
                                                                 {{ t.category.icon }} {{ t.category.name }}
@@ -293,6 +389,11 @@
                         <label for="description" class="form-label">Nome da Despesa *</label>
                         <input type="text" class="form-control" id="description" placeholder="Ex: Almoço, Gasolina, Conta de água...">
                     </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Observação</label>
+                        <input type="text" class="form-control" id="notes" placeholder="Ex: Salário do João, gasto da Maria... (opcional)">
+                    </div>
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -310,10 +411,19 @@
                     </div>
                     
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="isFixed">
+                        <input type="checkbox" class="form-check-input" id="isFixed" onchange="toggleFixedDuration()">
                         <label class="form-check-label" for="isFixed">
-                            Marcar como fixo
+                            Marcar como fixo (recorrente)
                         </label>
+                    </div>
+                    
+                    <div class="mb-3" id="fixedDurationContainer" style="display: none;">
+                        <label class="form-label">Por quantos meses? *</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="number" class="form-control" id="fixedMonths" min="1" max="12" value="12" style="width: 100px;">
+                            <span>meses</span>
+                        </div>
+                        <small class="text-muted">Máximo 12 meses. Será criada uma transação para cada mês.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -707,6 +817,198 @@
 
 {% block scripts %}
 <script defer>
+window.showAiRecommendationsModal = function() {
+    const modalEl = document.getElementById('aiRecommendationsModal');
+    if (!modalEl) return;
+    const output = document.getElementById('aiRecommendationOutput');
+    if (output) output.textContent = '';
+    const cached = document.getElementById('aiRecommendationCached');
+    if (cached) cached.style.display = 'none';
+    const err = document.getElementById('aiRecommendationError');
+    if (err) {
+        err.style.display = 'none';
+        err.textContent = '';
+    }
+    const preset = document.getElementById('aiRecommendationPreset');
+    if (preset) preset.value = 'general';
+
+    const period = document.getElementById('aiRecommendationPeriod');
+    if (period) period.value = '30';
+
+    const focus = document.getElementById('aiRecommendationFocus');
+    if (focus) focus.value = 'overall';
+
+    const focusWrap = document.getElementById('aiRecommendationCategoryWrap');
+    if (focusWrap) focusWrap.style.display = 'none';
+
+    try {
+        if (focus && !focus.__ai_bound) {
+            focus.__ai_bound = true;
+            focus.addEventListener('change', () => {
+                const wrap = document.getElementById('aiRecommendationCategoryWrap');
+                const category = document.getElementById('aiRecommendationCategory');
+                if (!wrap) return;
+                if (focus.value === 'category') {
+                    wrap.style.display = '';
+                    if (category && (!category.options || category.options.length <= 1)) {
+                        window._aiLoadCategories && window._aiLoadCategories();
+                    }
+                } else {
+                    wrap.style.display = 'none';
+                }
+            });
+        }
+    } catch (e) {}
+
+    if (window._aiLoadCategories) {
+        window._aiLoadCategories();
+    }
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+};
+
+window._aiLoadCategories = async function() {
+    const select = document.getElementById('aiRecommendationCategory');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const all = [];
+        for (const t of ['expense', 'income']) {
+            const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${t}`);
+            const d = await r.json().catch(() => ({}));
+            if (d && d.categories && Array.isArray(d.categories)) {
+                d.categories.forEach(c => {
+                    all.push({
+                        id: c.id,
+                        name: c.name,
+                        type: t,
+                        icon: c.icon || ''
+                    });
+                });
+            }
+        }
+
+        all.sort((a, b) => (a.name || '').localeCompare((b.name || ''), 'pt-BR'));
+
+        select.innerHTML = '<option value="">Selecione...</option>';
+        all.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = String(c.id);
+            opt.textContent = `${c.icon ? c.icon + ' ' : ''}${c.name} (${c.type === 'expense' ? 'despesa' : 'entrada'})`;
+            opt.setAttribute('data-name', c.name || '');
+            opt.setAttribute('data-type', c.type || '');
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        select.innerHTML = '<option value="">Falha ao carregar categorias</option>';
+    }
+};
+
+window.requestAiRecommendations = async function() {
+    const btn = document.getElementById('aiRecommendationBtn');
+    const spinner = document.getElementById('aiRecommendationSpinner');
+    const output = document.getElementById('aiRecommendationOutput');
+    const cached = document.getElementById('aiRecommendationCached');
+    const err = document.getElementById('aiRecommendationError');
+
+    if (output) output.textContent = '';
+    if (cached) cached.style.display = 'none';
+    if (err) {
+        err.style.display = 'none';
+        err.textContent = '';
+    }
+
+    const presetEl = document.getElementById('aiRecommendationPreset');
+    const preset = presetEl ? (presetEl.value || 'general') : 'general';
+
+    const periodEl = document.getElementById('aiRecommendationPeriod');
+    const periodDays = periodEl ? (periodEl.value || '90') : '90';
+
+    const focusEl = document.getElementById('aiRecommendationFocus');
+    const focus = focusEl ? (focusEl.value || 'overall') : 'overall';
+
+    const categoryEl = document.getElementById('aiRecommendationCategory');
+    const selectedCategoryOpt = (categoryEl && categoryEl.selectedOptions && categoryEl.selectedOptions[0]) ? categoryEl.selectedOptions[0] : null;
+    const selectedCategoryName = selectedCategoryOpt ? (selectedCategoryOpt.getAttribute('data-name') || '') : '';
+    const selectedCategoryType = selectedCategoryOpt ? (selectedCategoryOpt.getAttribute('data-type') || '') : '';
+
+    const presetContextMap = {
+        general: 'Gere uma recomendação completa e automática para melhorar a saúde financeira com base nos dados do workspace.',
+        vacation: 'Gere um plano para preparar e organizar finanças para férias (antecipar despesas, metas, cortes e cronograma).',
+        debt: 'Gere um plano para quitar dívidas/parcelas e organizar pagamentos, priorizando juros e fluxo de caixa.',
+        cut_expenses: 'Gere um plano para cortar gastos: identificar categorias que mais pesam e sugerir cortes práticos.',
+        increase_income: 'Gere um plano para aumentar renda: ideias, metas e como reinvestir/organizar o orçamento.',
+        emergency_fund: 'Gere um plano para montar reserva de emergência com metas, prazos e percentual da renda.'
+    };
+
+    let ctx = presetContextMap[preset] || presetContextMap.general;
+    ctx += `\n\nPeríodo selecionado: últimos ${periodDays} dias.`;
+    if (focus === 'category') {
+        if (!selectedCategoryName) {
+            ctx += '\nFoco: categoria específica (não selecionada). Sugira quais categorias seriam mais relevantes e peça para selecionar uma.';
+        } else {
+            ctx += `\nFoco: categoria ${selectedCategoryName} (${selectedCategoryType === 'expense' ? 'despesa' : 'entrada'}).`;
+            ctx += '\nAnalise essa categoria e sugira ações específicas.';
+        }
+    } else {
+        ctx += '\nFoco: visão geral do workspace.';
+    }
+
+    try {
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.style.display = 'inline-block';
+
+        const resp = await fetch('{{ url_for("gerenciamento_financeiro.api_ai_recommendations") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                workspace_id: {{ active_workspace.id if active_workspace else 'null' }},
+                period_days: Number(periodDays),
+                focus: focus,
+                category_id: (focus === 'category' && categoryEl && categoryEl.value) ? Number(categoryEl.value) : null,
+                context: ctx
+            })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok) {
+            let msg = (data && data.error) ? data.error : 'Erro ao gerar recomendação.';
+            if (data && data.details) {
+                try {
+                    const detailsStr = (typeof data.details === 'string') ? data.details : JSON.stringify(data.details);
+                    msg = msg + ' - ' + detailsStr;
+                } catch (e) {}
+            }
+            if (err) {
+                err.style.display = 'block';
+                err.textContent = msg;
+            }
+            window.showToast(msg, 'warning');
+            return;
+        }
+
+        if (cached && data && data.cached) {
+            cached.style.display = 'inline-block';
+        }
+        if (output) {
+            output.textContent = data && data.recommendation ? data.recommendation : '';
+        }
+    } catch (e) {
+        const msg = 'Falha ao gerar recomendação de IA.';
+        if (err) {
+            err.style.display = 'block';
+            err.textContent = msg;
+        }
+        window.showToast(msg, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.style.display = 'none';
+    }
+};
+
 let currentEditingId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -716,6 +1018,258 @@ document.addEventListener('DOMContentLoaded', () => {
     if (f) f.addEventListener('submit', saveTransaction);
 });
 
+// Variáveis para controle das abas de transações
+let currentTransactionsTab = 'mesAtual';
+let allTransactionsCache = null;
+
+// Variáveis para filtro global de mês/ano
+let globalFilterMonth = ({{ selected_month|default(None)|tojson }}) || (new Date().getMonth() + 1);
+let globalFilterYear = ({{ selected_year|default(None)|tojson }}) || (new Date().getFullYear());
+
+// Inicializar filtro de mês/ano
+function initGlobalFilter() {
+    const monthSelect = document.getElementById('filterMonth');
+    const yearSelect = document.getElementById('filterYear');
+    
+    if (!monthSelect || !yearSelect) return;
+    
+    // Selecionar mês atual
+    monthSelect.value = globalFilterMonth;
+    
+    // Preencher anos (ano atual - 2 até ano atual + 1)
+    const currentYear = new Date().getFullYear();
+    yearSelect.innerHTML = '';
+    for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        if (y === globalFilterYear) opt.selected = true;
+        yearSelect.appendChild(opt);
+    }
+}
+
+// Aplicar filtro global (server-driven: recarrega a página)
+function applyGlobalFilter() {
+    const monthSelect = document.getElementById('filterMonth');
+    const yearSelect = document.getElementById('filterYear');
+
+    if (monthSelect && yearSelect) {
+        globalFilterMonth = parseInt(monthSelect.value);
+        globalFilterYear = parseInt(yearSelect.value);
+    }
+
+    const baseUrl = '{{ url_for("gerenciamento_financeiro.home") }}';
+    window.location.href = `${baseUrl}?month=${encodeURIComponent(globalFilterMonth)}&year=${encodeURIComponent(globalFilterYear)}`;
+}
+
+// Carregar cards de resumo (receitas/despesas) filtrados por mês/ano
+async function loadSummaryCards() {
+    try {
+        const url = `/gerenciamento-financeiro/api/transactions?limit=1000&year=${globalFilterYear}&month=${globalFilterMonth}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) return;
+        
+        const transactions = data.transactions || [];
+        
+        let totalIncome = 0;
+        let totalExpense = 0;
+        
+        transactions.forEach(t => {
+            if (t.type === 'income') {
+                totalIncome += t.amount;
+            } else {
+                totalExpense += t.amount;
+            }
+        });
+        
+        const balance = totalIncome - totalExpense;
+        
+        // Atualizar cards
+        const incomeEl = document.getElementById('totalIncome');
+        const expenseEl = document.getElementById('totalExpense');
+        const balanceEl = document.getElementById('totalBalance');
+        
+        const formatBRL = (v) => v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        
+        if (incomeEl) incomeEl.textContent = `+R$ ${formatBRL(totalIncome)}`;
+        if (expenseEl) expenseEl.textContent = `-R$ ${formatBRL(totalExpense)}`;
+        if (balanceEl) {
+            balanceEl.textContent = `${balance >= 0 ? '+' : '-'}R$ ${formatBRL(Math.abs(balance))}`;
+            balanceEl.style.color = balance >= 0 ? '#11998e' : '#ee0979';
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar resumo:', error);
+    }
+}
+
+// Inicializar filtro ao carregar página
+document.addEventListener('DOMContentLoaded', () => {
+    initGlobalFilter();
+});
+
+async function switchTransactionsTab(tab) {
+    currentTransactionsTab = tab;
+    
+    // Atualizar estilos das abas
+    const tabMesAtual = document.getElementById('tabMesAtual');
+    const tabTodas = document.getElementById('tabTodas');
+    
+    if (tab === 'mesAtual') {
+        tabMesAtual.style.borderBottomColor = '#3b82f6';
+        tabMesAtual.style.color = '#3b82f6';
+        tabTodas.style.borderBottomColor = 'transparent';
+        tabTodas.style.color = 'var(--text-secondary)';
+    } else {
+        tabTodas.style.borderBottomColor = '#3b82f6';
+        tabTodas.style.color = '#3b82f6';
+        tabMesAtual.style.borderBottomColor = 'transparent';
+        tabMesAtual.style.color = 'var(--text-secondary)';
+    }
+    
+    // Mês Atual: volta pro server-render (evita misturar com lista "Todas")
+    if (tab === 'mesAtual') {
+        const baseUrl = '{{ url_for("gerenciamento_financeiro.home") }}';
+        window.location.href = `${baseUrl}?month=${encodeURIComponent(globalFilterMonth)}&year=${encodeURIComponent(globalFilterYear)}`;
+        return;
+    }
+
+    // Todas: carrega via API
+    await loadTransactionsForTab(tab);
+}
+
+async function loadTransactionsForTab(tab) {
+    const container = document.getElementById('recentTransactionsTbody');
+    if (!container) return;
+
+    if (tab !== 'todas') {
+        return;
+    }
+    
+    // Mostrar loading
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    `;
+    
+    try {
+        let url = '/gerenciamento-financeiro/api/transactions?limit=100';
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            container.innerHTML = '<div class="alert alert-danger">Erro ao carregar transações.</div>';
+            return;
+        }
+        
+        const transactions = data.transactions || [];
+        
+        // Atualizar contador
+        const countBadge = document.getElementById('transactionsCount');
+        if (countBadge) {
+            countBadge.textContent = `${transactions.length} ${tab === 'mesAtual' ? 'este mês' : 'total'}`;
+        }
+        
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="card" style="border-radius: 16px; border: 2px dashed var(--border-color);">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-inbox" style="font-size: 2.5rem; opacity: 0.3;"></i>
+                        <p class="text-muted mt-2 mb-0">${tab === 'mesAtual' ? 'Nenhuma transação este mês' : 'Nenhuma transação encontrada'}</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Renderizar transações
+        let html = '';
+        transactions.forEach((t, index) => {
+            const date = new Date(t.transaction_date);
+            const formattedDate = date.toLocaleDateString('pt-BR');
+            const categoryIcon = t.category?.icon || (t.type === 'income' ? '💵' : '💸');
+            const categoryName = t.category?.name || '';
+            const categoryColor = t.category?.color || (t.type === 'income' ? '#11998e' : '#ee0979');
+            
+            const iconBg = t.type === 'income' 
+                ? 'linear-gradient(135deg, rgba(17, 153, 142, 0.15), rgba(56, 239, 125, 0.1))'
+                : 'linear-gradient(135deg, rgba(238, 9, 121, 0.15), rgba(255, 106, 0, 0.1))';
+            const iconBorder = t.type === 'income' ? 'rgba(17, 153, 142, 0.2)' : 'rgba(238, 9, 121, 0.2)';
+            const valueColor = t.type === 'income' ? '#11998e' : '#ee0979';
+            const sign = t.type === 'income' ? '+' : '-';
+            
+            const fixedBorder = t.is_fixed ? 'border: 3px solid #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);' : 'border: 1px solid var(--border-color);';
+            const fixedBg = t.is_fixed ? 'background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.03));' : '';
+            
+            const fixedBadge = t.is_fixed ? '<span class="badge" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 6px;"><i class="bi bi-pin-angle-fill me-1"></i>Fixo</span>' : '';
+            const recurringBadge = t.is_recurring ? '<span class="badge" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-size: 0.65rem; padding: 0.25rem 0.5rem; border-radius: 6px;"><i class="bi bi-arrow-repeat me-1"></i>Recorrente</span>' : '';
+            
+            const amount = Number(t.amount || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            
+            html += `
+                <div data-transaction-id="${t.id}" class="transaction-card" onclick="showTransactionDetails(${t.id})" style="animation: slideInUp 0.3s ease-out ${index * 0.03}s both;">
+                    <div class="card h-100" style="border-radius: 16px; ${fixedBorder} cursor: pointer; transition: all 0.3s ease; ${fixedBg}">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="flex-shrink-0">
+                                    <div class="d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; border-radius: 12px; background: ${iconBg}; border: 2px solid ${iconBorder};">
+                                        <span style="font-size: 1.2rem;">${categoryIcon}</span>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1" style="min-width: 0;">
+                                            <h6 class="mb-0 fw-semibold text-truncate" style="font-size: 0.95rem;">${t.description || 'Sem descrição'}</h6>
+                                            <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${formattedDate}</small>
+                                                ${categoryName ? `<span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor}; font-size: 0.6rem; padding: 0.2rem 0.5rem;">${categoryName}</span>` : ''}
+                                                ${fixedBadge}
+                                                ${recurringBadge}
+                                            </div>
+                                        </div>
+                                        <div class="text-end ms-2">
+                                            <div class="fw-bold" style="font-size: 1.1rem; color: ${valueColor}; white-space: nowrap;">${sign}R$ ${amount}</div>
+                                            <div class="btn-group btn-group-sm mt-1">
+                                                <button class="btn btn-sm px-2 py-1" onclick="editTransaction(${t.id}); event.stopPropagation();" title="Editar" style="border: 1px solid var(--border-color); border-radius: 6px 0 0 6px;">
+                                                    <i class="bi bi-pencil" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                                <button class="btn btn-sm px-2 py-1" onclick="deleteTransaction(${t.id}); event.stopPropagation();" title="Excluir" style="border: 1px solid var(--border-color); border-left: none; border-radius: 0 6px 6px 0;">
+                                                    <i class="bi bi-trash" style="font-size: 0.75rem; color: #ef4444;"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Erro ao carregar transações:', error);
+        container.innerHTML = '<div class="alert alert-danger">Erro ao carregar transações.</div>';
+    }
+}
+
+
+function toggleFixedDuration() {
+    const isFixed = document.getElementById('isFixed').checked;
+    const container = document.getElementById('fixedDurationContainer');
+    if (container) {
+        container.style.display = isFixed ? 'block' : 'none';
+    }
+}
+
 function showAddTransaction(type) {
     const m = new bootstrap.Modal(document.getElementById('addTransactionModal'));
     const t = document.getElementById('addTransactionTitle');
@@ -723,6 +1277,11 @@ function showAddTransaction(type) {
     const sb = document.getElementById('saveButton');
     document.getElementById('addTransactionForm').reset();
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    
+    // Reset fixed duration fields
+    const fixedContainer = document.getElementById('fixedDurationContainer');
+    if (fixedContainer) fixedContainer.style.display = 'none';
+    
     currentEditingId = null;
     ti.value = type;
     if (type === 'income') {
@@ -762,15 +1321,21 @@ async function saveTransaction(e) {
     btn.disabled = true;
     sp.classList.remove('d-none');
     
+    const isFixed = document.getElementById('isFixed').checked;
+    const fixedMonths = Math.min(12, Math.max(1, parseInt(document.getElementById('fixedMonths')?.value) || 12));
+    
     const fd = {
         type: document.getElementById('transactionType').value,
         description: document.getElementById('description').value || document.getElementById('category').options[document.getElementById('category').selectedIndex].text,
+        notes: document.getElementById('notes') ? (document.getElementById('notes').value || null) : null,
         amount: parseFloat(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value,
         frequency: 'once',
-        is_recurring: false,
-        is_fixed: document.getElementById('isFixed').checked
+        is_recurring: isFixed,
+        is_fixed: isFixed,
+        fixed_duration_type: isFixed ? 'months' : null,
+        fixed_months: isFixed ? fixedMonths : null
     };
     
     try {
@@ -787,12 +1352,18 @@ async function saveTransaction(e) {
         const res = await r.json();
         if (r.ok) {
             bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')).hide();
-            showToast(editingId ? 'Atualizado!' : 'Salvo!', 'success');
             document.getElementById('addTransactionForm').reset();
             currentEditingId = null;
-            if (editingId) {
+            
+            // Se foi criação de transações recorrentes, recarregar página
+            if (res.created && res.created > 1) {
+                showToast(res.message || `${res.created} transações criadas!`, 'success');
+                setTimeout(() => location.reload(), 800);
+            } else if (editingId) {
+                showToast('Atualizado!', 'success');
                 upsertTransactionRow(res);
             } else {
+                showToast('Salvo!', 'success');
                 addTransactionToTable(res);
             }
         } else {
@@ -847,6 +1418,13 @@ function _buildTransactionCard(t) {
                 <i class="bi bi-arrow-repeat me-1"></i>Recorrente
            </span>`
         : '';
+
+    const notesLine = t.notes
+        ? `<small class="text-muted d-flex align-items-center">
+                <i class="bi bi-person-badge me-1"></i>
+                ${String(t.notes)}
+           </small>`
+        : '';
     
     const amountColor = t.type === 'income' ? '#11998e' : '#ee0979';
     const amountSign = t.type === 'income' ? '+' : '-';
@@ -882,6 +1460,7 @@ function _buildTransactionCard(t) {
                                         <i class="bi bi-calendar3 me-1"></i>
                                         ${formattedDate}
                                     </small>
+                                    ${notesLine}
                                     ${categoryBadge}
                                     ${fixedBadge}
                                     ${recurringBadge}
@@ -948,6 +1527,8 @@ async function editTransaction(id) {
             document.getElementById('transactionDate').value = t.transaction_date;
             document.getElementById('category').value = t.category?.id || '';
             document.getElementById('description').value = t.description || '';
+            const notesEl = document.getElementById('notes');
+            if (notesEl) notesEl.value = t.notes || '';
         }, 200);
     } catch (e) {
         console.error('Erro:', e);

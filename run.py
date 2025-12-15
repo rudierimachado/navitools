@@ -28,6 +28,8 @@ try:
     from flask import Flask
 
     from dotenv import load_dotenv
+    _dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    load_dotenv(dotenv_path=_dotenv_path)
     load_dotenv()
 
     os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')

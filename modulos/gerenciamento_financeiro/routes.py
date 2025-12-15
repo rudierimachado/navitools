@@ -14,6 +14,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import calendar
 import os
+import time
+import hashlib
+import requests
 
 from extensions import db
 from email_service import send_share_invitation, send_share_accepted, send_verification_code, send_password_reset, send_workspace_invitation
@@ -42,6 +45,33 @@ gerenciamento_financeiro_bp = Blueprint(
     __name__,
     template_folder="templates",
 )
+
+_AI_RECOMMENDATION_CACHE = {}
+_AI_TOKEN_USAGE = {}
+
+
+def _estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, int(len(text) / 4))
+
+
+def _ai_rate_limit_check(user_id: int, tokens_to_consume: int) -> tuple[bool, int, int]:
+    limit = int(os.getenv("GROQ_TOKENS_PER_MINUTE", "6000") or "6000")
+    now = time.time()
+    window_start = now - 60
+
+    entries = _AI_TOKEN_USAGE.get(user_id) or []
+    entries = [(ts, t) for (ts, t) in entries if ts >= window_start]
+    used = sum(t for (_, t) in entries)
+
+    if used + tokens_to_consume > limit:
+        _AI_TOKEN_USAGE[user_id] = entries
+        return False, used, limit
+
+    entries.append((now, tokens_to_consume))
+    _AI_TOKEN_USAGE[user_id] = entries
+    return True, used + tokens_to_consume, limit
 
 
 @gerenciamento_financeiro_bp.route("/download/app")
@@ -224,27 +254,49 @@ def home():
 
     # Estatísticas principais
     today = datetime.utcnow().date()
-    month_start = today.replace(day=1)
+    try:
+        selected_month = int(request.args.get("month", today.month))
+        selected_year = int(request.args.get("year", today.year))
+        if selected_month < 1 or selected_month > 12:
+            selected_month = today.month
+        if selected_year < 2000 or selected_year > 2100:
+            selected_year = today.year
+    except Exception:
+        selected_month = today.month
+        selected_year = today.year
 
-    # Totais gerais (do workspace ativo)
+    from calendar import monthrange
+    month_start = date(selected_year, selected_month, 1)
+    month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
+
+    # Totais até o fim do mês selecionado (evita somar lançamentos futuros)
     total_income = (
         db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(Transaction.workspace_id == workspace_id, Transaction.type == "income")
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "income",
+            Transaction.transaction_date <= month_end,
+        )
         .scalar()
     )
     total_expense = (
         db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(Transaction.workspace_id == workspace_id, Transaction.type == "expense")
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "expense",
+            Transaction.transaction_date <= month_end,
+        )
         .scalar()
     )
 
-    # Totais do mês atual (do workspace ativo)
+    # Totais do mês selecionado (do workspace ativo)
     monthly_income = (
         db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
         .filter(
             Transaction.workspace_id == workspace_id,
             Transaction.type == "income",
             Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
         )
         .scalar()
     )
@@ -254,6 +306,7 @@ def home():
             Transaction.workspace_id == workspace_id,
             Transaction.type == "expense",
             Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
         )
         .scalar()
     )
@@ -265,6 +318,7 @@ def home():
             Transaction.workspace_id == workspace_id,
             Transaction.type == "income",
             Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
         )
         .count()
     )
@@ -274,6 +328,7 @@ def home():
             Transaction.workspace_id == workspace_id,
             Transaction.type == "expense",
             Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
         )
         .count()
     )
@@ -282,9 +337,14 @@ def home():
     savings = (monthly_income or 0) - (monthly_expense or 0)
     savings_rate = (savings / monthly_income * 100) if monthly_income else 0
 
-    # Transações recentes (do workspace ativo)
+    # Transações recentes (apenas do mês selecionado)
     recent_transactions = (
-        Transaction.query.filter(Transaction.workspace_id == workspace_id)
+        Transaction.query
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
+        )
         .order_by(Transaction.transaction_date.desc())
         .limit(10)
         .all()
@@ -331,6 +391,8 @@ def home():
         vencimentos=vencimentos,
         now=datetime.now(),
         active_workspace=active_workspace,
+        selected_month=selected_month,
+        selected_year=selected_year,
     )
 
 @gerenciamento_financeiro_bp.route("/select-workspace", methods=["GET"])
@@ -976,6 +1038,7 @@ def api_transactions():
                 return _json({"error": "Dados não fornecidos"}, 400)
                 
             description = data.get("description", "").strip()
+            notes = data.get("notes")
             amount = data.get("amount")
             transaction_type = data.get("type", "").strip()
             frequency = data.get("frequency", "").strip()
@@ -1023,18 +1086,32 @@ def api_transactions():
             
             is_recurring = data.get("is_recurring", False)
             
-            # Se é recorrente, criar transações para os próximos 12 meses
+            # Se é recorrente, criar transações conforme duração especificada
             if is_recurring:
                 from dateutil.relativedelta import relativedelta
                 transactions_created = []
                 
-                for month_offset in range(12):
+                # Determinar quantidade de meses
+                fixed_duration_type = data.get("fixed_duration_type", "infinite")
+                fixed_months = data.get("fixed_months")
+                
+                if fixed_duration_type == "months" and fixed_months:
+                    try:
+                        num_months = int(fixed_months)
+                        num_months = max(1, min(num_months, 12))
+                    except (ValueError, TypeError):
+                        num_months = 12
+                else:
+                    num_months = 12
+                
+                for month_offset in range(num_months):
                     new_date = transaction_date + relativedelta(months=month_offset)
                     
                     transaction = Transaction(
                         user_id=user_id,
                         workspace_id=workspace_id,
                         description=description,
+                        notes=notes,
                         amount=float(amount),
                         type=transaction_type,
                         category_id=category_id,
@@ -1049,7 +1126,13 @@ def api_transactions():
                 
                 db.session.commit()
                 
-                resp = jsonify({"message": "Transações criadas com sucesso!", "created": len(transactions_created)})
+                duration_msg = f"{num_months} meses" if fixed_duration_type == "months" else "recorrente (sem fim definido)"
+                resp = jsonify({
+                    "message": f"Transações criadas com sucesso! Duração: {duration_msg}",
+                    "created": len(transactions_created),
+                    "duration_type": fixed_duration_type,
+                    "duration_months": num_months
+                })
                 resp.headers["Access-Control-Allow-Origin"] = origin
                 resp.headers["Vary"] = "Origin"
                 resp.headers["Access-Control-Allow-Credentials"] = "true"
@@ -1061,6 +1144,7 @@ def api_transactions():
                     user_id=user_id,
                     workspace_id=workspace_id,
                     description=description,
+                    notes=notes,
                     amount=float(amount),
                     type=transaction_type,
                     category_id=category_id,
@@ -1079,6 +1163,7 @@ def api_transactions():
                     "message": "Transação criada com sucesso!",
                     "id": transaction.id,
                     "description": transaction.description,
+                    "notes": getattr(transaction, "notes", None),
                     "amount": float(transaction.amount),
                     "type": transaction.type,
                     "transaction_date": transaction.transaction_date.isoformat(),
@@ -1108,10 +1193,15 @@ def api_transactions():
         try:
             page = int(request.args.get("page", 1))
             per_page = int(request.args.get("per_page", 10))
+            limit = request.args.get("limit", type=int)  # Limite opcional (ignora paginação)
             transaction_type = request.args.get("type")
             category_id = request.args.get("category_id")
             start_date = request.args.get("start_date")
             end_date = request.args.get("end_date")
+            
+            # Filtro por mês/ano específico
+            filter_year = request.args.get("year", type=int)
+            filter_month = request.args.get("month", type=int)
             
             # Filtrar por workspace ativo
             query = Transaction.query.filter_by(workspace_id=workspace_id)
@@ -1120,45 +1210,79 @@ def api_transactions():
                 query = query.filter_by(type=transaction_type)
             if category_id:
                 query = query.filter_by(category_id=category_id)
-            if start_date:
-                query = query.filter(Transaction.transaction_date >= datetime.strptime(start_date, "%Y-%m-%d").date())
-            if end_date:
-                query = query.filter(Transaction.transaction_date <= datetime.strptime(end_date, "%Y-%m-%d").date())
+            
+            # Filtro por mês/ano (prioridade sobre start_date/end_date)
+            if filter_year and filter_month:
+                from calendar import monthrange
+                first_day = date(filter_year, filter_month, 1)
+                last_day = date(filter_year, filter_month, monthrange(filter_year, filter_month)[1])
+                query = query.filter(Transaction.transaction_date >= first_day)
+                query = query.filter(Transaction.transaction_date <= last_day)
+            else:
+                if start_date:
+                    query = query.filter(Transaction.transaction_date >= datetime.strptime(start_date, "%Y-%m-%d").date())
+                if end_date:
+                    query = query.filter(Transaction.transaction_date <= datetime.strptime(end_date, "%Y-%m-%d").date())
             
             query = query.order_by(Transaction.transaction_date.desc())
             
-            transactions = query.paginate(
-                page=page, 
-                per_page=per_page, 
-                error_out=False
-            )
-            
-            resp = jsonify({
-                "transactions": [{
-                    "id": t.id,
-                    "description": t.description,
-                    "amount": float(t.amount),
-                    "type": t.type,
-                    "transaction_date": t.transaction_date.isoformat(),
-                    "frequency": getattr(t, 'frequency', 'once'),
-                    "is_recurring": getattr(t, 'is_recurring', False),
-                    "is_fixed": getattr(t, 'is_fixed', False),
-                    "category": {
-                        "id": t.category.id,
-                        "name": t.category.name,
-                        "icon": t.category.icon,
-                        "color": t.category.color
-                    } if t.category else None
-                } for t in transactions.items],
-                "pagination": {
-                    "page": transactions.page,
-                    "pages": transactions.pages,
-                    "per_page": transactions.per_page,
-                    "total": transactions.total,
-                    "has_next": transactions.has_next,
-                    "has_prev": transactions.has_prev
-                }
-            })
+            # Se limit foi especificado, usar limit ao invés de paginação
+            if limit:
+                transactions_list = query.limit(limit).all()
+                resp = jsonify({
+                    "transactions": [{
+                        "id": t.id,
+                        "description": t.description,
+                        "notes": getattr(t, 'notes', None),
+                        "amount": float(t.amount),
+                        "type": t.type,
+                        "transaction_date": t.transaction_date.isoformat(),
+                        "frequency": getattr(t, 'frequency', 'once'),
+                        "is_recurring": getattr(t, 'is_recurring', False),
+                        "is_fixed": getattr(t, 'is_fixed', False),
+                        "category": {
+                            "id": t.category.id,
+                            "name": t.category.name,
+                            "icon": t.category.icon,
+                            "color": t.category.color
+                        } if t.category else None
+                    } for t in transactions_list],
+                    "total": len(transactions_list)
+                })
+            else:
+                transactions = query.paginate(
+                    page=page, 
+                    per_page=per_page, 
+                    error_out=False
+                )
+                
+                resp = jsonify({
+                    "transactions": [{
+                        "id": t.id,
+                        "description": t.description,
+                        "notes": getattr(t, 'notes', None),
+                        "amount": float(t.amount),
+                        "type": t.type,
+                        "transaction_date": t.transaction_date.isoformat(),
+                        "frequency": getattr(t, 'frequency', 'once'),
+                        "is_recurring": getattr(t, 'is_recurring', False),
+                        "is_fixed": getattr(t, 'is_fixed', False),
+                        "category": {
+                            "id": t.category.id,
+                            "name": t.category.name,
+                            "icon": t.category.icon,
+                            "color": t.category.color
+                        } if t.category else None
+                    } for t in transactions.items],
+                    "pagination": {
+                        "page": transactions.page,
+                        "pages": transactions.pages,
+                        "per_page": transactions.per_page,
+                        "total": transactions.total,
+                        "has_next": transactions.has_next,
+                        "has_prev": transactions.has_prev
+                    }
+                })
             resp.headers["Access-Control-Allow-Origin"] = origin
             resp.headers["Vary"] = "Origin"
             resp.headers["Access-Control-Allow-Credentials"] = "true"
@@ -1213,6 +1337,8 @@ def api_transaction_detail(transaction_id):
             
             if "description" in data:
                 transaction.description = data["description"]
+            if "notes" in data:
+                transaction.notes = data["notes"]
             if "amount" in data:
                 transaction.amount = float(data["amount"])
             if "transaction_date" in data:
@@ -1237,6 +1363,7 @@ def api_transaction_detail(transaction_id):
                 "message": "Transação atualizada com sucesso!",
                 "id": transaction.id,
                 "description": transaction.description,
+                "notes": getattr(transaction, 'notes', None),
                 "amount": float(transaction.amount),
                 "type": transaction.type,
                 "transaction_date": transaction.transaction_date.isoformat(),
@@ -2214,6 +2341,250 @@ def api_share_system():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/ai/recommendations", methods=["POST", "OPTIONS"])
+def api_ai_recommendations():
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp, status
+
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    if "finance_user_id" not in session:
+        return _json({"error": "Não autorizado"}, 401)
+
+    user_id = session["finance_user_id"]
+    data = request.get_json(silent=True) or {}
+
+    try:
+        workspace_id = data.get("workspace_id") or session.get("active_workspace_id")
+        workspace_id = int(workspace_id) if workspace_id is not None else None
+    except (ValueError, TypeError):
+        workspace_id = None
+
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        return _json({"error": "GROQ_API_KEY não configurada"}, 500)
+
+    # Parâmetros opcionais vindos do front
+    try:
+        period_days = int(data.get("period_days") or 90)
+    except (ValueError, TypeError):
+        period_days = 90
+    if period_days < 7:
+        period_days = 7
+    if period_days > 365:
+        period_days = 365
+
+    focus = (data.get("focus") or "overall").strip().lower()
+    if focus not in ["overall", "category"]:
+        focus = "overall"
+
+    try:
+        focus_category_id = int(data.get("category_id")) if data.get("category_id") is not None else None
+    except (ValueError, TypeError):
+        focus_category_id = None
+
+    user_context = (data.get("context") or data.get("user_context") or "").strip()
+    if len(user_context) > 2000:
+        user_context = user_context[:2000]
+
+    cache_ttl = int(os.getenv("AI_RECOMMEND_CACHE_TTL_SEC", "300") or "300")
+    cache_key_raw = f"ws={workspace_id}|u={user_id}|days={period_days}|focus={focus}|cat={focus_category_id}|ctx={user_context}".encode("utf-8", errors="ignore")
+    cache_key = hashlib.sha256(cache_key_raw).hexdigest()
+    cached = _AI_RECOMMENDATION_CACHE.get(cache_key)
+    if cached and (time.time() - cached.get("ts", 0)) <= cache_ttl:
+        return _json({
+            "cached": True,
+            "workspace_id": workspace_id,
+            "role": workspace_role,
+            "recommendation": cached.get("recommendation"),
+        }, 200)
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return _json({"error": "Workspace não encontrado"}, 404)
+
+    today = date.today()
+    start_period = today - timedelta(days=period_days)
+
+    income_sum = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.workspace_id == workspace_id,
+        Transaction.type == "income",
+        Transaction.transaction_date >= start_period,
+    ).scalar()
+    expense_sum = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.workspace_id == workspace_id,
+        Transaction.type == "expense",
+        Transaction.transaction_date >= start_period,
+    ).scalar()
+
+    recent_transactions = Transaction.query.filter_by(workspace_id=workspace_id).order_by(
+        Transaction.transaction_date.desc()
+    ).limit(15).all()
+
+    top_categories_rows = db.session.query(
+        Category.name,
+        Category.type,
+        func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+    ).join(Category, Category.id == Transaction.category_id).filter(
+        Transaction.workspace_id == workspace_id,
+        Transaction.transaction_date >= start_period,
+    ).group_by(Category.name, Category.type).order_by(func.sum(Transaction.amount).desc()).limit(8).all()
+
+    focus_category_summary = None
+    if focus == "category" and focus_category_id:
+        focus_cat = Category.query.get(focus_category_id)
+        if focus_cat:
+            focus_total = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+                Transaction.workspace_id == workspace_id,
+                Transaction.category_id == focus_category_id,
+                Transaction.transaction_date >= start_period,
+            ).scalar()
+            focus_category_summary = {
+                "id": focus_cat.id,
+                "name": focus_cat.name,
+                "type": focus_cat.type,
+                "total": float(focus_total or 0),
+            }
+
+    member_count = WorkspaceMember.query.filter_by(workspace_id=workspace_id).count() + 1
+
+    workspace_snapshot = {
+        "workspace": {
+            "id": ws.id,
+            "name": ws.name,
+            "description": ws.description,
+            "member_count": member_count,
+        },
+        "period": {
+            "from": start_period.isoformat(),
+            "to": today.isoformat(),
+            "days": period_days,
+        },
+        "focus": {
+            "type": focus,
+            "category": focus_category_summary,
+        },
+        "totals_last_90_days": {
+            "income": float(income_sum or 0),
+            "expense": float(expense_sum or 0),
+            "balance": float((income_sum or 0) - (expense_sum or 0)),
+        },
+        "top_categories_last_90_days": [
+            {"name": r[0], "type": r[1], "total": float(r[2] or 0)} for r in top_categories_rows
+        ],
+        "recent_transactions": [
+            {
+                "date": t.transaction_date.isoformat() if t.transaction_date else None,
+                "type": t.type,
+                "description": t.description,
+                "amount": float(t.amount or 0),
+                "category": t.category.name if t.category else None,
+            }
+            for t in recent_transactions
+        ],
+    }
+
+    model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    max_tokens = int(os.getenv("GROQ_MAX_TOKENS", "900") or "900")
+
+    system_prompt = (
+        "Você é um gestor de despesas pessoal em português brasileiro. "
+        "Seja DIRETO e objetivo. Não faça introduções, não se justifique e não escreva textão. "
+        "Use APENAS os dados do workspace e o foco/período recebidos. "
+        "Responda em markdown curto, com listas e checklists. "
+        "Formato obrigatório:\n"
+        "1) ## Ações agora (hoje) -> 3 a 7 bullets no máximo\n"
+        "2) ## Plano 7 dias -> 3 a 7 bullets no máximo\n"
+        "3) ## Regras automáticas -> 3 a 7 bullets no máximo\n"
+        "4) ## Alertas -> só se necessário\n"
+        "Se faltar dado, faça NO MÁXIMO 3 perguntas objetivas no final."
+    )
+
+    user_prompt = (
+        "Gere recomendações no formato solicitado, sem justificativas longas.\n\n"
+        f"Contexto/objetivo selecionado: {user_context}\n\n"
+        f"Snapshot do workspace (JSON): {workspace_snapshot}"
+    )
+
+    tokens_to_consume = _estimate_tokens(system_prompt) + _estimate_tokens(user_prompt) + max_tokens
+    ok, used_now, limit = _ai_rate_limit_check(user_id=user_id, tokens_to_consume=tokens_to_consume)
+    if not ok:
+        return _json({
+            "error": "Limite de uso de IA atingido. Tente novamente em instantes.",
+            "tokens_used_last_minute": used_now,
+            "tokens_limit_per_minute": limit,
+        }, 429)
+
+    try:
+        groq_resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+                "max_tokens": max_tokens,
+            },
+            timeout=40,
+        )
+    except Exception as e:
+        return _json({"error": f"Falha ao chamar IA: {str(e)}"}, 502)
+
+    if groq_resp.status_code >= 400:
+        try:
+            err_body = groq_resp.json()
+        except Exception:
+            err_body = groq_resp.text
+        return _json({
+            "error": "Erro na IA",
+            "status_code": groq_resp.status_code,
+            "details": err_body,
+        }, 502)
+
+    payload = groq_resp.json() or {}
+    recommendation = (((payload.get("choices") or [{}])[0]).get("message") or {}).get("content")
+    if not recommendation:
+        return _json({"error": "Resposta de IA vazia"}, 502)
+
+    _AI_RECOMMENDATION_CACHE[cache_key] = {
+        "ts": time.time(),
+        "recommendation": recommendation,
+    }
+
+    return _json({
+        "cached": False,
+        "workspace_id": workspace_id,
+        "role": workspace_role,
+        "recommendation": recommendation,
+    }, 200)
 
 
 @gerenciamento_financeiro_bp.route("/api/pending-invites", methods=["GET"])
