@@ -454,6 +454,16 @@
                         </div>
 
                         <small class="text-muted" id="fixedDurationHint">Será criada uma transação para cada mês.</small>
+                        
+                        <!-- Preview de Parcelas -->
+                        <div id="installmentsPreview" class="mt-3 p-3 rounded" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.05)); border: 1px solid rgba(59, 130, 246, 0.2); display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="text-primary"><i class="bi bi-eye me-1"></i>Preview das Parcelas</strong>
+                                <span class="badge bg-primary" id="previewTotalBadge">Total: R$ 0,00</span>
+                            </div>
+                            <div id="previewInstallmentsList" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1126,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (d) d.value = new Date().toISOString().split('T')[0];
     const f = document.getElementById('addTransactionForm');
     if (f) f.addEventListener('submit', saveTransaction);
+    setupPreviewListeners();
 });
 
 // Variáveis para controle das abas de transações
@@ -1418,6 +1429,89 @@ function updateFixedDurationUI() {
         if (label) label.textContent = 'Por quantos meses? *';
         if (hint) hint.textContent = 'Será criada uma transação para cada mês.';
     }
+    
+    updateInstallmentsPreview();
+}
+
+function updateInstallmentsPreview() {
+    const isFixed = document.getElementById('isFixed')?.checked;
+    const preview = document.getElementById('installmentsPreview');
+    const list = document.getElementById('previewInstallmentsList');
+    const totalBadge = document.getElementById('previewTotalBadge');
+    
+    if (!preview || !list || !totalBadge) return;
+    
+    if (!isFixed) {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    const amount = _parseBRL(document.getElementById('amount')?.value || '0');
+    const months = Math.min(120, Math.max(1, parseInt(document.getElementById('fixedMonths')?.value) || 12));
+    const startDate = document.getElementById('transactionDate')?.value;
+    const categorySelect = document.getElementById('category');
+    const categoryName = categorySelect?.selectedIndex > 0 ? categorySelect.options[categorySelect.selectedIndex].text.replace(/^[^\s]+\s/, '') : '';
+    const description = document.getElementById('description')?.value || categoryName || 'Despesa';
+    
+    if (!amount || amount <= 0) {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    preview.style.display = 'block';
+    
+    const total = amount * months;
+    totalBadge.textContent = `Total: R$ ${_formatBRL(total)}`;
+    
+    let html = '<div class="row g-1">';
+    const baseDate = startDate ? new Date(startDate + 'T12:00:00') : new Date();
+    
+    const maxShow = Math.min(months, 6);
+    for (let i = 0; i < maxShow; i++) {
+        const installmentDate = new Date(baseDate);
+        installmentDate.setMonth(installmentDate.getMonth() + i);
+        const dateStr = installmentDate.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        const installmentDesc = `${description} ${i + 1}/${months}`;
+        
+        html += `
+            <div class="col-6 col-md-4">
+                <div class="d-flex align-items-center gap-1 p-1 rounded" style="background: rgba(255,255,255,0.5);">
+                    <span class="badge bg-secondary" style="font-size: 0.7rem;">${i + 1}</span>
+                    <div class="flex-grow-1 text-truncate" style="font-size: 0.75rem;">
+                        <div class="text-truncate fw-medium">${installmentDesc}</div>
+                        <small class="text-muted">${dateStr} · R$ ${_formatBRL(amount)}</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (months > maxShow) {
+        html += `
+            <div class="col-12 text-center text-muted" style="font-size: 0.75rem;">
+                <i class="bi bi-three-dots"></i> e mais ${months - maxShow} parcelas
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    list.innerHTML = html;
+}
+
+function setupPreviewListeners() {
+    const amountEl = document.getElementById('amount');
+    const monthsEl = document.getElementById('fixedMonths');
+    const dateEl = document.getElementById('transactionDate');
+    const categoryEl = document.getElementById('category');
+    const descEl = document.getElementById('description');
+    
+    const update = () => updateInstallmentsPreview();
+    
+    if (amountEl) amountEl.addEventListener('input', update);
+    if (monthsEl) monthsEl.addEventListener('input', update);
+    if (dateEl) dateEl.addEventListener('change', update);
+    if (categoryEl) categoryEl.addEventListener('change', update);
+    if (descEl) descEl.addEventListener('input', update);
 }
 
 function showAddTransaction(type) {
@@ -1430,9 +1524,11 @@ function showAddTransaction(type) {
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
     _setupAmountMask();
     
-    // Reset fixed duration fields
+    // Reset fixed duration fields and preview
     const fixedContainer = document.getElementById('fixedDurationContainer');
     if (fixedContainer) fixedContainer.style.display = 'none';
+    const preview = document.getElementById('installmentsPreview');
+    if (preview) preview.style.display = 'none';
     
     currentEditingId = null;
     ti.value = type;
@@ -1678,12 +1774,19 @@ function addTransactionToTable(t) {
 
 async function editTransaction(id) {
     try {
+        showLoading('Carregando transação...');
         const r = await fetch('/gerenciamento-financeiro/api/transactions?page=1&per_page=1000');
         const d = await r.json();
         const t = d.transactions?.find(x => x.id === id);
-        if (!t) return;
+        if (!t) {
+            hideLoading();
+            return;
+        }
         
-        const isInstallment = t.type === 'expense' && (t.is_fixed || t.is_recurring) && !!t.recurring_transaction_id;
+        // Esconder loading antes de mostrar modal de escolha
+        hideLoading();
+        
+        const isInstallment = t.is_fixed || t.is_recurring;
         if (isInstallment) {
             const scope = await _chooseEditScope();
             if (!scope) return;
@@ -1730,12 +1833,14 @@ async function editTransaction(id) {
         const fixedSection = document.getElementById('fixedDurationSection');
         if (fixedSection) fixedSection.classList.add('d-none');
         
-        // Show modal
+        // Hide loading and show modal
+        hideLoading();
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         
     } catch (e) {
         console.error('Erro:', e);
+        hideLoading();
     }
 }
 
@@ -1748,7 +1853,9 @@ async function deleteTransaction(id) {
     });
     if (!ok) return;
     try {
+        showLoading('Excluindo...');
         const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, { method: 'DELETE' });
+        hideLoading();
         if (r.ok) {
             showToast('Excluído!', 'success');
             const row = document.querySelector(`[data-transaction-id="${id}"]`);
@@ -1759,6 +1866,7 @@ async function deleteTransaction(id) {
         }
     } catch (e) {
         console.error('Erro:', e);
+        hideLoading();
     }
 }
 

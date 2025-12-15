@@ -631,6 +631,32 @@
             toast.show();
         };
 
+        // Loading overlay helper
+        window.showLoading = function(message = 'Carregando...') {
+            let overlay = document.getElementById('globalLoadingOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'globalLoadingOverlay';
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+                overlay.innerHTML = `
+                    <div class="text-center text-white">
+                        <div class="spinner-border spinner-border-lg mb-2" role="status" style="width:3rem;height:3rem;"></div>
+                        <div id="loadingMessage">${message}</div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            } else {
+                const msgEl = overlay.querySelector('#loadingMessage');
+                if (msgEl) msgEl.textContent = message;
+                overlay.style.display = 'flex';
+            }
+        };
+
+        window.hideLoading = function() {
+            const overlay = document.getElementById('globalLoadingOverlay');
+            if (overlay) overlay.style.display = 'none';
+        };
+
         if (!window._openConfirmModal) {
             window._openConfirmModal = ({ title, body, confirmText, confirmClass } = {}) => {
                 const modalEl = document.getElementById('confirmActionModal');

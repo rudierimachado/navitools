@@ -161,6 +161,31 @@
     </button>
 </div>
 
+<!-- Modal Escolha de Escopo de Edição -->
+<div class="modal fade" id="editScopeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar parcelas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Esta transação faz parte de uma série de parcelas.</p>
+                <p class="mb-0">Deseja editar somente esta parcela ou todas as parcelas da série?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-outline-primary" id="editScopeSingleBtn">
+                    <i class="bi bi-1-circle me-1"></i>Só esta parcela
+                </button>
+                <button type="button" class="btn btn-primary" id="editScopeSeriesBtn">
+                    <i class="bi bi-collection me-1"></i>Todas as parcelas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Include the add transaction modal from dashboard -->
 <!-- Modal Adicionar Transação -->
 <div class="modal fade" id="addTransactionModal" tabindex="-1">
@@ -229,6 +254,19 @@ let currentEditingId = null;
 let allCategories = [];
 let pendingCategoryId = null;
 let pendingCategoryLabel = null;
+let currentEditScope = 'single';
+let __editScopeResolve = null;
+
+// Edit scope modal helper
+function _chooseEditScope() {
+    const scopeEl = document.getElementById('editScopeModal');
+    if (!scopeEl) return Promise.resolve('single');
+    const modal = bootstrap.Modal.getOrCreateInstance(scopeEl);
+    return new Promise((resolve) => {
+        __editScopeResolve = resolve;
+        modal.show();
+    });
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -240,6 +278,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // View mode switch
     document.getElementById('tableView').addEventListener('change', switchToTableView);
     document.getElementById('cardView').addEventListener('change', switchToCardView);
+    
+    // Edit scope modal buttons
+    const scopeEl = document.getElementById('editScopeModal');
+    const singleBtn = document.getElementById('editScopeSingleBtn');
+    const seriesBtn = document.getElementById('editScopeSeriesBtn');
+    if (scopeEl && singleBtn && seriesBtn) {
+        singleBtn.addEventListener('click', () => {
+            bootstrap.Modal.getInstance(scopeEl)?.hide();
+            if (__editScopeResolve) __editScopeResolve('single');
+            __editScopeResolve = null;
+        });
+        seriesBtn.addEventListener('click', () => {
+            bootstrap.Modal.getInstance(scopeEl)?.hide();
+            if (__editScopeResolve) __editScopeResolve('series');
+            __editScopeResolve = null;
+        });
+        scopeEl.addEventListener('hidden.bs.modal', () => {
+            if (__editScopeResolve) __editScopeResolve(null);
+            __editScopeResolve = null;
+        });
+    }
 });
 
 // Load categories for filters
@@ -646,7 +705,8 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
         amount: parseBRL(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value || null,
-        notes: document.getElementById('notes').value || null
+        notes: document.getElementById('notes').value || null,
+        apply_scope: currentEditScope
     };
     
     try {
@@ -690,14 +750,29 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
 // Edit transaction
 window.transactionsPage.editTransaction = async function(id) {
     try {
+        showLoading('Carregando transação...');
         // Fetch transaction data
         const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}?page=1&per_page=1000`);
         const data = await response.json();
         const transaction = data.transactions?.find(t => t.id === id);
         
         if (!transaction) {
+            hideLoading();
             showToast('Transação não encontrada', 'error');
             return;
+        }
+        
+        // Hide loading before showing scope modal
+        hideLoading();
+        
+        // Check if this is an installment (part of a series)
+        const isInstallment = transaction.is_fixed || transaction.is_recurring;
+        if (isInstallment) {
+            const scope = await _chooseEditScope();
+            if (!scope) return;
+            currentEditScope = scope;
+        } else {
+            currentEditScope = 'single';
         }
         
         // Set editing mode FIRST
@@ -743,13 +818,15 @@ window.transactionsPage.editTransaction = async function(id) {
         // Also try to set category immediately if options already exist
         setCategoryValue(pendingCategoryId);
         
-        // Show modal
+        // Hide loading and show modal
+        hideLoading();
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         
     } catch (error) {
         console.error('Erro ao carregar transação:', error);
         showToast('Erro ao carregar transação', 'error');
+        hideLoading();
     }
 }
 

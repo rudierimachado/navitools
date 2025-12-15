@@ -1130,10 +1130,13 @@ def api_transactions():
                 for month_offset in range(num_months):
                     new_date = transaction_date + relativedelta(months=month_offset)
                     
+                    # Gerar descrição automática com número da parcela (ex: "Aluguel 1/12")
+                    installment_desc = f"{description} {month_offset + 1}/{num_months}"
+                    
                     transaction = Transaction(
                         user_id=user_id,
                         workspace_id=workspace_id,
-                        description=description,
+                        description=installment_desc,
                         notes=notes,
                         amount=float(amount),
                         type=transaction_type,
