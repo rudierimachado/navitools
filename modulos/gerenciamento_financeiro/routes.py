@@ -9,7 +9,8 @@ from flask import (
     jsonify,
     send_file,
 )
-from sqlalchemy import func, extract, and_, or_
+from sqlalchemy import func, extract, and_, or_, inspect, text
+from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import calendar
@@ -17,6 +18,7 @@ import os
 import time
 import hashlib
 import requests
+import re
 
 from extensions import db
 from email_service import send_share_invitation, send_share_accepted, send_verification_code, send_password_reset, send_workspace_invitation
@@ -26,6 +28,7 @@ from models import (
     FinanceConfig,
     FamilyMember,
     Category,
+    SubCategory,
     Transaction,
     RecurringTransaction,
     MonthlyClosure,
@@ -48,6 +51,93 @@ gerenciamento_financeiro_bp = Blueprint(
 
 _AI_RECOMMENDATION_CACHE = {}
 _AI_TOKEN_USAGE = {}
+
+_CATEGORIES_WORKSPACE_COLUMN_READY = False
+
+
+def _ensure_categories_workspace_column() -> None:
+    """Garante que a coluna categories.workspace_id exista.
+
+    Como o projeto pode estar rodando sem migrations aplicadas, fazemos um ALTER TABLE
+    seguro (coluna nullable) na primeira chamada.
+    """
+    global _CATEGORIES_WORKSPACE_COLUMN_READY
+    if _CATEGORIES_WORKSPACE_COLUMN_READY:
+        return
+
+    try:
+        cols = [c.get("name") for c in inspect(db.engine).get_columns("categories")]
+        if "workspace_id" not in cols:
+            db.session.execute(text("ALTER TABLE categories ADD COLUMN workspace_id INTEGER"))
+            try:
+                db.session.execute(text("CREATE INDEX IF NOT EXISTS ix_categories_workspace_id ON categories (workspace_id)"))
+            except Exception:
+                pass
+            db.session.commit()
+        _CATEGORIES_WORKSPACE_COLUMN_READY = True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"[CATEGORIES] Erro ao garantir coluna workspace_id: {e}")
+        # não marcar como ready para tentar novamente depois
+
+
+def _ensure_default_subcategories(category_id: int) -> None:
+    """Cria subcategorias padrão para uma categoria específica se não existirem."""
+    try:
+        cat = Category.query.get(category_id)
+        if not cat:
+            return
+
+        presets = {
+            "Contas": [
+                {"name": "Internet", "icon": "🌐", "color": "#3b82f6"},
+                {"name": "Energia", "icon": "💡", "color": "#f59e0b"},
+                {"name": "Água", "icon": "🚰", "color": "#06b6d4"},
+                {"name": "Gás", "icon": "🔥", "color": "#ef4444"},
+                {"name": "Telefone", "icon": "📱", "color": "#6366f1"},
+            ],
+            "Moradia": [
+                {"name": "Aluguel", "icon": "🏠", "color": "#14b8a6"},
+                {"name": "Condomínio", "icon": "🏢", "color": "#64748b"},
+                {"name": "Manutenção", "icon": "🛠️", "color": "#f97316"},
+            ],
+            "Transporte": [
+                {"name": "Combustível", "icon": "⛽", "color": "#f59e0b"},
+                {"name": "Aplicativos", "icon": "🚕", "color": "#3b82f6"},
+                {"name": "Ônibus/Metro", "icon": "🚇", "color": "#10b981"},
+            ],
+        }
+
+        if cat.name not in presets:
+            return
+            
+        # Verificar se já existem subcategorias para esta categoria
+        exists = SubCategory.query.filter_by(category_id=category_id).count()
+        if exists > 0:
+            return
+            
+        # Criar subcategorias padrão
+        for sc in presets[cat.name]:
+            db.session.add(SubCategory(
+                config_id=cat.config_id,
+                workspace_id=cat.workspace_id,
+                category_id=category_id,
+                name=sc["name"],
+                icon=sc.get("icon"),
+                color=sc.get("color"),
+                is_default=True,
+                is_active=True,
+            ))
+        db.session.commit()
+    except Exception as e:
+        print(f"[SUBCATEGORIES] Erro ao criar subcategorias padrão: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 def _estimate_tokens(text: str) -> int:
@@ -102,18 +192,36 @@ def _log_attempt(email: str, succeeded: bool, message: str | None = None, user_i
     db.session.add(audit)
     db.session.commit()
 
-def _ensure_default_categories(user_id: int):
-    """Garante que existam categorias padrão para o usuário"""
+def _ensure_default_categories(user_id: int, workspace_id: int | None = None):
+    """Garante que existam categorias padrão para o usuário.
+
+    Se workspace_id for fornecido, as categorias serão criadas/consultadas no escopo do workspace.
+    """
+    _ensure_categories_workspace_column()
     config = FinanceConfig.query.filter_by(user_id=user_id).first()
     if not config:
         config = FinanceConfig(user_id=user_id, setup_completed=True)
         db.session.add(config)
         db.session.flush()
 
-    # Verificar se já existem categorias
-    existing_count = Category.query.filter_by(config_id=config.id).count()
+    if workspace_id is None:
+        return
+
+    # Verificar se já existem categorias para este workspace
+    existing_count = Category.query.filter_by(config_id=config.id, workspace_id=workspace_id).count()
     if existing_count > 0:
         return
+
+    # Migração leve: se existirem categorias antigas sem workspace_id, mover para este workspace
+    legacy = Category.query.filter_by(config_id=config.id, workspace_id=None).all()
+    if legacy:
+        for c in legacy:
+            c.workspace_id = workspace_id
+        try:
+            db.session.commit()
+            return
+        except Exception:
+            db.session.rollback()
 
     # Categorias padrão de receita (incluindo Salário)
     income_categories = [
@@ -142,6 +250,7 @@ def _ensure_default_categories(user_id: int):
     for cat_data in income_categories:
         category = Category(
             config_id=config.id,
+            workspace_id=workspace_id,
             name=cat_data["name"],
             type="income",
             icon=cat_data["icon"],
@@ -155,6 +264,7 @@ def _ensure_default_categories(user_id: int):
     for cat_data in expense_categories:
         category = Category(
             config_id=config.id,
+            workspace_id=workspace_id,
             name=cat_data["name"],
             type="expense",
             icon=cat_data["icon"],
@@ -201,6 +311,74 @@ def _get_user_workspace_role(user_id: int, workspace_id: int) -> str | None:
 
     member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
     return member.role if member else None
+
+
+def _ensure_recurring_transactions_for_month(workspace_id: int, year: int, month: int) -> None:
+    if not workspace_id:
+        return
+
+    try:
+        from calendar import monthrange
+
+        month_first = date(year, month, 1)
+        month_last = date(year, month, monthrange(year, month)[1])
+
+        recurring = (
+            RecurringTransaction.query
+            .join(Category, RecurringTransaction.category_id == Category.id)
+            .filter(Category.workspace_id == workspace_id)
+            .filter(RecurringTransaction.is_active == True)
+            .all()
+        )
+
+        for rt in recurring:
+            if getattr(rt, "frequency", None) != "monthly":
+                continue
+
+            if rt.start_date and rt.start_date > month_last:
+                continue
+            if rt.end_date and rt.end_date < month_first:
+                continue
+
+            day = int(getattr(rt, "day_of_month", 1) or 1)
+            day = max(1, min(day, month_last.day))
+            tx_date = date(year, month, day)
+            if rt.start_date and tx_date < rt.start_date:
+                continue
+
+            exists = (
+                Transaction.query
+                .filter(
+                    Transaction.workspace_id == workspace_id,
+                    Transaction.recurring_transaction_id == rt.id,
+                    Transaction.transaction_date == tx_date,
+                )
+                .first()
+            )
+            if exists:
+                continue
+
+            tx = Transaction(
+                user_id=rt.user_id,
+                workspace_id=workspace_id,
+                description=rt.description,
+                notes=getattr(rt, "notes", None),
+                amount=float(rt.amount),
+                type=rt.type,
+                category_id=rt.category_id,
+                subcategory_id=getattr(rt, "subcategory_id", None),
+                transaction_date=tx_date,
+                frequency="once",
+                is_recurring=True,
+                is_paid=True,
+                is_fixed=True,
+                recurring_transaction_id=rt.id,
+            )
+            db.session.add(tx)
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 @gerenciamento_financeiro_bp.route("/")
 def home():
@@ -249,8 +427,15 @@ def home():
         else:
             flash(f"Você tem {count} convites pendentes. Clique em 'Compartilhar Sistema' → 'Convites Recebidos' para gerenciá-los.", "info")
     
-    # Garantir categorias padrão
-    _ensure_default_categories(user_id)
+    # Garantir categorias padrão (no escopo do workspace ativo)
+    owner_id = user_id
+    try:
+        ws = Workspace.query.get(workspace_id) if workspace_id else None
+        if ws:
+            owner_id = ws.owner_id
+    except Exception:
+        owner_id = user_id
+    _ensure_default_categories(owner_id, workspace_id)
 
     # Estatísticas principais
     today = datetime.utcnow().date()
@@ -268,6 +453,11 @@ def home():
     from calendar import monthrange
     month_start = date(selected_year, selected_month, 1)
     month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
+
+    try:
+        _ensure_recurring_transactions_for_month(workspace_id=workspace_id, year=selected_year, month=selected_month)
+    except Exception:
+        pass
 
     # Totais até o fim do mês selecionado (evita somar lançamentos futuros)
     total_income = (
@@ -340,13 +530,14 @@ def home():
     # Transações recentes (apenas do mês selecionado)
     recent_transactions = (
         Transaction.query
+        .options(joinedload(Transaction.subcategory))
         .filter(
             Transaction.workspace_id == workspace_id,
             Transaction.transaction_date >= month_start,
             Transaction.transaction_date <= month_end,
         )
         .order_by(Transaction.transaction_date.desc())
-        .limit(10)
+        .limit(500)
         .all()
     )
 
@@ -354,6 +545,7 @@ def home():
     today = date.today()
     vencimentos = (
         Transaction.query
+        .options(joinedload(Transaction.subcategory))
         .filter(
             Transaction.workspace_id == workspace_id,
             Transaction.type == "expense",
@@ -1013,6 +1205,14 @@ def api_transactions():
     if not workspace_role:
         return _json({"error": "Sem permissão"}, 403)
 
+    ws = Workspace.query.get(workspace_id) if workspace_id else None
+    if not ws:
+        return _json({"error": "Workspace não encontrado"}, 404)
+    owner_id = ws.owner_id
+
+    _ensure_default_categories(owner_id, workspace_id)
+    owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+
     # Garantir que o workspace exista (sessão pode ficar com id inválido)
     if workspace_id and not Workspace.query.get(workspace_id):
         default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
@@ -1045,6 +1245,7 @@ def api_transactions():
             transaction_type = data.get("type", "").strip()
             frequency = data.get("frequency", "").strip()
             category_id = data.get("category_id")
+            subcategory_id = data.get("subcategory_id")
             is_active = data.get("is_active", True)
             
             if not description:
@@ -1064,6 +1265,14 @@ def api_transactions():
                 category_id = int(category_id)
             except (ValueError, TypeError):
                 return _json({"error": "Categoria inválida"}, 400)
+
+            if subcategory_id in (None, "", 0, "0"):
+                subcategory_id = None
+            else:
+                try:
+                    subcategory_id = int(subcategory_id)
+                except (ValueError, TypeError):
+                    return _json({"error": "Subcategoria inválida"}, 400)
             
             if not frequency:
                 return _json({"error": "Frequência é obrigatória"}, 400)
@@ -1073,9 +1282,29 @@ def api_transactions():
                 
             if transaction_type not in ['income', 'expense']:
                 return _json({"error": "Tipo deve ser 'income' ou 'expense'"}, 400)
-            
-            # Garantir categorias padrão antes de criar transação
-            _ensure_default_categories(user_id)
+
+            # Validar se a categoria pertence ao workspace ativo
+            if not owner_config:
+                return _json({"error": "Configuração financeira não encontrada"}, 404)
+            category = Category.query.filter_by(
+                id=category_id,
+                config_id=owner_config.id,
+                workspace_id=workspace_id,
+                is_active=True,
+            ).first()
+            if not category:
+                return _json({"error": "Categoria não encontrada para este workspace"}, 404)
+
+            if subcategory_id is not None:
+                subcat = SubCategory.query.filter_by(
+                    id=subcategory_id,
+                    config_id=owner_config.id,
+                    workspace_id=workspace_id,
+                    category_id=category_id,
+                    is_active=True,
+                ).first()
+                if not subcat:
+                    return _json({"error": "Subcategoria não encontrada para esta categoria"}, 404)
             
             # Validar e obter data da transação
             if data.get("transaction_date"):
@@ -1096,74 +1325,139 @@ def api_transactions():
                 # Determinar quantidade de meses
                 fixed_duration_type = data.get("fixed_duration_type", "infinite")
                 fixed_months = data.get("fixed_months")
-                
-                if fixed_duration_type == "months" and fixed_months:
+
+                if fixed_duration_type == "months":
                     try:
-                        num_months = int(fixed_months)
+                        num_months = int(fixed_months) if fixed_months else 12
                         num_months = max(1, min(num_months, 120))
                     except (ValueError, TypeError):
                         num_months = 12
-                else:
-                    num_months = 12
 
-                recurring_source = None
-                try:
-                    recurring_source = RecurringTransaction(
-                        user_id=user_id,
-                        category_id=category_id,
-                        description=description,
-                        amount=float(amount),
-                        type=transaction_type,
-                        frequency="monthly",
-                        day_of_month=transaction_date.day,
-                        start_date=transaction_date,
-                        end_date=(transaction_date + relativedelta(months=(num_months - 1))) if num_months else None,
-                        is_active=False,
-                        payment_method=None,
-                        notes=notes,
-                    )
-                    db.session.add(recurring_source)
-                    db.session.flush()
-                except Exception:
                     recurring_source = None
-                
-                for month_offset in range(num_months):
-                    new_date = transaction_date + relativedelta(months=month_offset)
-                    
-                    # Gerar descrição automática com número da parcela (ex: "Aluguel 1/12")
-                    installment_desc = f"{description} {month_offset + 1}/{num_months}"
-                    
-                    transaction = Transaction(
-                        user_id=user_id,
-                        workspace_id=workspace_id,
-                        description=installment_desc,
-                        notes=notes,
-                        amount=float(amount),
-                        type=transaction_type,
-                        category_id=category_id,
-                        transaction_date=new_date,
-                        frequency=frequency,
-                        is_recurring=True,
-                        is_paid=True,
-                        is_fixed=data.get("is_fixed", False),
-                        recurring_transaction_id=(recurring_source.id if recurring_source else None),
-                    )
-                    db.session.add(transaction)
-                    transactions_created.append(transaction)
-                
+                    try:
+                        recurring_source = RecurringTransaction(
+                            user_id=user_id,
+                            category_id=category_id,
+                            subcategory_id=subcategory_id,
+                            description=description,
+                            amount=float(amount),
+                            type=transaction_type,
+                            frequency="monthly",
+                            day_of_month=transaction_date.day,
+                            start_date=transaction_date,
+                            end_date=(transaction_date + relativedelta(months=(num_months - 1))) if num_months else None,
+                            is_active=False,
+                            payment_method=None,
+                            notes=notes,
+                        )
+                        db.session.add(recurring_source)
+                        db.session.flush()
+                    except Exception:
+                        recurring_source = None
+
+                    for month_offset in range(num_months):
+                        new_date = transaction_date + relativedelta(months=month_offset)
+                        installment_desc = f"{description} {month_offset + 1}/{num_months}"
+
+                        transaction = Transaction(
+                            user_id=user_id,
+                            workspace_id=workspace_id,
+                            description=installment_desc,
+                            notes=notes,
+                            amount=float(amount),
+                            type=transaction_type,
+                            category_id=category_id,
+                            subcategory_id=subcategory_id,
+                            transaction_date=new_date,
+                            frequency=frequency,
+                            is_recurring=True,
+                            is_paid=True,
+                            is_fixed=data.get("is_fixed", False),
+                            recurring_transaction_id=(recurring_source.id if recurring_source else None),
+                        )
+                        db.session.add(transaction)
+                        transactions_created.append(transaction)
+
+                    db.session.commit()
+
+                    resp = jsonify({
+                        "message": f"Transações criadas com sucesso! Duração: {num_months} meses",
+                        "created": len(transactions_created),
+                        "duration_type": fixed_duration_type,
+                        "duration_months": num_months
+                    })
+                    resp.headers["Access-Control-Allow-Origin"] = origin
+                    resp.headers["Vary"] = "Origin"
+                    resp.headers["Access-Control-Allow-Credentials"] = "true"
+                    return resp
+
+                recurring_source = RecurringTransaction(
+                    user_id=user_id,
+                    category_id=category_id,
+                    subcategory_id=subcategory_id,
+                    description=description,
+                    amount=float(amount),
+                    type=transaction_type,
+                    frequency="monthly",
+                    day_of_month=transaction_date.day,
+                    start_date=transaction_date,
+                    end_date=None,
+                    is_active=True,
+                    payment_method=None,
+                    notes=notes,
+                )
+                db.session.add(recurring_source)
+                db.session.flush()
+
+                transaction = Transaction(
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    description=description,
+                    notes=notes,
+                    amount=float(amount),
+                    type=transaction_type,
+                    category_id=category_id,
+                    subcategory_id=subcategory_id,
+                    transaction_date=transaction_date,
+                    frequency=frequency,
+                    is_recurring=True,
+                    is_paid=True,
+                    is_fixed=True,
+                    recurring_transaction_id=recurring_source.id,
+                )
+                db.session.add(transaction)
+                transactions_created.append(transaction)
                 db.session.commit()
-                
-                duration_msg = f"{num_months} meses" if fixed_duration_type == "months" else "recorrente (sem fim definido)"
-                resp = jsonify({
-                    "message": f"Transações criadas com sucesso! Duração: {duration_msg}",
+
+                category = Category.query.get(transaction.category_id) if transaction.category_id else None
+                subcat = SubCategory.query.get(transaction.subcategory_id) if getattr(transaction, "subcategory_id", None) else None
+                return _json({
+                    "message": "Transação recorrente criada (sem fim definido)",
                     "created": len(transactions_created),
-                    "duration_type": fixed_duration_type,
-                    "duration_months": num_months
-                })
-                resp.headers["Access-Control-Allow-Origin"] = origin
-                resp.headers["Vary"] = "Origin"
-                resp.headers["Access-Control-Allow-Credentials"] = "true"
-                return resp
+                    "duration_type": "infinite",
+                    "id": transaction.id,
+                    "description": transaction.description,
+                    "notes": getattr(transaction, "notes", None),
+                    "amount": float(transaction.amount),
+                    "type": transaction.type,
+                    "transaction_date": transaction.transaction_date.isoformat(),
+                    "frequency": getattr(transaction, "frequency", "once"),
+                    "is_recurring": getattr(transaction, "is_recurring", False),
+                    "is_fixed": getattr(transaction, "is_fixed", False),
+                    "recurring_transaction_id": getattr(transaction, "recurring_transaction_id", None),
+                    "category": {
+                        "id": category.id,
+                        "name": category.name,
+                        "icon": category.icon,
+                        "color": category.color,
+                    } if category else None,
+                    "subcategory": {
+                        "id": subcat.id,
+                        "name": subcat.name,
+                        "icon": subcat.icon,
+                        "color": subcat.color,
+                    } if subcat else None,
+                }, 200)
                 
             else:
                 # Transação única
@@ -1175,6 +1469,7 @@ def api_transactions():
                     amount=float(amount),
                     type=transaction_type,
                     category_id=category_id,
+                    subcategory_id=subcategory_id,
                     transaction_date=transaction_date,
                     frequency=frequency,
                     is_recurring=False,
@@ -1186,6 +1481,7 @@ def api_transactions():
                 db.session.commit()
 
                 category = Category.query.get(transaction.category_id) if transaction.category_id else None
+                subcat = SubCategory.query.get(transaction.subcategory_id) if getattr(transaction, "subcategory_id", None) else None
                 return _json({
                     "message": "Transação criada com sucesso!",
                     "id": transaction.id,
@@ -1204,6 +1500,12 @@ def api_transactions():
                         "icon": category.icon,
                         "color": category.color,
                     } if category else None,
+                    "subcategory": {
+                        "id": subcat.id,
+                        "name": subcat.name,
+                        "icon": subcat.icon,
+                        "color": subcat.color,
+                    } if subcat else None,
                 }, 200)
             
         except ValueError as ve:
@@ -1230,6 +1532,15 @@ def api_transactions():
             # Filtro por mês/ano específico
             filter_year = request.args.get("year", type=int)
             filter_month = request.args.get("month", type=int)
+
+            try:
+                if filter_year and filter_month:
+                    _ensure_recurring_transactions_for_month(workspace_id=workspace_id, year=filter_year, month=filter_month)
+                else:
+                    today = datetime.utcnow().date()
+                    _ensure_recurring_transactions_for_month(workspace_id=workspace_id, year=today.year, month=today.month)
+            except Exception:
+                pass
             
             # Filtrar por workspace ativo
             query = Transaction.query.filter_by(workspace_id=workspace_id)
@@ -1274,7 +1585,13 @@ def api_transactions():
                             "name": t.category.name,
                             "icon": t.category.icon,
                             "color": t.category.color
-                        } if t.category else None
+                        } if t.category else None,
+                        "subcategory": (lambda sc: {
+                            "id": sc.id,
+                            "name": sc.name,
+                            "icon": sc.icon,
+                            "color": sc.color,
+                        } if sc else None)(SubCategory.query.get(getattr(t, 'subcategory_id', None)) if getattr(t, 'subcategory_id', None) else None)
                     } for t in transactions_list],
                     "total": len(transactions_list)
                 })
@@ -1302,7 +1619,13 @@ def api_transactions():
                             "name": t.category.name,
                             "icon": t.category.icon,
                             "color": t.category.color
-                        } if t.category else None
+                        } if t.category else None,
+                        "subcategory": (lambda sc: {
+                            "id": sc.id,
+                            "name": sc.name,
+                            "icon": sc.icon,
+                            "color": sc.color,
+                        } if sc else None)(SubCategory.query.get(getattr(t, 'subcategory_id', None)) if getattr(t, 'subcategory_id', None) else None)
                     } for t in transactions.items],
                     "pagination": {
                         "page": transactions.page,
@@ -1326,7 +1649,7 @@ def api_transactions():
             resp.headers["Access-Control-Allow-Credentials"] = "true"
             return resp, 500
 
-@gerenciamento_financeiro_bp.route("/api/transactions/<int:transaction_id>", methods=["PUT", "DELETE"])
+@gerenciamento_financeiro_bp.route("/api/transactions/<int:transaction_id>", methods=["GET", "PUT", "DELETE"])
 def api_transaction_detail(transaction_id):
     if "finance_user_id" not in session:
         return jsonify({"error": "Não autorizado"}), 401
@@ -1352,40 +1675,143 @@ def api_transaction_detail(transaction_id):
     if not workspace_role:
         return _json({"error": "Sem permissão"}, 403)
 
+    # Obter owner_config do workspace para validações de categoria/subcategoria
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return _json({"error": "Workspace não encontrado"}, 404)
+    owner_id = ws.owner_id
+    owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+
     # A partir daqui, transações são do workspace (não do criador)
     transaction = Transaction.query.filter_by(id=transaction_id, workspace_id=workspace_id).first()
     
     if not transaction:
         return _json({"error": "Transação não encontrada"}, 404)
     
+    if request.method == "GET":
+        category = Category.query.get(transaction.category_id) if transaction.category_id else None
+        subcat = SubCategory.query.get(transaction.subcategory_id) if getattr(transaction, "subcategory_id", None) else None
+        return _json({
+            "transaction": {
+                "id": transaction.id,
+                "description": transaction.description,
+                "notes": getattr(transaction, "notes", None),
+                "amount": float(transaction.amount),
+                "type": transaction.type,
+                "transaction_date": transaction.transaction_date.isoformat(),
+                "frequency": getattr(transaction, "frequency", "once"),
+                "is_recurring": getattr(transaction, "is_recurring", False),
+                "is_fixed": getattr(transaction, "is_fixed", False),
+                "recurring_transaction_id": getattr(transaction, "recurring_transaction_id", None),
+                "category": {
+                    "id": category.id,
+                    "name": category.name,
+                    "icon": category.icon,
+                    "color": category.color,
+                } if category else None,
+                "subcategory": {
+                    "id": subcat.id,
+                    "name": subcat.name,
+                    "icon": subcat.icon,
+                    "color": subcat.color,
+                } if subcat else None,
+            }
+        })
+
     if request.method == "PUT":
         try:
             if workspace_role == "viewer":
                 return _json({"error": "Sem permissão para editar (somente visualização)"}, 403)
 
-            data = request.get_json()
+            data = request.get_json() or {}
 
             apply_scope = (data or {}).get("apply_scope") or "single"
             apply_scope = str(apply_scope).lower().strip() if apply_scope else "single"
+
+            amount_value = None
+            if "amount" in data:
+                try:
+                    amount_value = float(data.get("amount"))
+                except (TypeError, ValueError):
+                    return _json({"error": "Valor inválido"}, 400)
+
+            category_id = None
+            if "category_id" in data:
+                if data.get("category_id") in (None, "", 0, "0"):
+                    category_id = None
+                else:
+                    try:
+                        category_id = int(data.get("category_id"))
+                    except (TypeError, ValueError):
+                        return _json({"error": "Categoria inválida"}, 400)
+
+                if category_id is not None:
+                    if not owner_config:
+                        return _json({"error": "Configuração financeira não encontrada"}, 404)
+                    category = Category.query.filter_by(
+                        id=category_id,
+                        config_id=owner_config.id,
+                        workspace_id=workspace_id,
+                        is_active=True,
+                    ).first()
+                    if not category:
+                        return _json({"error": "Categoria não encontrada para este workspace"}, 404)
+
+            subcategory_id = None
+            if "subcategory_id" in data:
+                if data.get("subcategory_id") in (None, "", 0, "0"):
+                    subcategory_id = None
+                else:
+                    try:
+                        subcategory_id = int(data.get("subcategory_id"))
+                    except (TypeError, ValueError):
+                        return _json({"error": "Subcategoria inválida"}, 400)
+
+                if subcategory_id is not None:
+                    if not owner_config:
+                        return _json({"error": "Configuração financeira não encontrada"}, 404)
+                    subcat = SubCategory.query.filter_by(
+                        id=subcategory_id,
+                        config_id=owner_config.id,
+                        workspace_id=workspace_id,
+                        category_id=(category_id if category_id is not None else transaction.category_id),
+                        is_active=True,
+                    ).first()
+                    if not subcat:
+                        return _json({"error": "Subcategoria não encontrada para esta categoria"}, 404)
 
             if apply_scope == "series" and getattr(transaction, "recurring_transaction_id", None):
                 series_id = transaction.recurring_transaction_id
                 series_transactions = (
                     Transaction.query
                     .filter_by(workspace_id=workspace_id, recurring_transaction_id=series_id)
+                    .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
                     .all()
                 )
 
                 updated = 0
-                for tx in series_transactions:
+                total = len(series_transactions)
+                new_base_desc = None
+                if "description" in data and data.get("description") is not None:
+                    new_base_desc = str(data.get("description") or "").strip()
+                    new_base_desc = re.sub(r"\s*\d+/\d+\s*$", "", new_base_desc).strip()
+
+                for i, tx in enumerate(series_transactions):
                     if "description" in data:
-                        tx.description = data["description"]
+                        if new_base_desc:
+                            m = re.search(r"(\d+/\d+)\s*$", str(tx.description or ""))
+                            suffix = m.group(1) if m else None
+                            if not suffix:
+                                suffix = f"{i + 1}/{total}" if total else ""
+                            tx.description = f"{new_base_desc} {suffix}".strip()
                     if "notes" in data:
                         tx.notes = data["notes"]
                     if "amount" in data:
-                        tx.amount = float(data["amount"])
+                        tx.amount = amount_value
                     if "category_id" in data:
-                        tx.category_id = data["category_id"] or None
+                        tx.category_id = category_id
+                    if "subcategory_id" in data:
+                        tx.subcategory_id = subcategory_id
                     updated += 1
 
                 db.session.commit()
@@ -1404,7 +1830,7 @@ def api_transaction_detail(transaction_id):
             if "notes" in data:
                 transaction.notes = data["notes"]
             if "amount" in data:
-                transaction.amount = float(data["amount"])
+                transaction.amount = amount_value
             if "transaction_date" in data:
                 transaction.transaction_date = datetime.strptime(data["transaction_date"], "%Y-%m-%d").date()
             if "frequency" in data:
@@ -1414,7 +1840,9 @@ def api_transaction_detail(transaction_id):
             if "is_fixed" in data:
                 transaction.is_fixed = bool(data["is_fixed"])
             if "category_id" in data:
-                transaction.category_id = data["category_id"] or None
+                transaction.category_id = category_id
+            if "subcategory_id" in data:
+                transaction.subcategory_id = subcategory_id
             if "is_paid" in data:
                 transaction.is_paid = bool(data["is_paid"])
             if "paid_date" in data and data["paid_date"]:
@@ -1423,6 +1851,7 @@ def api_transaction_detail(transaction_id):
             db.session.commit()
 
             category = Category.query.get(transaction.category_id) if transaction.category_id else None
+            subcat = SubCategory.query.get(transaction.subcategory_id) if getattr(transaction, "subcategory_id", None) else None
             resp = jsonify({
                 "message": "Transação atualizada com sucesso!",
                 "id": transaction.id,
@@ -1441,6 +1870,12 @@ def api_transaction_detail(transaction_id):
                     "icon": category.icon,
                     "color": category.color,
                 } if category else None,
+                "subcategory": {
+                    "id": subcat.id,
+                    "name": subcat.name,
+                    "icon": subcat.icon,
+                    "color": subcat.color,
+                } if subcat else None,
             })
             resp.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
             resp.headers["Vary"] = "Origin"
@@ -1465,120 +1900,35 @@ def api_transaction_detail(transaction_id):
 
     return _json({"error": "Método não suportado"}, 405)
 
-@gerenciamento_financeiro_bp.route("/api/dashboard-stats", methods=["GET", "OPTIONS"])
-@gerenciamento_financeiro_bp.route("/api/dashboard-stats/", methods=["GET", "OPTIONS"])
-def api_dashboard_stats():
-    """Retorna estatísticas do dashboard para o app/API.
-
-    Agora com suporte a CORS para Flutter Web.
-    """
-
-    origin = request.headers.get("Origin", "*")
-
-    # Pré-flight CORS
-    if request.method == "OPTIONS":
-        resp = jsonify({"ok": True})
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp
-
-    user_id: int | None = None
-
-    # Tentar usar sessão Flask primeiro
-    if "finance_user_id" in session:
-        user_id = session["finance_user_id"]
-    else:
-        # Fallback para apps que não conseguem enviar cookies (ex: Flutter Web)
-        user_id = request.args.get("user_id", type=int)
-
-    if not user_id:
-        resp = jsonify({"error": "Não autorizado"})
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp, 401
-    today = datetime.utcnow().date()
-    month_start = today.replace(day=1)
-
-    total_income = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter_by(user_id=user_id, type="income")
-        .scalar()
-    )
-    total_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter_by(user_id=user_id, type="expense")
-        .scalar()
-    )
-
-    monthly_income = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "income",
-            Transaction.transaction_date >= month_start,
-        )
-        .scalar()
-    )
-    monthly_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-        )
-        .scalar()
-    )
-
-    income_count = (
-        Transaction.query
-        .filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "income",
-            Transaction.transaction_date >= month_start,
-        )
-        .count()
-    )
-    expense_count = (
-        Transaction.query
-        .filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-        )
-        .count()
-    )
-
-    balance = (total_income or 0) - (total_expense or 0)
-    savings = (monthly_income or 0) - (monthly_expense or 0)
-    savings_rate = (savings / monthly_income * 100) if monthly_income else 0
-
-    resp = jsonify({
-        "balance": float(balance),
-        "monthly_income": float(monthly_income),
-        "monthly_expense": float(monthly_expense),
-        "income_count": income_count,
-        "expense_count": expense_count,
-        "savings_rate": savings_rate,
-        "savings": float(savings),
-    })
-    resp.headers["Access-Control-Allow-Origin"] = origin
-    resp.headers["Vary"] = "Origin"
-    resp.headers["Access-Control-Allow-Credentials"] = "true"
-    return resp
-
 @gerenciamento_financeiro_bp.route("/api/recurring", methods=["GET", "POST"])
 def api_recurring():
     if "finance_user_id" not in session:
         return jsonify({"error": "Não autorizado"}), 401
         
     user_id = session["finance_user_id"]
-    
+
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+    owner_id = ws.owner_id
+
+    # Garantir categorias padrão do workspace (sempre no config do dono)
+    _ensure_default_categories(owner_id, workspace_id)
+    owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+
     if request.method == "POST":
         try:
+            if workspace_role == "viewer":
+                return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
             data = request.get_json()
             
             if not data:
@@ -1620,21 +1970,33 @@ def api_recurring():
                 
             if transaction_type not in ['income', 'expense']:
                 return jsonify({"error": "Tipo deve ser 'income' ou 'expense'"}), 400
-            
-            # Garantir categorias padrão antes de criar transação
-            _ensure_default_categories(user_id)
-            
-            # Verificar se a categoria existe e pertence ao usuário
+
+            if not owner_config:
+                return jsonify({"error": "Configuração financeira não encontrada"}), 404
+
+            # Verificar se a categoria existe e pertence ao workspace
             if category_id:
-                category = Category.query.filter_by(id=category_id, config_id=FinanceConfig.query.filter_by(user_id=user_id).first().id).first()
+                try:
+                    category_id = int(category_id)
+                except (ValueError, TypeError):
+                    return jsonify({"error": "Categoria inválida"}), 400
+
+                category = Category.query.filter_by(
+                    id=category_id,
+                    config_id=owner_config.id,
+                    workspace_id=workspace_id,
+                    is_active=True,
+                ).first()
                 if not category:
-                    return jsonify({"error": "Categoria não encontrada ou não pertence ao usuário"}), 404
+                    return jsonify({"error": "Categoria não encontrada para este workspace"}), 404
             else:
-                # Se category_id não for fornecido, tentar encontrar uma categoria padrão
-                config = FinanceConfig.query.filter_by(user_id=user_id).first()
-                if not config:
-                    return jsonify({"error": "Configuração financeira não encontrada para o usuário"}), 404
-                category = Category.query.filter_by(config_id=config.id, type=transaction_type, is_default=True).first()
+                category = Category.query.filter_by(
+                    config_id=owner_config.id,
+                    workspace_id=workspace_id,
+                    type=transaction_type,
+                    is_default=True,
+                    is_active=True,
+                ).first()
                 if not category:
                     return jsonify({"error": "Categoria padrão não encontrada"}), 404
                 category_id = category.id
@@ -1675,6 +2037,164 @@ def api_recurring():
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/subcategories", methods=["GET", "POST"])
+def api_subcategories():
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+
+    owner_id = ws.owner_id
+    _ensure_default_categories(owner_id, workspace_id)
+    owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+    if not owner_config:
+        return jsonify({"error": "Configuração financeira não encontrada"}), 404
+
+    if request.method == "POST":
+        try:
+            if workspace_role == "viewer":
+                return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
+            data = request.get_json() or {}
+            name = str(data.get("name") or "").strip()
+            category_id = data.get("category_id")
+
+            if not name or not category_id:
+                return jsonify({"error": "Campos obrigatórios: name, category_id"}), 400
+
+            try:
+                category_id = int(category_id)
+            except (TypeError, ValueError):
+                return jsonify({"error": "Categoria inválida"}), 400
+
+            category = Category.query.filter_by(
+                id=category_id,
+                config_id=owner_config.id,
+                workspace_id=workspace_id,
+                is_active=True,
+            ).first()
+            if not category:
+                return jsonify({"error": "Categoria não encontrada para este workspace"}), 404
+
+            sub = SubCategory(
+                config_id=owner_config.id,
+                workspace_id=workspace_id,
+                category_id=category_id,
+                name=name,
+                icon=data.get("icon"),
+                color=data.get("color"),
+                is_default=False,
+                is_active=True,
+            )
+            db.session.add(sub)
+            db.session.commit()
+
+            return jsonify({
+                "message": "Subcategoria criada com sucesso!",
+                "subcategory": {
+                    "id": sub.id,
+                    "category_id": sub.category_id,
+                    "name": sub.name,
+                    "icon": sub.icon,
+                    "color": sub.color,
+                    "is_default": sub.is_default,
+                }
+            }), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    try:
+        category_id = request.args.get("category_id", type=int)
+        if not category_id:
+            return jsonify({"error": "category_id é obrigatório"}), 400
+
+        # Criar subcategorias padrão se não existirem
+        _ensure_default_subcategories(category_id)
+
+        # Buscar subcategorias
+        subs = (
+            SubCategory.query
+            .filter_by(
+                category_id=category_id,
+                is_active=True,
+            )
+            .order_by(SubCategory.name.asc())
+            .all()
+        )
+
+        return jsonify({
+            "subcategories": [{
+                "id": s.id,
+                "category_id": s.category_id,
+                "name": s.name,
+                "icon": s.icon,
+                "color": s.color,
+                "is_default": s.is_default,
+            } for s in subs]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/subcategories/<int:subcategory_id>", methods=["DELETE"])
+def api_subcategory_detail(subcategory_id: int):
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    if workspace_role == "viewer":
+        return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+
+    owner_id = ws.owner_id
+    owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+    if not owner_config:
+        return jsonify({"error": "Configuração financeira não encontrada"}), 404
+
+    sub = SubCategory.query.filter_by(
+        id=subcategory_id,
+        config_id=owner_config.id,
+        workspace_id=workspace_id,
+        is_active=True,
+    ).first()
+    if not sub:
+        return jsonify({"error": "Subcategoria não encontrada"}), 404
+
+    if getattr(sub, "is_default", False):
+        return jsonify({"error": "Subcategorias padrão não podem ser excluídas"}), 400
+
+    try:
+        sub.is_active = False
+        db.session.commit()
+        return jsonify({"message": "Subcategoria excluída com sucesso"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
     
     else:  # GET
         try:
@@ -1720,13 +2240,30 @@ def api_categories():
         return jsonify({"error": "Não autorizado"}), 401
         
     user_id = session["finance_user_id"]
-    
-    # Garantir que existe config
-    _ensure_default_categories(user_id)
-    config = FinanceConfig.query.filter_by(user_id=user_id).first()
+
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+
+    owner_id = ws.owner_id
+
+    # Garantir categorias padrão do workspace (sempre no config do dono)
+    _ensure_default_categories(owner_id, workspace_id)
+    config = FinanceConfig.query.filter_by(user_id=owner_id).first()
     
     if request.method == "POST":
         try:
+            if workspace_role == "viewer":
+                return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
             data = request.get_json()
             
             if not data.get("name") or not data.get("type"):
@@ -1734,6 +2271,7 @@ def api_categories():
             
             category = Category(
                 config_id=config.id,
+                workspace_id=workspace_id,
                 name=data["name"],
                 type=data["type"],
                 icon=data.get("icon", "💰"),
@@ -1764,7 +2302,7 @@ def api_categories():
         try:
             category_type = request.args.get("type")
             
-            query = Category.query.filter_by(config_id=config.id, is_active=True)
+            query = Category.query.filter_by(config_id=config.id, workspace_id=workspace_id, is_active=True)
             
             if category_type:
                 query = query.filter_by(type=category_type)
@@ -1793,17 +2331,34 @@ def api_category_detail(category_id: int):
 
     user_id = session["finance_user_id"]
 
-    # Garantir que existe config do usuário
-    _ensure_default_categories(user_id)
-    config = FinanceConfig.query.filter_by(user_id=user_id).first()
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+
+    owner_id = ws.owner_id
+
+    # Garantir que existe config do dono
+    _ensure_default_categories(owner_id, workspace_id)
+    config = FinanceConfig.query.filter_by(user_id=owner_id).first()
     if not config:
         return jsonify({"error": "Configuração financeira não encontrada"}), 404
 
-    category = Category.query.filter_by(id=category_id, config_id=config.id).first()
+    category = Category.query.filter_by(id=category_id, config_id=config.id, workspace_id=workspace_id).first()
     if not category:
         return jsonify({"error": "Categoria não encontrada"}), 404
 
     if request.method == "DELETE":
+        if workspace_role == "viewer":
+            return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
         # Não permitir apagar categorias padrão
         if getattr(category, "is_default", False):
             return jsonify({"error": "Categorias padrão não podem ser excluídas"}), 400
@@ -3420,9 +3975,9 @@ def api_accept_invite(invite_id):
         # Notificar quem convidou
         try:
             send_share_accepted(
-                to_email=invite.invited_by.email,
-                accepter_email=user.email,
-                workspace_name=invite.workspace.name
+                owner_email=invite.invited_by.email,
+                shared_email=user.email,
+                app=current_app
             )
         except Exception as e:
             print(f"Erro ao enviar email de aceitação: {e}")
@@ -3469,6 +4024,100 @@ def api_reject_invite(invite_id):
         db.session.commit()
         
         return jsonify({"message": "Convite recusado"}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/workspace/clear", methods=["POST"])
+def api_clear_workspace():
+    """Limpa todas as transações do workspace atual"""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    if "active_workspace_id" not in session:
+        return jsonify({"error": "Nenhum workspace ativo"}), 400
+    
+    user_id = session["finance_user_id"]
+    workspace_id = session["active_workspace_id"]
+    
+    try:
+        # Verificar se o usuário tem permissão (owner ou editor)
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            return jsonify({"error": "Workspace não encontrado"}), 404
+        
+        # Verificar se é owner
+        is_owner = workspace.owner_id == user_id
+        
+        # Verificar se é membro com permissão de edição
+        is_editor = False
+        if not is_owner:
+            member = WorkspaceMember.query.filter_by(
+                workspace_id=workspace_id,
+                user_id=user_id
+            ).first()
+            is_editor = member and member.role in ['editor', 'owner']
+        
+        if not (is_owner or is_editor):
+            return jsonify({"error": "Sem permissão para limpar este workspace"}), 403
+        
+        # Capturar IDs de fechamentos ligados às transações deste workspace
+        closure_rows = (
+            db.session.query(Transaction.monthly_closure_id)
+            .filter(Transaction.workspace_id == workspace_id)
+            .filter(Transaction.monthly_closure_id.isnot(None))
+            .distinct()
+            .all()
+        )
+        closure_ids = [r[0] for r in closure_rows if r and r[0] is not None]
+
+        # Deletar todas as transações do workspace
+        deleted_count = (
+            Transaction.query
+            .filter(Transaction.workspace_id == workspace_id)
+            .delete(synchronize_session=False)
+        )
+
+        # Deletar transações recorrentes (não possuem workspace_id).
+        # Fazemos a limpeza com base no workspace_id da categoria.
+        recurring_ids_subq = (
+            db.session.query(RecurringTransaction.id)
+            .join(Category, RecurringTransaction.category_id == Category.id)
+            .filter(Category.workspace_id == workspace_id)
+            .subquery()
+        )
+        recurring_deleted = (
+            RecurringTransaction.query
+            .filter(RecurringTransaction.id.in_(recurring_ids_subq))
+            .delete(synchronize_session=False)
+        )
+
+        # Deletar snapshots e fechamentos mensais relacionados às transações deletadas
+        fixed_deleted = 0
+        closure_deleted = 0
+        if closure_ids:
+            fixed_deleted = (
+                MonthlyFixedExpense.query
+                .filter(MonthlyFixedExpense.monthly_closure_id.in_(closure_ids))
+                .delete(synchronize_session=False)
+            )
+            closure_deleted = (
+                MonthlyClosure.query
+                .filter(MonthlyClosure.id.in_(closure_ids))
+                .delete(synchronize_session=False)
+            )
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Workspace limpo com sucesso",
+            "transactions_deleted": deleted_count,
+            "recurring_deleted": recurring_deleted,
+            "monthly_fixed_deleted": fixed_deleted,
+            "monthly_closures_deleted": closure_deleted,
+        }), 200
         
     except Exception as e:
         db.session.rollback()

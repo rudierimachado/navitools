@@ -8,7 +8,7 @@
     <div class="col-12">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
             <div>
-                <h1 class="h2 mb-1">Todas as Transações</h1>
+                <h1 class="h2 mb-1">Transações</h1>
                 <p class="text-muted mb-0">Gerencie seu histórico financeiro completo</p>
             </div>
             <div class="d-flex gap-2 mt-3 mt-md-0">
@@ -19,6 +19,22 @@
                     <i class="bi bi-dash-circle me-1"></i> Nova Despesa
                 </button>
             </div>
+        </div>
+        
+        <!-- Abas: Entradas e Saídas -->
+        <div class="d-flex align-items-center gap-2 mb-3" style="border-bottom: 2px solid var(--border-color); padding-bottom: 0;">
+            <button class="btn px-4 py-2 fw-semibold transactions-tab active" 
+                    id="tabIncomeTransactions" 
+                    onclick="filterTransactionsByType('income')"
+                    style="border: none; border-bottom: 3px solid #10b981; border-radius: 0; background: transparent; color: #10b981; margin-bottom: -2px;">
+                <i class="bi bi-arrow-up-circle me-1"></i>Entradas
+            </button>
+            <button class="btn px-4 py-2 fw-semibold transactions-tab" 
+                    id="tabExpenseTransactions" 
+                    onclick="filterTransactionsByType('expense')"
+                    style="border: none; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--text-secondary); margin-bottom: -2px;">
+                <i class="bi bi-arrow-down-circle me-1"></i>Saídas
+            </button>
         </div>
     </div>
 
@@ -221,9 +237,28 @@
                     
                     <div class="mb-3">
                         <label for="category" class="form-label">Categoria</label>
-                        <select class="form-select" id="category">
-                            <option value="">Selecione uma categoria</option>
-                        </select>
+                        <div class="input-group">
+                            <select class="form-select" id="category">
+                                <option value="">Selecione uma categoria</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" onclick="openCategoriesManager({ typeElId: 'transactionType', selectElId: 'category' });">
+                                <i class="bi bi-plus"></i>
+                                Nova categoria
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="subcategoryField" style="display: none;">
+                        <label for="subcategory" class="form-label">Subcategoria</label>
+                        <div class="input-group">
+                            <select class="form-select" id="subcategory">
+                                <option value="">Selecione uma subcategoria</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" onclick="openSubcategoriesManager({ categorySelectId: 'category', subcategorySelectId: 'subcategory' });">
+                                <i class="bi bi-plus"></i>
+                                Nova subcategoria
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -268,16 +303,57 @@ function _chooseEditScope() {
     });
 }
 
+// Load subcategories for modal
+async function loadSubcategoriesModal(categoryId) {
+    const subField = document.getElementById('subcategoryField');
+    const subSelect = document.getElementById('subcategory');
+    if (!categoryId) {
+        subField.style.display = 'none';
+        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+        return;
+    }
+    try {
+        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_subcategories') }}?category_id=${categoryId}`);
+        const d = await r.json();
+        if (!r.ok || !d.subcategories || d.subcategories.length === 0) {
+            subField.style.display = 'none';
+            subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+            return;
+        }
+        subField.style.display = 'block';
+        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+        d.subcategories.forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.id;
+            o.textContent = `${s.icon || '📌'} ${s.name}`;
+            subSelect.appendChild(o);
+        });
+    } catch (e) {
+        console.error('Erro ao carregar subcategorias:', e);
+        subField.style.display = 'none';
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
     setupAmountMask();
     loadAllCategories();
+    // Set default filter to 'income' (Entradas)
+    document.getElementById('filterType').value = 'income';
     loadTransactions();
     
     // View mode switch
     document.getElementById('tableView').addEventListener('change', switchToTableView);
     document.getElementById('cardView').addEventListener('change', switchToCardView);
+    
+    // Category change listener for subcategories
+    const catSelect = document.getElementById('category');
+    if (catSelect) {
+        catSelect.addEventListener('change', (e) => {
+            loadSubcategoriesModal(e.target.value);
+        });
+    }
     
     // Edit scope modal buttons
     const scopeEl = document.getElementById('editScopeModal');
@@ -659,6 +735,15 @@ window.transactionsPage.showAddTransaction = function(type, options = {}) {
     // Load categories
     loadCategories(type);
     
+    // Setup subcategory listener
+    const catSelect = document.getElementById('category');
+    if (catSelect) {
+        catSelect.removeEventListener('change', loadSubcategoriesModal);
+        catSelect.addEventListener('change', (e) => {
+            loadSubcategoriesModal(e.target.value);
+        });
+    }
+    
     modal.show();
 }
 
@@ -705,6 +790,7 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
         amount: parseBRL(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value || null,
+        subcategory_id: document.getElementById('subcategory').value || null,
         notes: document.getElementById('notes').value || null,
         apply_scope: currentEditScope
     };
@@ -752,9 +838,9 @@ window.transactionsPage.editTransaction = async function(id) {
     try {
         showLoading('Carregando transação...');
         // Fetch transaction data
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}?page=1&per_page=1000`);
+        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}`);
         const data = await response.json();
-        const transaction = data.transactions?.find(t => t.id === id);
+        const transaction = data.transaction;
         
         if (!transaction) {
             hideLoading();
@@ -860,9 +946,41 @@ window.transactionsPage.deleteTransaction = async function(id) {
     } catch (error) {
         console.error('Erro ao excluir:', error);
         showToast('Erro ao excluir transação', 'error');
-    } finally {
+    }
+    finally {
         hideLoading();
     }
 }
-</script>
-{% endblock %}
+
+// Filtro de tipo de transação (Entradas, Saídas)
+function filterTransactionsByType(type) {
+    // Atualizar seleção do filtro de tipo
+    const filterType = document.getElementById('filterType');
+    if (filterType) {
+        filterType.value = type;
+    }
+    
+    // Atualizar estilos das abas
+    const tabIncome = document.getElementById('tabIncomeTransactions');
+    const tabExpense = document.getElementById('tabExpenseTransactions');
+    
+    if (tabIncome && tabExpense) {
+        // Remover estilo ativo de todas
+        [tabIncome, tabExpense].forEach(tab => {
+            tab.style.borderBottomColor = 'transparent';
+            tab.style.color = 'var(--text-secondary)';
+        });
+        
+        // Aplicar estilo ativo à aba selecionada
+        if (type === 'income') {
+            tabIncome.style.borderBottomColor = '#10b981';
+            tabIncome.style.color = '#10b981';
+        } else if (type === 'expense') {
+            tabExpense.style.borderBottomColor = '#ef4444';
+            tabExpense.style.color = '#ef4444';
+        }
+    }
+    
+    // Aplicar filtros
+    applyFilters();
+}

@@ -98,6 +98,11 @@ def create_app():
             app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
             app.config['DEBUG'] = False
         
+        # Desabilitar cache de templates e arquivos estáticos
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
+        app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+        app.jinja_env.cache = None
+        
         if ChoiceLoader and FileSystemLoader:
 
             try:
@@ -191,6 +196,14 @@ def create_app():
             except Exception as e:
                 log_debug(f"❌ ERRO em get_device_context: {e}")
                 return {}
+
+        @app.after_request
+        def add_no_cache_headers(response):
+            """Adicionar headers para desabilitar cache no navegador."""
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
 
         @app.cli.command('init-db')
         def init_db_command():

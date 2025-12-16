@@ -30,6 +30,10 @@ flask-limiter
 pikepdf
 pdf2image
 
+# PDF Editor (edição, numeração, marca d'água, assinatura)
+PyPDF2
+reportlab
+
 # YouTube Downloader
 yt-dlp
 pytubefix

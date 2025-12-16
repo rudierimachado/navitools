@@ -261,12 +261,11 @@
     }
 
     .mobile-action-bar .mobile-actions {
-        display: flex;
-        gap: 0.5rem;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 0.1rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+        overflow: hidden;
+        padding-bottom: 0;
     }
 
     .mobile-action-bar .mobile-actions::-webkit-scrollbar {
@@ -279,20 +278,20 @@
     }
 
     .mobile-action-bar .mobile-action-btn {
-        flex: 0 0 auto;
-        width: 76px;
+        width: 100%;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 0.3rem;
-        padding: 0.7rem 0.3rem;
-        border-radius: 16px;
+        padding: 0.85rem 0.35rem;
+        border-radius: 18px;
         border: none;
         background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.05));
         color: rgba(241, 245, 249, 0.9);
         font-weight: 600;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         line-height: 1.2;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
@@ -316,7 +315,7 @@
     }
 
     .mobile-action-bar .mobile-action-btn i {
-        font-size: 1.25rem;
+        font-size: 1.35rem;
         position: relative;
         z-index: 1;
         transition: transform 0.2s ease;
@@ -442,6 +441,9 @@
                     <i class="bi bi-person-circle me-1 d-none d-md-inline"></i>
                     <span class="d-none d-md-inline">{{ user.email }}</span>
                     <span class="d-inline d-md-none">{{ user.email.split('@')[0][:8] }}</span>
+                    <span id="userNotificationBadge" class="badge bg-danger rounded-pill ms-2" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; display: none;">
+                        <i class="bi bi-envelope-exclamation-fill"></i>
+                    </span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li class="px-3 py-2 text-muted small">
@@ -518,22 +520,6 @@
                 <i class="bi bi-dash-circle text-danger"></i>
                 <span>Despesa</span>
             </button>
-            <button class="mobile-action-btn" onclick="financeMobileAction('history')">
-                <i class="bi bi-clock-history text-info"></i>
-                <span>Histórico</span>
-            </button>
-            <button class="mobile-action-btn" onclick="financeMobileAction('charts')">
-                <i class="bi bi-bar-chart text-warning"></i>
-                <span>Gráficos</span>
-            </button>
-            <button class="mobile-action-btn" onclick="financeMobileAction('close_month')">
-                <i class="bi bi-calendar-check text-primary"></i>
-                <span>Fechar</span>
-            </button>
-            <button class="mobile-action-btn" onclick="financeMobileAction('ai')">
-                <i class="bi bi-robot text-info"></i>
-                <span>IA</span>
-            </button>
             <button class="mobile-action-btn" onclick="financeMobileAction('menu')">
                 <i class="bi bi-list text-light"></i>
                 <span>Menu</span>
@@ -551,6 +537,22 @@
                 </div>
                 <div class="modal-body">
                     <div class="list-group list-group-flush">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('history'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                            <i class="bi bi-clock-history fs-5 text-info"></i>
+                            <span>Histórico</span>
+                        </button>
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('charts'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                            <i class="bi bi-bar-chart fs-5 text-warning"></i>
+                            <span>Gráficos</span>
+                        </button>
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('close_month'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                            <i class="bi bi-calendar-check fs-5 text-primary"></i>
+                            <span>Fechar Mês</span>
+                        </button>
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('ai'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                            <i class="bi bi-robot fs-5 text-info"></i>
+                            <span>IA</span>
+                        </button>
                         <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('workspaces'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-folder fs-5 text-primary"></i>
                             <span>Gerenciar Workspaces</span>
@@ -579,19 +581,150 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-folder me-2"></i>Meus Workspaces</h5>
+                    <h5 class="modal-title"><i class="bi bi-folder me-2"></i>Workspaces</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="workspaceTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="workspaces-tab" data-bs-toggle="tab" data-bs-target="#workspaces-pane" type="button" role="tab">
+                                <i class="bi bi-folder me-1"></i>Meus Workspaces
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="shared-tab" data-bs-toggle="tab" data-bs-target="#shared-pane" type="button" role="tab">
+                                <i class="bi bi-share me-1"></i>Compartilhado
+                                <span id="sharedTabBadge" class="badge bg-danger rounded-pill ms-2" style="font-size: 0.65rem; padding: 0.2rem 0.4rem; display: none;"></span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="workspaceTabContent">
+                        <!-- Aba Meus Workspaces -->
+                        <div class="tab-pane fade show active" id="workspaces-pane" role="tabpanel">
+                            <div class="d-flex justify-content-end mb-3">
+                                <button class="btn btn-primary btn-sm" onclick="showCreateWorkspaceModal()">
+                                    <i class="bi bi-plus me-1"></i>Novo Workspace
+                                </button>
+                            </div>
+                            <div id="workspacesListContent">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Aba Compartilhado -->
+                        <div class="tab-pane fade" id="shared-pane" role="tabpanel">
+                            <div id="sharedContent">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando convites...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="subcategoriesManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-diagram-3 me-2"></i>Gerenciar subcategorias</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="d-flex justify-content-end mb-3">
-                        <button class="btn btn-primary btn-sm" onclick="showCreateWorkspaceModal()">
-                            <i class="bi bi-plus me-1"></i>Novo Workspace
+                        <button type="button" class="btn btn-outline-secondary" id="subcategoriesManagerReloadBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
                         </button>
                     </div>
-                    <div id="workspacesListContent">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Carregando...</span>
+
+                    <div class="list-group mb-3" id="subcategoriesManagerList">
+                        <div class="text-center py-3 text-muted">Carregando...</div>
+                    </div>
+
+                    <div class="border-top pt-3">
+                        <div class="fw-semibold mb-2">Nova subcategoria</div>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="newSubcategoryName" placeholder="Ex: Internet" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Ícone</label>
+                                <input type="text" class="form-control" id="newSubcategoryIcon" placeholder="📌" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Cor</label>
+                                <input type="color" class="form-control form-control-color w-100" id="newSubcategoryColor" value="#6366f1" />
+                            </div>
+                            <div class="col-12">
+                                <button type="button" class="btn btn-primary w-100" id="createSubcategoryBtn">
+                                    <i class="bi bi-plus-circle me-1"></i>Criar subcategoria
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="categoriesManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-tags me-2"></i>Gerenciar categorias</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" id="categoriesManagerType">
+                                <option value="income">Entradas</option>
+                                <option value="expense">Despesas</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <button type="button" class="btn btn-outline-secondary w-100" id="categoriesManagerReloadBtn">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="list-group mb-3" id="categoriesManagerList">
+                        <div class="text-center py-3 text-muted">Carregando...</div>
+                    </div>
+
+                    <div class="border-top pt-3">
+                        <div class="fw-semibold mb-2">Nova categoria</div>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label">Nome</label>
+                                <input type="text" class="form-control" id="newCategoryName" placeholder="Ex: Academia" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Ícone</label>
+                                <input type="text" class="form-control" id="newCategoryIcon" placeholder="💰" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Cor</label>
+                                <input type="color" class="form-control form-control-color w-100" id="newCategoryColor" value="#6366f1" />
+                            </div>
+                            <div class="col-12">
+                                <button type="button" class="btn btn-primary w-100" id="createCategoryBtn">
+                                    <i class="bi bi-plus-circle me-1"></i>Criar categoria
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -657,6 +790,341 @@
             if (overlay) overlay.style.display = 'none';
         };
 
+        if (!window.openSubcategoriesManager) {
+            window.openSubcategoriesManager = function({ categorySelectId = 'category', subcategorySelectId = 'subcategory' } = {}) {
+                const modalEl = document.getElementById('subcategoriesManagerModal');
+                if (!modalEl || !window.bootstrap) return;
+
+                const catSelect = document.getElementById(categorySelectId);
+                const subSelect = document.getElementById(subcategorySelectId);
+                const listEl = document.getElementById('subcategoriesManagerList');
+                const nameEl = document.getElementById('newSubcategoryName');
+                const iconEl = document.getElementById('newSubcategoryIcon');
+                const colorEl = document.getElementById('newSubcategoryColor');
+                const createBtn = document.getElementById('createSubcategoryBtn');
+                const reloadBtn = document.getElementById('subcategoriesManagerReloadBtn');
+
+                if (!catSelect || !listEl || !nameEl || !iconEl || !colorEl || !createBtn || !reloadBtn) return;
+
+                const categoryId = catSelect.value;
+                if (!categoryId) {
+                    window.showToast('Selecione uma categoria primeiro', 'warning');
+                    return;
+                }
+
+                const apiBase = '{{ url_for("gerenciamento_financeiro.api_subcategories") }}';
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+
+                const renderList = (items = []) => {
+                    if (!items.length) {
+                        listEl.innerHTML = '<div class="text-center py-3 text-muted">Nenhuma subcategoria</div>';
+                        return;
+                    }
+                    listEl.innerHTML = items.map((s) => {
+                        const badge = s.is_default ? '<span class="badge text-bg-light border ms-2">padrão</span>' : '';
+                        const delBtn = s.is_default
+                            ? ''
+                            : `<button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${s.id}" title="Excluir"><i class="bi bi-trash"></i></button>`;
+                        return `
+                            <div class="list-group-item d-flex justify-content-between align-items-center" data-action="select" data-id="${s.id}">
+                                <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                                    <span style="width:10px;height:10px;border-radius:999px;background:${s.color || '#6366f1'};display:inline-block;flex:0 0 auto;"></span>
+                                    <span style="flex:0 0 auto;">${s.icon || '📌'}</span>
+                                    <span class="text-truncate">${s.name || ''}</span>
+                                    ${badge}
+                                </div>
+                                <div class="d-flex gap-2">${delBtn}</div>
+                            </div>
+                        `;
+                    }).join('');
+                };
+
+                const loadList = async () => {
+                    try {
+                        listEl.innerHTML = '<div class="text-center py-3 text-muted"><div class="spinner-border" role="status" style="width:1.5rem;height:1.5rem;"></div></div>';
+                        const resp = await fetch(`${apiBase}?category_id=${encodeURIComponent(categoryId)}`);
+                        const data = await resp.json();
+                        if (!resp.ok) {
+                            renderList([]);
+                            window.showToast((data && data.error) ? data.error : 'Erro ao carregar subcategorias', 'error');
+                            return;
+                        }
+                        renderList(data.subcategories || []);
+                    } catch (e) {
+                        renderList([]);
+                        window.showToast('Erro ao carregar subcategorias', 'error');
+                    }
+                };
+
+                const refreshSelect = async (selectedId = null) => {
+                    if (!subSelect) return;
+                    try {
+                        const resp = await fetch(`${apiBase}?category_id=${encodeURIComponent(categoryId)}`);
+                        const data = await resp.json();
+                        if (!resp.ok) return;
+                        const items = data.subcategories || [];
+                        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+                        items.forEach((s) => {
+                            const opt = document.createElement('option');
+                            opt.value = s.id;
+                            opt.textContent = `${s.icon || '📌'} ${s.name}`;
+                            subSelect.appendChild(opt);
+                        });
+                        if (selectedId) subSelect.value = String(selectedId);
+                    } catch (e) {}
+                };
+
+                const onListClick = async (evt) => {
+                    const btn = evt.target.closest('button[data-action]');
+                    const item = evt.target.closest('[data-action="select"]');
+                    if (!btn && !item) return;
+
+                    if (btn && btn.dataset.action === 'delete') {
+                        const id = btn.dataset.id;
+                        const ok = (window._openConfirmModal)
+                            ? await window._openConfirmModal({
+                                title: 'Excluir subcategoria',
+                                body: 'Deseja realmente excluir esta subcategoria?',
+                                confirmText: 'Excluir',
+                                confirmClass: 'btn-danger',
+                            })
+                            : window.confirm('Deseja realmente excluir esta subcategoria?');
+                        if (!ok) return;
+
+                        try {
+                            const resp = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
+                            const data = await resp.json();
+                            if (!resp.ok) {
+                                window.showToast((data && data.error) ? data.error : 'Erro ao excluir subcategoria', 'error');
+                                return;
+                            }
+                            window.showToast('Subcategoria excluída com sucesso', 'success');
+                            await loadList();
+                            await refreshSelect();
+                        } catch (e) {
+                            window.showToast('Erro ao excluir subcategoria', 'error');
+                        }
+                        return;
+                    }
+
+                    if (item && subSelect) {
+                        const id = item.dataset.id;
+                        subSelect.value = String(id);
+                        try { subSelect.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+                        try { modal.hide(); } catch (e) {}
+                    }
+                };
+
+                const onCreate = async () => {
+                    const name = String(nameEl.value || '').trim();
+                    const icon = String(iconEl.value || '').trim() || '📌';
+                    const color = String(colorEl.value || '').trim() || '#6366f1';
+                    if (!name) {
+                        window.showToast('Informe o nome da subcategoria', 'warning');
+                        return;
+                    }
+                    try {
+                        const resp = await fetch(apiBase, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, icon, color, category_id: categoryId }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) {
+                            window.showToast((data && data.error) ? data.error : 'Erro ao criar subcategoria', 'error');
+                            return;
+                        }
+                        window.showToast('Subcategoria criada com sucesso', 'success');
+                        nameEl.value = '';
+                        await loadList();
+                        await refreshSelect(data && data.subcategory && data.subcategory.id);
+                    } catch (e) {
+                        window.showToast('Erro ao criar subcategoria', 'error');
+                    }
+                };
+
+                const cleanup = () => {
+                    try { listEl.removeEventListener('click', onListClick); } catch (e) {}
+                    try { createBtn.removeEventListener('click', onCreate); } catch (e) {}
+                    try { reloadBtn.removeEventListener('click', loadList); } catch (e) {}
+                };
+
+                listEl.addEventListener('click', onListClick);
+                createBtn.addEventListener('click', onCreate);
+                reloadBtn.addEventListener('click', loadList);
+                modalEl.addEventListener('hidden.bs.modal', cleanup, { once: true });
+
+                loadList();
+            };
+        }
+
+        if (!window.openCategoriesManager) {
+            window.openCategoriesManager = function({ typeElId = 'transactionType', selectElId = 'category' } = {}) {
+                const modalEl = document.getElementById('categoriesManagerModal');
+                if (!modalEl || !window.bootstrap) return;
+
+                const typeEl = document.getElementById(typeElId);
+                const selectEl = document.getElementById(selectElId);
+                const mgrType = document.getElementById('categoriesManagerType');
+                const mgrList = document.getElementById('categoriesManagerList');
+                const reloadBtn = document.getElementById('categoriesManagerReloadBtn');
+                const nameEl = document.getElementById('newCategoryName');
+                const iconEl = document.getElementById('newCategoryIcon');
+                const colorEl = document.getElementById('newCategoryColor');
+                const createBtn = document.getElementById('createCategoryBtn');
+
+                if (!mgrType || !mgrList || !reloadBtn || !nameEl || !iconEl || !colorEl || !createBtn) return;
+
+                const apiBase = '{{ url_for("gerenciamento_financeiro.api_categories") }}';
+                const currentType = (typeEl && typeEl.value) ? typeEl.value : (mgrType.value || 'expense');
+                mgrType.value = (currentType === 'income' || currentType === 'expense') ? currentType : 'expense';
+
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+
+                const renderList = (categories = []) => {
+                    if (!categories.length) {
+                        mgrList.innerHTML = '<div class="text-center py-3 text-muted">Nenhuma categoria</div>';
+                        return;
+                    }
+
+                    mgrList.innerHTML = categories.map((c) => {
+                        const badge = c.is_default ? '<span class="badge text-bg-light border ms-2">padrão</span>' : '';
+                        const delBtn = c.is_default
+                            ? ''
+                            : `<button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${c.id}" title="Excluir"><i class="bi bi-trash"></i></button>`;
+
+                        return `
+                            <div class="list-group-item d-flex justify-content-between align-items-center" data-action="select" data-id="${c.id}">
+                                <div class="d-flex align-items-center gap-2" style="min-width:0;">
+                                    <span style="width:10px;height:10px;border-radius:999px;background:${c.color || '#6366f1'};display:inline-block;flex:0 0 auto;"></span>
+                                    <span style="flex:0 0 auto;">${c.icon || '💰'}</span>
+                                    <span class="text-truncate">${c.name || ''}</span>
+                                    ${badge}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    ${delBtn}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                };
+
+                const loadList = async () => {
+                    try {
+                        mgrList.innerHTML = '<div class="text-center py-3 text-muted"><div class="spinner-border" role="status" style="width:1.5rem;height:1.5rem;"></div></div>';
+                        const resp = await fetch(`${apiBase}?type=${encodeURIComponent(mgrType.value)}`);
+                        const data = await resp.json();
+                        if (!resp.ok) {
+                            renderList([]);
+                            window.showToast((data && data.error) ? data.error : 'Erro ao carregar categorias', 'error');
+                            return;
+                        }
+                        renderList(data.categories || []);
+                    } catch (e) {
+                        renderList([]);
+                        window.showToast('Erro ao carregar categorias', 'error');
+                    }
+                };
+
+                const onListClick = async (evt) => {
+                    const btn = evt.target.closest('button[data-action]');
+                    const item = evt.target.closest('[data-action="select"]');
+                    if (!btn && !item) return;
+
+                    if (btn && btn.dataset.action === 'delete') {
+                        const id = btn.dataset.id;
+                        const ok = (window._openConfirmModal)
+                            ? await window._openConfirmModal({
+                                title: 'Excluir categoria',
+                                body: 'Deseja realmente excluir esta categoria?',
+                                confirmText: 'Excluir',
+                                confirmClass: 'btn-danger',
+                            })
+                            : window.confirm('Deseja realmente excluir esta categoria?');
+                        if (!ok) return;
+
+                        try {
+                            const resp = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
+                            const data = await resp.json();
+                            if (!resp.ok) {
+                                window.showToast((data && data.error) ? data.error : 'Erro ao excluir categoria', 'error');
+                                return;
+                            }
+                            window.showToast('Categoria excluída com sucesso', 'success');
+                            await loadList();
+                            if (typeof loadCategories === 'function') {
+                                try { await loadCategories(mgrType.value); } catch (e) {}
+                            }
+                        } catch (e) {
+                            window.showToast('Erro ao excluir categoria', 'error');
+                        }
+                        return;
+                    }
+
+                    if (item && selectEl) {
+                        const id = item.dataset.id;
+                        selectEl.value = String(id);
+                        if (typeof selectEl.dispatchEvent === 'function') {
+                            try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+                        }
+                        try { modal.hide(); } catch (e) {}
+                    }
+                };
+
+                const onCreate = async () => {
+                    const name = String(nameEl.value || '').trim();
+                    const icon = String(iconEl.value || '').trim() || '💰';
+                    const color = String(colorEl.value || '').trim() || '#6366f1';
+                    const type = String(mgrType.value || '').trim();
+                    if (!name) {
+                        window.showToast('Informe o nome da categoria', 'warning');
+                        return;
+                    }
+
+                    try {
+                        const resp = await fetch(apiBase, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, type, icon, color }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) {
+                            window.showToast((data && data.error) ? data.error : 'Erro ao criar categoria', 'error');
+                            return;
+                        }
+                        window.showToast('Categoria criada com sucesso', 'success');
+                        nameEl.value = '';
+                        await loadList();
+                        if (typeof loadCategories === 'function') {
+                            try { await loadCategories(type); } catch (e) {}
+                        }
+                        if (selectEl && data && data.category && data.category.id) {
+                            selectEl.value = String(data.category.id);
+                        }
+                    } catch (e) {
+                        window.showToast('Erro ao criar categoria', 'error');
+                    }
+                };
+
+                const cleanup = () => {
+                    try { mgrList.removeEventListener('click', onListClick); } catch (e) {}
+                    try { reloadBtn.removeEventListener('click', loadList); } catch (e) {}
+                    try { mgrType.removeEventListener('change', loadList); } catch (e) {}
+                    try { createBtn.removeEventListener('click', onCreate); } catch (e) {}
+                };
+
+                mgrList.addEventListener('click', onListClick);
+                reloadBtn.addEventListener('click', loadList);
+                mgrType.addEventListener('change', loadList);
+                createBtn.addEventListener('click', onCreate);
+                modalEl.addEventListener('hidden.bs.modal', cleanup, { once: true });
+
+                loadList();
+            };
+        }
+
         if (!window._openConfirmModal) {
             window._openConfirmModal = ({ title, body, confirmText, confirmClass } = {}) => {
                 const modalEl = document.getElementById('confirmActionModal');
@@ -692,11 +1160,31 @@
                     const cleanup = () => {
                         try { btn.removeEventListener('click', onConfirm); } catch (e) {}
                         try { modalEl.removeEventListener('hidden.bs.modal', onHidden); } catch (e) {}
+                        try {
+                            modalEl.classList.remove('modal-confirm-stack');
+                            document.querySelectorAll('.modal-backdrop.modal-confirm-stack').forEach(b => b.remove());
+                        } catch (e) {}
                     };
 
                     btn.addEventListener('click', onConfirm);
                     modalEl.addEventListener('hidden.bs.modal', onHidden);
+
+                    try {
+                        // Ensure this confirmation modal is always on top of any currently open modal
+                        modalEl.classList.add('modal-confirm-stack');
+                        modalEl.style.zIndex = 2000;
+                    } catch (e) {}
                     modal.show();
+
+                    try {
+                        // Force the last backdrop to be below the confirm modal but above other modals
+                        const backdrops = document.querySelectorAll('.modal-backdrop');
+                        const bd = backdrops.length ? backdrops[backdrops.length - 1] : null;
+                        if (bd) {
+                            bd.classList.add('modal-confirm-stack');
+                            bd.style.zIndex = 1990;
+                        }
+                    } catch (e) {}
                 });
             };
         }
@@ -744,6 +1232,15 @@
             modal.show();
             if (typeof loadWorkspacesInModal === 'function') {
                 loadWorkspacesInModal();
+            }
+
+            // If there are pending invites, show the shared tab by default
+            const sharedTabBadge = document.getElementById('sharedTabBadge');
+            if (sharedTabBadge && sharedTabBadge.style.display !== 'none') {
+                const sharedTab = document.getElementById('shared-tab');
+                if (sharedTab) {
+                    sharedTab.click();
+                }
             }
         };
 

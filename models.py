@@ -186,6 +186,8 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     config_id = db.Column(db.Integer, db.ForeignKey("finance_configs.id"), nullable=False)
     
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=True)
+    
     name = db.Column(db.String(255), nullable=False)
     type = db.Column(db.String(20), nullable=False)  # income ou expense
     icon = db.Column(db.String(100))  # Emoji ou classe de ícone
@@ -205,6 +207,27 @@ class Category(db.Model):
         return f"<Category {self.name} ({self.type})>"
 
 
+class SubCategory(db.Model):
+    __tablename__ = "subcategories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    config_id = db.Column(db.Integer, db.ForeignKey("finance_configs.id"), nullable=False)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
+
+    name = db.Column(db.String(255), nullable=False)
+    icon = db.Column(db.String(100))
+    color = db.Column(db.String(20))
+
+    is_default = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<SubCategory {self.name}>"
+
+
 class Transaction(db.Model):
     """Transações financeiras (receitas e despesas)"""
     __tablename__ = "transactions"
@@ -212,6 +235,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
+    subcategory_id = db.Column(db.Integer, db.ForeignKey("subcategories.id"), nullable=True)
     family_member_id = db.Column(db.Integer, db.ForeignKey("family_members.id"))
     
     # Dados da transação
@@ -249,6 +273,9 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    # Relationships
+    subcategory = db.relationship("SubCategory", backref="transactions", lazy=True, foreign_keys=[subcategory_id])
+
     def __repr__(self) -> str:
         return f"<Transaction {self.description} R$ {self.amount}>"
 
@@ -260,6 +287,7 @@ class RecurringTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
+    subcategory_id = db.Column(db.Integer, db.ForeignKey("subcategories.id"), nullable=True)
     
     # Dados da transação
     description = db.Column(db.String(255), nullable=False)
