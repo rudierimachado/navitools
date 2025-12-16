@@ -4,6 +4,43 @@
 
 {% block extra_styles %}
 <style>
+    .apk-download-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+        background: #ffffff;
+        color: #0f172a;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+        padding: 0.65rem 1rem;
+    }
+
+    .apk-download-banner .apk-download-inner {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .apk-download-banner .apk-download-text {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-weight: 600;
+        line-height: 1.15;
+    }
+
+    .apk-download-banner .apk-download-text small {
+        display: block;
+        font-weight: 500;
+        opacity: 0.75;
+    }
+
     .finance-auth-wrapper {
         position: relative;
         min-height: 100vh;
@@ -11,7 +48,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 3rem 1rem;
+        padding: calc(3rem + 62px) 1rem 3rem;
     }
 
     .finance-auth-card {
@@ -153,11 +190,29 @@
         .finance-auth-card {
             padding: 1.75rem;
         }
+
+        .apk-download-banner {
+            padding: 0.6rem 0.85rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="apk-download-banner" id="apkDownloadBanner">
+    <div class="apk-download-inner">
+        <div class="apk-download-text">
+            <i class="bi bi-download"></i>
+            <div>
+                <div>Recomendado: baixe o APK para melhor experiência</div>
+                <small>Mais rápido, atalho na tela inicial e acesso facilitado</small>
+            </div>
+        </div>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('gerenciamento_financeiro.download_app') }}">
+            Baixar APK
+        </a>
+    </div>
+</div>
 <section class="finance-auth-wrapper">
     <div class="finance-auth-card">
         <div class="finance-auth-header">
@@ -218,4 +273,22 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const banner = document.getElementById('apkDownloadBanner');
+        if (!banner) return;
+
+        const ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
+        const isAndroidWebView = /;\s*wv\)/.test(ua) || /\bwv\b/.test(ua);
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (navigator.standalone === true);
+        const isInApk = Boolean(isAndroidWebView || isStandalone);
+
+        if (isInApk) {
+            banner.style.display = 'none';
+        }
+    })();
+</script>
 {% endblock %}

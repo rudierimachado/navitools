@@ -571,10 +571,293 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="workspaceManagerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder me-2"></i>Gerenciar Workspaces</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="wsOwnedTabBtn" data-bs-toggle="tab" data-bs-target="#wsOwnedTab" type="button" role="tab" aria-controls="wsOwnedTab" aria-selected="true">Meus</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="wsSharedTabBtn" data-bs-toggle="tab" data-bs-target="#wsSharedTab" type="button" role="tab" aria-controls="wsSharedTab" aria-selected="false">Compartilhados</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content pt-3">
+                        <div class="tab-pane fade show active" id="wsOwnedTab" role="tabpanel" aria-labelledby="wsOwnedTabBtn" tabindex="0">
+                            <div class="d-flex justify-content-end mb-2">
+                                <div class="input-group input-group-sm" style="max-width: 520px;">
+                                    <input type="text" class="form-control" id="wsCreateName" placeholder="Novo workspace" autocomplete="off">
+                                    <button class="btn btn-primary" type="button" onclick="createWorkspaceFromModal()">
+                                        <i class="bi bi-plus-circle me-1"></i>Novo
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="wsOwnedList" class="list-group"></div>
+                        </div>
+                        <div class="tab-pane fade" id="wsSharedTab" role="tabpanel" aria-labelledby="wsSharedTabBtn" tabindex="0">
+                            <div id="wsSharedList" class="list-group"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
-        // ...
+        window.showWorkspaceMenu = async function() {
+            const el = document.getElementById('workspaceManagerModal');
+            if (!el) {
+                window.location.href = '{{ url_for("gerenciamento_financeiro.select_workspace") }}';
+                return;
+            }
+
+            const modal = new bootstrap.Modal(el);
+            modal.show();
+
+            if (typeof window.refreshWorkspaceManager === 'function') {
+                await window.refreshWorkspaceManager();
+            }
+        };
+
+        window.refreshWorkspaceManager = async function() {
+            const ownedEl = document.getElementById('wsOwnedList');
+            const sharedEl = document.getElementById('wsSharedList');
+            if (!ownedEl || !sharedEl) return;
+
+            ownedEl.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+            sharedEl.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+
+            const url = '{{ url_for("gerenciamento_financeiro.api_workspaces") }}';
+            const resp = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                const msg = (data && data.error) ? data.error : 'Erro ao carregar workspaces';
+                ownedEl.innerHTML = '<div class="list-group-item text-danger">' + msg + '</div>';
+                sharedEl.innerHTML = '<div class="list-group-item text-danger">' + msg + '</div>';
+                return;
+            }
+
+            const owned = Array.isArray(data.owned) ? data.owned : [];
+            const shared = Array.isArray(data.shared) ? data.shared : [];
+
+            ownedEl.innerHTML = '';
+            sharedEl.innerHTML = '';
+
+            if (!owned.length) {
+                ownedEl.innerHTML = '<div class="list-group-item text-muted">Nenhum workspace encontrado.</div>';
+            } else {
+                for (const ws of owned) {
+                    ownedEl.appendChild(window._renderWorkspaceRow(ws, true));
+                }
+            }
+
+            if (!shared.length) {
+                sharedEl.innerHTML = '<div class="list-group-item text-muted">Nenhum workspace compartilhado.</div>';
+            } else {
+                for (const ws of shared) {
+                    sharedEl.appendChild(window._renderWorkspaceRow(ws, false));
+                }
+            }
+        };
+
+        window._renderWorkspaceRow = function(ws, isOwned) {
+            const item = document.createElement('div');
+            item.className = 'list-group-item d-flex align-items-center justify-content-between gap-2';
+
+            const left = document.createElement('div');
+            left.className = 'd-flex flex-column';
+
+            const titleRow = document.createElement('div');
+            titleRow.className = 'd-flex align-items-center gap-2 flex-wrap';
+
+            const colorDot = document.createElement('span');
+            colorDot.style.width = '10px';
+            colorDot.style.height = '10px';
+            colorDot.style.borderRadius = '999px';
+            colorDot.style.background = (ws && ws.color) ? ws.color : '#3b82f6';
+            colorDot.style.display = 'inline-block';
+
+            const nameWrapper = document.createElement('div');
+            nameWrapper.className = 'd-flex align-items-center gap-2 flex-wrap';
+
+            const nameDisplay = document.createElement('strong');
+            nameDisplay.textContent = (ws && ws.name) ? ws.name : 'Workspace';
+
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-control form-control-sm';
+            nameInput.value = (ws && ws.name) ? ws.name : '';
+            nameInput.style.display = 'none';
+            nameInput.style.maxWidth = '260px';
+
+            nameWrapper.appendChild(nameDisplay);
+            nameWrapper.appendChild(nameInput);
+
+            const role = document.createElement('span');
+            role.className = 'badge text-bg-secondary';
+            role.textContent = isOwned ? 'owner' : ((ws && ws.role) ? ws.role : 'viewer');
+
+            titleRow.appendChild(colorDot);
+            titleRow.appendChild(nameWrapper);
+            titleRow.appendChild(role);
+
+            left.appendChild(titleRow);
+
+            if (!isOwned && ws && ws.owner_email) {
+                const meta = document.createElement('small');
+                meta.className = 'text-muted';
+                meta.textContent = 'Dono: ' + ws.owner_email;
+                left.appendChild(meta);
+            }
+
+            const right = document.createElement('div');
+            right.className = 'd-flex align-items-center gap-2 flex-wrap justify-content-end';
+
+            const useBtn = document.createElement('button');
+            useBtn.type = 'button';
+            useBtn.className = 'btn btn-outline-primary btn-sm';
+            useBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Usar';
+            useBtn.addEventListener('click', async () => {
+                await window.selectWorkspaceFromModal(ws.id);
+            });
+            right.appendChild(useBtn);
+
+            if (isOwned) {
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'btn btn-outline-secondary btn-sm';
+                editBtn.innerHTML = '<i class="bi bi-pencil-square me-1"></i>Editar';
+
+                const saveBtn = document.createElement('button');
+                saveBtn.type = 'button';
+                saveBtn.className = 'btn btn-primary btn-sm';
+                saveBtn.style.display = 'none';
+                saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Salvar';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'btn btn-outline-secondary btn-sm';
+                cancelBtn.style.display = 'none';
+                cancelBtn.innerHTML = '<i class="bi bi-x-lg me-1"></i>Cancelar';
+
+                const enterEditMode = () => {
+                    nameInput.value = nameDisplay.textContent || '';
+                    nameDisplay.style.display = 'none';
+                    nameInput.style.display = '';
+                    editBtn.style.display = 'none';
+                    saveBtn.style.display = '';
+                    cancelBtn.style.display = '';
+                    nameInput.focus();
+                    nameInput.select();
+                };
+
+                const exitEditMode = () => {
+                    nameDisplay.style.display = '';
+                    nameInput.style.display = 'none';
+                    editBtn.style.display = '';
+                    saveBtn.style.display = 'none';
+                    cancelBtn.style.display = 'none';
+                };
+
+                editBtn.addEventListener('click', () => enterEditMode());
+                cancelBtn.addEventListener('click', () => {
+                    nameInput.value = nameDisplay.textContent || '';
+                    exitEditMode();
+                });
+                saveBtn.addEventListener('click', async () => {
+                    const newName = String(nameInput.value || '').trim();
+                    if (!newName) {
+                        alert('Nome não pode estar vazio');
+                        nameInput.focus();
+                        return;
+                    }
+                    await window.updateWorkspaceName(ws.id, newName);
+                    exitEditMode();
+                });
+                nameInput.addEventListener('keydown', async (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveBtn.click();
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelBtn.click();
+                    }
+                });
+
+                right.appendChild(editBtn);
+                right.appendChild(saveBtn);
+                right.appendChild(cancelBtn);
+            }
+
+            item.appendChild(left);
+            item.appendChild(right);
+            return item;
+        };
+
+        window.selectWorkspaceFromModal = async function(workspaceId) {
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_select_workspace", workspace_id=0) }}';
+            const url = urlTemplate.replace('/0', '/' + String(workspaceId));
+            const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await resp.json();
+            if (!resp.ok) {
+                alert((data && data.error) ? data.error : 'Erro ao selecionar workspace');
+                return;
+            }
+            window.location.reload();
+        };
+
+        window.updateWorkspaceName = async function(workspaceId, name) {
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_update_workspace", workspace_id=0) }}';
+            const url = urlTemplate.replace('/0', '/' + String(workspaceId));
+            const resp = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: String(name || '').trim() })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                alert((data && data.error) ? data.error : 'Erro ao renomear workspace');
+                return;
+            }
+            await window.refreshWorkspaceManager();
+        };
+
+        window.createWorkspaceFromModal = async function() {
+            const input = document.getElementById('wsCreateName');
+            const name = String((input && input.value) ? input.value : '').trim();
+            if (!name) {
+                alert('Nome do workspace é obrigatório');
+                if (input) input.focus();
+                return;
+            }
+
+            const url = '{{ url_for("gerenciamento_financeiro.api_workspaces") }}';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                alert((data && data.error) ? data.error : 'Erro ao criar workspace');
+                return;
+            }
+
+            if (input) input.value = '';
+            await window.refreshWorkspaceManager();
+        };
 
         window.financeMobileAction = function(action) {
             if (action === 'workspaces' && typeof window.showWorkspaceMenu === 'function') {
