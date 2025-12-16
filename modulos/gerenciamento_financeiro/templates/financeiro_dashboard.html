@@ -223,26 +223,6 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Taxa de Economia -->
-            <div class="col-12 col-md-6 col-xl-3">
-                <div class="card h-100 border-info border-2">
-                    <div class="card-body p-3">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="card-subtitle mb-1 text-info" style="font-size: 0.85rem;">Taxa de Economia</h6>
-                                <h4 class="card-title mb-1 text-info" style="font-size: 1.35rem;">{{ "{:.1f}".format(savings_rate or 0) }}%</h4>
-                                <small class="text-muted" style="font-size: 0.75rem;">
-                                    R$ {{ "{:,.2f}".format(savings or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} economizado
-                                </small>
-                            </div>
-                            <div class="text-info opacity-25">
-                                <i class="bi bi-piggy-bank" style="font-size: 2.5rem;"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -1894,17 +1874,6 @@ function updateCardsDisplay(data) {
     const expenseEl = document.getElementById('totalExpense');
     if (expenseEl) {
         expenseEl.textContent = `-R$ ${formatBRL(data.monthly_expense || 0)}`;
-    }
-    
-    // Atualizar taxa de economia
-    const savingsRateEl = document.querySelector('.card-title.text-info');
-    if (savingsRateEl) {
-        savingsRateEl.textContent = `${(data.savings_rate || 0).toFixed(1)}%`;
-    }
-    
-    const savingsEl = document.querySelector('.text-muted small');
-    if (savingsEl && savingsEl.textContent.includes('economizado')) {
-        savingsEl.innerHTML = `R$ ${formatBRL(data.savings || 0)} economizado`;
     }
 }
 
