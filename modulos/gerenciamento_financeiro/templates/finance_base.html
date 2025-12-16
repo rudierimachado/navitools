@@ -609,6 +609,35 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="workspaceMembersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-people me-2"></i>Membros do Workspace</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-end mb-2" id="wsMembersInviteRow">
+                        <div class="input-group input-group-sm" style="max-width: 560px;">
+                            <input type="email" class="form-control" id="wsInviteEmail" placeholder="email@exemplo.com" autocomplete="off">
+                            <select class="form-select" id="wsInviteRole" style="max-width: 140px;">
+                                <option value="editor" selected>Editor</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                            <button class="btn btn-primary" type="button" onclick="inviteWorkspaceMemberFromModal()">
+                                <i class="bi bi-send me-1"></i>Convidar
+                            </button>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="wsMembersWorkspaceId" value="">
+                    <div id="wsMembersOwnerInfo" class="text-muted small mb-2" style="display:none;"></div>
+                    <div id="wsMembersList" class="list-group"></div>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -733,6 +762,15 @@
             });
             right.appendChild(useBtn);
 
+            const membersBtn = document.createElement('button');
+            membersBtn.type = 'button';
+            membersBtn.className = 'btn btn-outline-secondary btn-sm';
+            membersBtn.innerHTML = '<i class="bi bi-people me-1"></i>Membros';
+            membersBtn.addEventListener('click', async () => {
+                await window.openWorkspaceMembersModal(ws.id);
+            });
+            right.appendChild(membersBtn);
+
             if (isOwned) {
                 const editBtn = document.createElement('button');
                 editBtn.type = 'button';
@@ -778,7 +816,7 @@
                 saveBtn.addEventListener('click', async () => {
                     const newName = String(nameInput.value || '').trim();
                     if (!newName) {
-                        alert('Nome não pode estar vazio');
+                        window._showToast('Nome não pode estar vazio', 'warning');
                         nameInput.focus();
                         return;
                     }
@@ -812,7 +850,7 @@
             const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
             const data = await resp.json();
             if (!resp.ok) {
-                alert((data && data.error) ? data.error : 'Erro ao selecionar workspace');
+                window._showToast((data && data.error) ? data.error : 'Erro ao selecionar workspace', 'danger');
                 return;
             }
             window.location.reload();
@@ -828,9 +866,10 @@
             });
             const data = await resp.json();
             if (!resp.ok) {
-                alert((data && data.error) ? data.error : 'Erro ao renomear workspace');
+                window._showToast((data && data.error) ? data.error : 'Erro ao renomear workspace', 'danger');
                 return;
             }
+            window._showToast('Workspace renomeado com sucesso', 'success');
             await window.refreshWorkspaceManager();
         };
 
@@ -838,7 +877,7 @@
             const input = document.getElementById('wsCreateName');
             const name = String((input && input.value) ? input.value : '').trim();
             if (!name) {
-                alert('Nome do workspace é obrigatório');
+                window._showToast('Nome do workspace é obrigatório', 'warning');
                 if (input) input.focus();
                 return;
             }
@@ -851,12 +890,200 @@
             });
             const data = await resp.json();
             if (!resp.ok) {
-                alert((data && data.error) ? data.error : 'Erro ao criar workspace');
+                window._showToast((data && data.error) ? data.error : 'Erro ao criar workspace', 'danger');
                 return;
             }
 
             if (input) input.value = '';
+            window._showToast('Workspace criado com sucesso', 'success');
             await window.refreshWorkspaceManager();
+        };
+
+        window.openWorkspaceMembersModal = async function(workspaceId) {
+            const el = document.getElementById('workspaceMembersModal');
+            if (!el) {
+                window._showToast('Modal de membros não encontrado', 'danger');
+                return;
+            }
+
+            const hidden = document.getElementById('wsMembersWorkspaceId');
+            if (hidden) hidden.value = String(workspaceId);
+
+            const inviteEmail = document.getElementById('wsInviteEmail');
+            if (inviteEmail) inviteEmail.value = '';
+
+            const ownerInfo = document.getElementById('wsMembersOwnerInfo');
+            if (ownerInfo) {
+                ownerInfo.textContent = '';
+                ownerInfo.style.display = 'none';
+            }
+
+            const listEl = document.getElementById('wsMembersList');
+            if (listEl) listEl.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+
+            const modal = new bootstrap.Modal(el);
+            modal.show();
+
+            await window.refreshWorkspaceMembersFromModal();
+        };
+
+        window.refreshWorkspaceMembersFromModal = async function() {
+            const workspaceId = (document.getElementById('wsMembersWorkspaceId') || {}).value;
+            if (!workspaceId) return;
+
+            const listEl = document.getElementById('wsMembersList');
+            const ownerInfo = document.getElementById('wsMembersOwnerInfo');
+            const inviteRow = document.getElementById('wsMembersInviteRow');
+            if (listEl) listEl.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_workspace_members", workspace_id=0) }}';
+            const url = urlTemplate.replace('/0', '/' + String(workspaceId));
+            const resp = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                const msg = (data && data.error) ? data.error : 'Erro ao carregar membros';
+                if (listEl) listEl.innerHTML = '<div class="list-group-item text-danger">' + msg + '</div>';
+                if (inviteRow) inviteRow.style.display = 'none';
+                if (ownerInfo) ownerInfo.style.display = 'none';
+                return;
+            }
+
+            const canManage = !!data.can_manage;
+
+            if (inviteRow) inviteRow.style.display = canManage ? '' : 'none';
+            if (ownerInfo) {
+                ownerInfo.textContent = data.owner_email ? ('Dono: ' + data.owner_email) : '';
+                ownerInfo.style.display = ownerInfo.textContent ? '' : 'none';
+            }
+
+            const members = Array.isArray(data.members) ? data.members : [];
+            if (!members.length) {
+                if (listEl) listEl.innerHTML = '<div class="list-group-item text-muted">Nenhum membro encontrado.</div>';
+                return;
+            }
+
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            for (const m of members) {
+                const row = document.createElement('div');
+                row.className = 'list-group-item d-flex align-items-center justify-content-between gap-2';
+
+                const left = document.createElement('div');
+                left.className = 'd-flex flex-column';
+
+                const email = document.createElement('strong');
+                email.textContent = m.email || ('user_id=' + String(m.user_id));
+
+                const meta = document.createElement('small');
+                meta.className = 'text-muted';
+                meta.textContent = m.joined_at ? ('Entrou: ' + String(m.joined_at).slice(0, 10)) : '';
+
+                left.appendChild(email);
+                if (meta.textContent) left.appendChild(meta);
+
+                const right = document.createElement('div');
+                right.className = 'd-flex align-items-center gap-2 flex-wrap justify-content-end';
+
+                const roleSel = document.createElement('select');
+                roleSel.className = 'form-select form-select-sm';
+                roleSel.style.maxWidth = '140px';
+                roleSel.innerHTML = '<option value="editor">Editor</option><option value="viewer">Viewer</option>';
+                roleSel.value = (m.role || 'viewer');
+
+                if (!canManage || m.user_id === data.owner_id) {
+                    roleSel.disabled = true;
+                } else {
+                    roleSel.addEventListener('change', async () => {
+                        await window.updateWorkspaceMemberRoleFromModal(m.id, roleSel.value);
+                    });
+                }
+                right.appendChild(roleSel);
+
+                if (canManage && m.user_id !== data.owner_id) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-outline-danger btn-sm';
+                    removeBtn.innerHTML = '<i class="bi bi-person-x me-1"></i>Remover';
+                    removeBtn.addEventListener('click', async () => {
+                        const ok = confirm('Remover este membro do workspace?');
+                        if (!ok) return;
+                        await window.removeWorkspaceMemberFromModal(m.id);
+                    });
+                    right.appendChild(removeBtn);
+                }
+
+                row.appendChild(left);
+                row.appendChild(right);
+                listEl.appendChild(row);
+            }
+        };
+
+        window.inviteWorkspaceMemberFromModal = async function() {
+            const workspaceId = (document.getElementById('wsMembersWorkspaceId') || {}).value;
+            const emailInput = document.getElementById('wsInviteEmail');
+            const roleSel = document.getElementById('wsInviteRole');
+            const email = String((emailInput && emailInput.value) ? emailInput.value : '').trim().toLowerCase();
+            const role = String((roleSel && roleSel.value) ? roleSel.value : 'editor').trim().toLowerCase();
+
+            if (!workspaceId) return;
+            if (!email) {
+                window._showToast('Informe um email', 'warning');
+                if (emailInput) emailInput.focus();
+                return;
+            }
+
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_invite_to_workspace", workspace_id=0) }}';
+            const url = urlTemplate.replace('/0', '/' + String(workspaceId));
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, role })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                window._showToast((data && data.error) ? data.error : 'Erro ao convidar', 'danger');
+                return;
+            }
+            if (emailInput) emailInput.value = '';
+            window._showToast(data.message || 'Convite enviado com sucesso!', 'success');
+        };
+
+        window.updateWorkspaceMemberRoleFromModal = async function(memberId, role) {
+            const workspaceId = (document.getElementById('wsMembersWorkspaceId') || {}).value;
+            if (!workspaceId) return;
+
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_manage_workspace_member", workspace_id=0, member_id=0) }}';
+            const url = urlTemplate.replace('/0/members/0', '/' + String(workspaceId) + '/members/' + String(memberId));
+            const resp = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role })
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                window._showToast((data && data.error) ? data.error : 'Erro ao atualizar permissão', 'danger');
+                await window.refreshWorkspaceMembersFromModal();
+                return;
+            }
+            window._showToast('Permissão atualizada', 'success');
+        };
+
+        window.removeWorkspaceMemberFromModal = async function(memberId) {
+            const workspaceId = (document.getElementById('wsMembersWorkspaceId') || {}).value;
+            if (!workspaceId) return;
+
+            const urlTemplate = '{{ url_for("gerenciamento_financeiro.api_manage_workspace_member", workspace_id=0, member_id=0) }}';
+            const url = urlTemplate.replace('/0/members/0', '/' + String(workspaceId) + '/members/' + String(memberId));
+            const resp = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+            const data = await resp.json();
+            if (!resp.ok) {
+                window._showToast((data && data.error) ? data.error : 'Erro ao remover membro', 'danger');
+                return;
+            }
+            window._showToast('Membro removido com sucesso', 'success');
+            await window.refreshWorkspaceMembersFromModal();
         };
 
         window.financeMobileAction = function(action) {
@@ -905,6 +1132,46 @@
             const baseUrl = '{{ url_for("gerenciamento_financeiro.home") }}';
             window.location.href = baseUrl + '?action=' + encodeURIComponent(action);
         };
+
+        window.toggleTheme = function() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('bs-theme', newTheme);
+
+            if (themeIcon) {
+                themeIcon.classList.remove('bi-sun-fill', 'bi-moon-fill');
+                themeIcon.classList.add(newTheme === 'dark' ? 'bi-moon-fill' : 'bi-sun-fill');
+            }
+
+            window._showToast(
+                newTheme === 'dark' ? 'Modo escuro ativado' : 'Modo claro ativado',
+                'info'
+            );
+        };
+
+        window.initTheme = function() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            const savedTheme = localStorage.getItem('bs-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+
+            html.setAttribute('data-bs-theme', theme);
+            if (themeIcon) {
+                themeIcon.classList.remove('bi-sun-fill', 'bi-moon-fill');
+                themeIcon.classList.add(theme === 'dark' ? 'bi-moon-fill' : 'bi-sun-fill');
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', window.initTheme);
+        } else {
+            window.initTheme();
+        }
     </script>
     
     {% block scripts %}{% endblock %}
