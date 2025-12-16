@@ -9,6 +9,7 @@ from flask import (
     jsonify,
     send_file,
 )
+from io import BytesIO
 from sqlalchemy import func, extract, and_, or_, inspect, text
 from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -53,6 +54,7 @@ _AI_RECOMMENDATION_CACHE = {}
 _AI_TOKEN_USAGE = {}
 
 _CATEGORIES_WORKSPACE_COLUMN_READY = False
+_TRANSACTIONS_CLOSE_COLUMNS_READY = False
 
 
 def _ensure_categories_workspace_column() -> None:
@@ -81,6 +83,51 @@ def _ensure_categories_workspace_column() -> None:
         except Exception:
             pass
         print(f"[CATEGORIES] Erro ao garantir coluna workspace_id: {e}")
+        # não marcar como ready para tentar novamente depois
+
+
+def _ensure_transactions_close_columns() -> None:
+    """Garante que as colunas para fechamento de despesas existam."""
+    global _TRANSACTIONS_CLOSE_COLUMNS_READY
+    if _TRANSACTIONS_CLOSE_COLUMNS_READY:
+        return
+
+    try:
+        cols = [c.get("name") for c in inspect(db.engine).get_columns("transactions")]
+        dialect = getattr(db.engine, "dialect", None)
+        dialect_name = getattr(dialect, "name", "") if dialect else ""
+        blob_type = "BYTEA" if dialect_name == "postgresql" else "BLOB"
+        columns_to_add = {
+            "is_closed": "BOOLEAN DEFAULT FALSE",
+            "proof_document_url": "VARCHAR(500)",
+            "proof_document_data": blob_type,
+            "proof_document_name": "VARCHAR(255)",
+            "proof_document_storage_name": "VARCHAR(255)",
+            "proof_document_mime": "VARCHAR(255)",
+            "proof_document_size": "INTEGER",
+            "closed_date": "DATE",
+            "closed_by_user_id": "INTEGER",
+        }
+        
+        for col_name, col_def in columns_to_add.items():
+            if col_name not in cols:
+                db.session.execute(text(f"ALTER TABLE transactions ADD COLUMN {col_name} {col_def}"))
+        
+        # Add foreign key constraint for closed_by_user_id if it was added
+        if "closed_by_user_id" not in cols:
+            try:
+                db.session.execute(text("ALTER TABLE transactions ADD CONSTRAINT fk_transactions_closed_by_user FOREIGN KEY (closed_by_user_id) REFERENCES users (id)"))
+            except Exception:
+                pass  # Constraint may already exist or fail silently
+        
+        db.session.commit()
+        _TRANSACTIONS_CLOSE_COLUMNS_READY = True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"[TRANSACTIONS] Erro ao garantir colunas de fechamento: {e}")
         # não marcar como ready para tentar novamente depois
 
 
@@ -385,6 +432,9 @@ def home():
     if "finance_user_id" not in session:
         return redirect(url_for("gerenciamento_financeiro.login", next=request.path))
     
+    # Garantir que as colunas de fechamento de despesas existam
+    _ensure_transactions_close_columns()
+    
     # Verificar se tem workspace ativo na sessão
     if "active_workspace_id" not in session:
         user_id = session["finance_user_id"]
@@ -501,6 +551,18 @@ def home():
         .scalar()
     )
 
+    monthly_paid_expense = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "expense",
+            Transaction.is_closed == True,
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+
     # Contadores (do workspace ativo)
     income_count = (
         Transaction.query
@@ -575,6 +637,7 @@ def home():
         total_expense=total_expense or 0,
         monthly_income=monthly_income or 0,
         monthly_expense=monthly_expense or 0,
+        monthly_paid_expense=monthly_paid_expense or 0,
         savings=savings,
         savings_rate=savings_rate,
         income_count=income_count,
@@ -586,6 +649,115 @@ def home():
         selected_month=selected_month,
         selected_year=selected_year,
     )
+
+
+@gerenciamento_financeiro_bp.route("/api/summary-cards", methods=["GET", "OPTIONS"])
+def api_summary_cards():
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return (resp, status) if status != 200 else resp
+
+    if request.method == "OPTIONS":
+        return _json({"ok": True}, 200)
+
+    if "finance_user_id" not in session:
+        return _json({"error": "Não autorizado"}, 401)
+
+    _ensure_transactions_close_columns()
+
+    user_id = session["finance_user_id"]
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    today = datetime.utcnow().date()
+    try:
+        selected_month = int(request.args.get("month", today.month))
+        selected_year = int(request.args.get("year", today.year))
+        if selected_month < 1 or selected_month > 12:
+            selected_month = today.month
+        if selected_year < 2000 or selected_year > 2100:
+            selected_year = today.year
+    except Exception:
+        selected_month = today.month
+        selected_year = today.year
+
+    from calendar import monthrange
+    month_start = date(selected_year, selected_month, 1)
+    month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
+
+    total_income = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "income",
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+    total_expense = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "expense",
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+
+    monthly_income = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "income",
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+    monthly_expense = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "expense",
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+    monthly_paid_expense = (
+        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(
+            Transaction.workspace_id == workspace_id,
+            Transaction.type == "expense",
+            Transaction.is_closed == True,
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date <= month_end,
+        )
+        .scalar()
+    )
+
+    balance = (total_income or 0) - (total_expense or 0)
+
+    return _json({
+        "balance": float(balance or 0),
+        "monthly_income": float(monthly_income or 0),
+        "monthly_expense": float(monthly_expense or 0),
+        "monthly_paid_expense": float(monthly_paid_expense or 0),
+        "year": selected_year,
+        "month": selected_month,
+    })
 
 @gerenciamento_financeiro_bp.route("/select-workspace", methods=["GET"])
 def select_workspace():
@@ -1579,6 +1751,8 @@ def api_transactions():
                         "frequency": getattr(t, 'frequency', 'once'),
                         "is_recurring": getattr(t, 'is_recurring', False),
                         "is_fixed": getattr(t, 'is_fixed', False),
+                        "is_closed": getattr(t, 'is_closed', False),
+                        "proof_document_url": getattr(t, 'proof_document_url', None),
                         "recurring_transaction_id": getattr(t, 'recurring_transaction_id', None),
                         "category": {
                             "id": t.category.id,
@@ -1613,6 +1787,8 @@ def api_transactions():
                         "frequency": getattr(t, 'frequency', 'once'),
                         "is_recurring": getattr(t, 'is_recurring', False),
                         "is_fixed": getattr(t, 'is_fixed', False),
+                        "is_closed": getattr(t, 'is_closed', False),
+                        "proof_document_url": getattr(t, 'proof_document_url', None),
                         "recurring_transaction_id": getattr(t, 'recurring_transaction_id', None),
                         "category": {
                             "id": t.category.id,
@@ -1699,10 +1875,12 @@ def api_transaction_detail(transaction_id):
                 "amount": float(transaction.amount),
                 "type": transaction.type,
                 "transaction_date": transaction.transaction_date.isoformat(),
-                "frequency": getattr(transaction, "frequency", "once"),
-                "is_recurring": getattr(transaction, "is_recurring", False),
-                "is_fixed": getattr(transaction, "is_fixed", False),
-                "recurring_transaction_id": getattr(transaction, "recurring_transaction_id", None),
+                "frequency": getattr(transaction, 'frequency', 'once'),
+                "is_recurring": getattr(transaction, 'is_recurring', False),
+                "is_fixed": getattr(transaction, 'is_fixed', False),
+                "is_closed": getattr(transaction, 'is_closed', False),
+                "proof_document_url": getattr(transaction, 'proof_document_url', None),
+                "recurring_transaction_id": getattr(transaction, 'recurring_transaction_id', None),
                 "category": {
                     "id": category.id,
                     "name": category.name,
@@ -1899,6 +2077,318 @@ def api_transaction_detail(transaction_id):
             return _json({"error": str(e)}, 500)
 
     return _json({"error": "Método não suportado"}, 405)
+
+@gerenciamento_financeiro_bp.route("/api/expenses/close", methods=["POST", "OPTIONS"])
+def api_close_expense():
+    """Fecha uma despesa e opcionalmente anexa um comprovante."""
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+    
+    user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return (resp, status) if status != 200 else resp
+
+    if request.method == "OPTIONS":
+        return _json({}, 200)
+
+    _ensure_transactions_close_columns()
+
+    # Verificar workspace ativo
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    if workspace_role == "viewer":
+        return _json({"error": "Sem permissão para fechar despesa (somente visualização)"}, 403)
+
+    try:
+        transaction_id = int(request.form.get("transaction_id"))
+        close_notes = request.form.get("close_notes", "")
+        
+        # Obter transação
+        transaction = Transaction.query.filter_by(
+            id=transaction_id, 
+            workspace_id=workspace_id,
+            type="expense"
+        ).first()
+        
+        if not transaction:
+            return _json({"error": "Despesa não encontrada"}, 404)
+        
+        if transaction.is_closed:
+            return _json({"error": "Despesa já foi fechada"}, 400)
+        
+        # Processar upload do comprovante (armazenar no banco; máximo 1MB)
+        proof_document_url = None
+        proof_document_data = None
+        proof_document_name = None
+        proof_document_storage_name = None
+        proof_document_mime = None
+        proof_document_size = None
+        if "proof_document" in request.files:
+            file = request.files["proof_document"]
+            if file and file.filename:
+                # Validar arquivo
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}
+                if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+                    return _json({"error": "Tipo de arquivo não permitido"}, 400)
+
+                file.stream.seek(0, os.SEEK_END)
+                file_size = file.stream.tell()
+                file.stream.seek(0)
+                if file_size > 1024 * 1024:
+                    return _json({"error": "Arquivo excede o limite de 1MB"}, 400)
+
+                # Gerar nome único
+                import uuid
+                from werkzeug.utils import secure_filename
+                filename = secure_filename(file.filename)
+                unique_filename = f"expense_proof_{transaction_id}_{uuid.uuid4().hex[:8]}_{filename}"
+
+                proof_document_data = file.read()
+                proof_document_name = filename
+                proof_document_storage_name = unique_filename
+                proof_document_mime = getattr(file, "mimetype", None)
+                proof_document_size = int(file_size)
+
+                # Gerar URL relativa (serve do banco)
+                proof_document_url = f"/gerenciamento-financeiro/uploads/expense_proofs/{unique_filename}"
+        
+        # Atualizar transação
+        transaction.is_closed = True
+        transaction.closed_date = date.today()
+        transaction.closed_by_user_id = user_id
+        transaction.proof_document_url = proof_document_url
+        transaction.proof_document_data = proof_document_data
+        transaction.proof_document_name = proof_document_name
+        transaction.proof_document_storage_name = proof_document_storage_name
+        transaction.proof_document_mime = proof_document_mime
+        transaction.proof_document_size = proof_document_size
+        
+        if close_notes:
+            transaction.notes = f"{transaction.notes or ''}\n\n[Fechamento: {close_notes}]".strip()
+        
+        db.session.commit()
+        
+        return _json({
+            "message": "Despesa fechada com sucesso!",
+            "transaction_id": transaction.id,
+            "closed_date": transaction.closed_date.isoformat(),
+            "proof_document_url": proof_document_url
+        })
+        
+    except ValueError:
+        return _json({"error": "ID de transação inválido"}, 400)
+    except Exception as e:
+        db.session.rollback()
+        return _json({"error": str(e)}, 500)
+
+
+@gerenciamento_financeiro_bp.route("/api/expenses/reopen", methods=["POST", "OPTIONS"])
+def api_reopen_expense():
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return (resp, status) if status != 200 else resp
+
+    if request.method == "OPTIONS":
+        return _json({}, 200)
+
+    _ensure_transactions_close_columns()
+
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    if workspace_role == "viewer":
+        return _json({"error": "Sem permissão para reabrir despesa (somente visualização)"}, 403)
+
+    try:
+        payload = request.get_json(silent=True) or {}
+        transaction_id = int(payload.get("transaction_id"))
+
+        transaction = Transaction.query.filter_by(
+            id=transaction_id,
+            workspace_id=workspace_id,
+            type="expense",
+        ).first()
+
+        if not transaction:
+            return _json({"error": "Despesa não encontrada"}, 404)
+
+        if not getattr(transaction, "is_closed", False):
+            return _json({"error": "Despesa já está aberta"}, 400)
+
+        transaction.is_closed = False
+        transaction.closed_date = None
+        transaction.closed_by_user_id = None
+        transaction.proof_document_url = None
+        transaction.proof_document_data = None
+        transaction.proof_document_name = None
+        transaction.proof_document_storage_name = None
+        transaction.proof_document_mime = None
+        transaction.proof_document_size = None
+
+        db.session.commit()
+
+        return _json({
+            "message": "Despesa reaberta com sucesso!",
+            "transaction_id": transaction.id,
+            "is_closed": False,
+            "proof_document_url": getattr(transaction, "proof_document_url", None),
+        })
+
+    except ValueError:
+        return _json({"error": "ID de transação inválido"}, 400)
+    except Exception as e:
+        db.session.rollback()
+        return _json({"error": str(e)}, 500)
+
+
+@gerenciamento_financeiro_bp.route("/api/expenses/proof", methods=["POST", "OPTIONS"])
+def api_update_expense_proof():
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+    origin = request.headers.get("Origin", "*")
+
+    def _json(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return (resp, status) if status != 200 else resp
+
+    if request.method == "OPTIONS":
+        return _json({}, 200)
+
+    _ensure_transactions_close_columns()
+
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return _json({"error": "Workspace não selecionado"}, 400)
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return _json({"error": "Sem permissão"}, 403)
+
+    if workspace_role == "viewer":
+        return _json({"error": "Sem permissão para atualizar comprovante (somente visualização)"}, 403)
+
+    try:
+        transaction_id = int(request.form.get("transaction_id"))
+
+        transaction = Transaction.query.filter_by(
+            id=transaction_id,
+            workspace_id=workspace_id,
+            type="expense",
+        ).first()
+
+        if not transaction:
+            return _json({"error": "Despesa não encontrada"}, 404)
+
+        if "proof_document" not in request.files:
+            return _json({"error": "Arquivo não enviado"}, 400)
+
+        file = request.files["proof_document"]
+        if not file or not file.filename:
+            return _json({"error": "Arquivo inválido"}, 400)
+
+        allowed_extensions = {"png", "jpg", "jpeg", "gif", "pdf", "doc", "docx"}
+        if not ("." in file.filename and file.filename.rsplit(".", 1)[1].lower() in allowed_extensions):
+            return _json({"error": "Tipo de arquivo não permitido"}, 400)
+
+        file.stream.seek(0, os.SEEK_END)
+        file_size = file.stream.tell()
+        file.stream.seek(0)
+        if file_size > 1024 * 1024:
+            return _json({"error": "Arquivo excede o limite de 1MB"}, 400)
+
+        import uuid
+        from werkzeug.utils import secure_filename
+
+        filename = secure_filename(file.filename)
+        unique_filename = f"expense_proof_{transaction_id}_{uuid.uuid4().hex[:8]}_{filename}"
+
+        proof_document_data = file.read()
+        proof_document_url = f"/gerenciamento-financeiro/uploads/expense_proofs/{unique_filename}"
+
+        transaction.proof_document_url = proof_document_url
+        transaction.proof_document_data = proof_document_data
+        transaction.proof_document_name = filename
+        transaction.proof_document_storage_name = unique_filename
+        transaction.proof_document_mime = getattr(file, "mimetype", None)
+        transaction.proof_document_size = int(file_size)
+        if getattr(transaction, "is_closed", False):
+            transaction.closed_by_user_id = user_id
+
+        db.session.commit()
+
+        return _json({
+            "message": "Comprovante atualizado com sucesso!",
+            "transaction_id": transaction.id,
+            "proof_document_url": proof_document_url,
+        })
+
+    except ValueError:
+        return _json({"error": "ID de transação inválido"}, 400)
+    except Exception as e:
+        db.session.rollback()
+        return _json({"error": str(e)}, 500)
+
+@gerenciamento_financeiro_bp.route("/uploads/expense_proofs/<filename>")
+def serve_expense_proof(filename):
+    """Serve arquivos de comprovante de despesa."""
+    try:
+        if "finance_user_id" not in session:
+            return "Não autorizado", 401
+
+        user_id = session["finance_user_id"]
+        _ensure_transactions_close_columns()
+
+        transaction = Transaction.query.filter_by(proof_document_storage_name=filename).first()
+        if not transaction or not getattr(transaction, "proof_document_data", None):
+            return "Arquivo não encontrado", 404
+
+        if transaction.workspace_id:
+            workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=transaction.workspace_id)
+            if not workspace_role:
+                return "Sem permissão", 403
+
+        mime = getattr(transaction, "proof_document_mime", None) or "application/octet-stream"
+        download_name = getattr(transaction, "proof_document_name", None) or filename
+
+        return send_file(
+            BytesIO(transaction.proof_document_data),
+            mimetype=mime,
+            as_attachment=False,
+            download_name=download_name,
+        )
+    except Exception as e:
+        return f"Erro ao servir arquivo: {str(e)}", 500
 
 @gerenciamento_financeiro_bp.route("/api/recurring", methods=["GET", "POST"])
 def api_recurring():
@@ -2374,298 +2864,6 @@ def api_category_detail(category_id: int):
 # ============================================================================
 # ENDPOINTS DE FECHAMENTO MENSAL
 # ============================================================================
-
-@gerenciamento_financeiro_bp.route("/api/monthly-closure/close-month", methods=["POST"])
-def api_close_month():
-    """Fecha o mês atual e cria novo mês com despesas fixas carregadas"""
-    if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
-    
-    user_id = session["finance_user_id"]
-    
-    try:
-        today = datetime.utcnow().date()
-        year = today.year
-        month = today.month
-        
-        # Verificar se já existe closure para este mês
-        existing_closure = MonthlyClosure.query.filter_by(
-            user_id=user_id,
-            year=year,
-            month=month
-        ).first()
-        
-        if existing_closure and existing_closure.status == "closed":
-            return jsonify({"error": "Este mês já foi fechado"}), 400
-        
-        # Calcular totais do mês
-        month_start = date(year, month, 1)
-        if month == 12:
-            month_end = date(year + 1, 1, 1) - timedelta(days=1)
-        else:
-            month_end = date(year, month + 1, 1) - timedelta(days=1)
-        
-        total_income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "income",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end
-        ).scalar()
-        
-        total_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end
-        ).scalar()
-        
-        balance = float(total_income) - float(total_expense)
-        
-        # Criar ou atualizar closure do mês atual
-        if not existing_closure:
-            closure = MonthlyClosure(
-                user_id=user_id,
-                year=year,
-                month=month,
-                status="closed",
-                total_income=total_income,
-                total_expense=total_expense,
-                balance=balance,
-                closed_at=datetime.utcnow()
-            )
-            db.session.add(closure)
-            db.session.flush()
-        else:
-            existing_closure.status = "closed"
-            existing_closure.total_income = total_income
-            existing_closure.total_expense = total_expense
-            existing_closure.balance = balance
-            existing_closure.closed_at = datetime.utcnow()
-            closure = existing_closure
-        
-        # Criar closure para próximo mês
-        next_month = month + 1 if month < 12 else 1
-        next_year = year if month < 12 else year + 1
-        
-        next_closure = MonthlyClosure.query.filter_by(
-            user_id=user_id,
-            year=next_year,
-            month=next_month
-        ).first()
-        
-        if not next_closure:
-            next_closure = MonthlyClosure(
-                user_id=user_id,
-                year=next_year,
-                month=next_month,
-                status="open",
-                total_income=0,
-                total_expense=0,
-                balance=0
-            )
-            db.session.add(next_closure)
-            db.session.flush()
-        
-        # Copiar despesas fixas para próximo mês
-        fixed_expenses = Transaction.query.filter(
-            Transaction.user_id == user_id,
-            Transaction.type == "expense",
-            Transaction.is_fixed == True,
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end
-        ).all()
-        
-        for expense in fixed_expenses:
-            # Criar snapshot
-            snapshot = MonthlyFixedExpense(
-                monthly_closure_id=closure.id,
-                original_transaction_id=expense.id,
-                description=expense.description,
-                amount=expense.amount,
-                category_id=expense.category_id
-            )
-            db.session.add(snapshot)
-            
-            # Criar transação no próximo mês
-            next_month_date = date(next_year, next_month, expense.transaction_date.day)
-            new_transaction = Transaction(
-                user_id=user_id,
-                category_id=expense.category_id,
-                description=expense.description,
-                amount=expense.amount,
-                type="expense",
-                transaction_date=next_month_date,
-                is_fixed=True,
-                is_auto_loaded=True,
-                monthly_closure_id=next_closure.id
-            )
-            db.session.add(new_transaction)
-        
-        db.session.commit()
-        
-        return jsonify({
-            "message": "Mês fechado com sucesso",
-            "closure": {
-                "year": year,
-                "month": month,
-                "status": "closed",
-                "total_income": float(total_income),
-                "total_expense": float(total_expense),
-                "balance": balance,
-                "fixed_expenses_copied": len(fixed_expenses)
-            }
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        resp = jsonify({"error": str(e)})
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp, 500
-
-
-@gerenciamento_financeiro_bp.route("/api/monthly-closure/check-auto-close", methods=["POST"])
-def api_check_auto_close():
-    """Verifica se precisa fechar mês automaticamente na virada"""
-    if "finance_user_id" not in session:
-        return jsonify({"error": "Não autorizado"}), 401
-    
-    user_id = session["finance_user_id"]
-    
-    try:
-        today = datetime.utcnow().date()
-        year = today.year
-        month = today.month
-        
-        # Verificar se já existe closure para o mês atual
-        current_closure = MonthlyClosure.query.filter_by(
-            user_id=user_id,
-            year=year,
-            month=month
-        ).first()
-        
-        # Se já existe e está aberto, não precisa fazer nada
-        if current_closure and current_closure.status == "open":
-            return jsonify({"auto_closed": False}), 200
-        
-        # Se não existe closure para o mês atual, verificar se o mês anterior está fechado
-        prev_month = month - 1 if month > 1 else 12
-        prev_year = year if month > 1 else year - 1
-        
-        prev_closure = MonthlyClosure.query.filter_by(
-            user_id=user_id,
-            year=prev_year,
-            month=prev_month
-        ).first()
-        
-        # Se mês anterior não está fechado, fechar automaticamente
-        if prev_closure and prev_closure.status == "open":
-            # Calcular totais do mês anterior
-            month_start = date(prev_year, prev_month, 1)
-            if prev_month == 12:
-                month_end = date(prev_year + 1, 1, 1) - timedelta(days=1)
-            else:
-                month_end = date(prev_year, prev_month + 1, 1) - timedelta(days=1)
-            
-            total_income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-                Transaction.user_id == user_id,
-                Transaction.type == "income",
-                Transaction.transaction_date >= month_start,
-                Transaction.transaction_date <= month_end
-            ).scalar()
-            
-            total_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-                Transaction.user_id == user_id,
-                Transaction.type == "expense",
-                Transaction.transaction_date >= month_start,
-                Transaction.transaction_date <= month_end
-            ).scalar()
-            
-            balance = float(total_income) - float(total_expense)
-            
-            # Fechar mês anterior
-            prev_closure.status = "closed"
-            prev_closure.total_income = total_income
-            prev_closure.total_expense = total_expense
-            prev_closure.balance = balance
-            prev_closure.closed_at = datetime.utcnow()
-            
-            # Criar closure para mês atual se não existir
-            if not current_closure:
-                current_closure = MonthlyClosure(
-                    user_id=user_id,
-                    year=year,
-                    month=month,
-                    status="open",
-                    total_income=0,
-                    total_expense=0,
-                    balance=0
-                )
-                db.session.add(current_closure)
-                db.session.flush()
-            
-            # Copiar despesas fixas para o mês atual
-            fixed_expenses = Transaction.query.filter(
-                Transaction.user_id == user_id,
-                Transaction.type == "expense",
-                Transaction.is_fixed == True,
-                Transaction.transaction_date >= month_start,
-                Transaction.transaction_date <= month_end
-            ).all()
-            
-            fixed_count = 0
-            for expense in fixed_expenses:
-                # Criar snapshot
-                snapshot = MonthlyFixedExpense(
-                    monthly_closure_id=prev_closure.id,
-                    original_transaction_id=expense.id,
-                    description=expense.description,
-                    amount=expense.amount,
-                    category_id=expense.category_id
-                )
-                db.session.add(snapshot)
-                
-                # Criar transação no mês atual
-                try:
-                    current_month_date = date(year, month, expense.transaction_date.day)
-                except ValueError:
-                    # Se o dia não existe no mês atual (ex: 31 em fevereiro), usar último dia
-                    last_day = calendar.monthrange(year, month)[1]
-                    current_month_date = date(year, month, last_day)
-                
-                new_transaction = Transaction(
-                    user_id=user_id,
-                    category_id=expense.category_id,
-                    description=expense.description,
-                    amount=expense.amount,
-                    type="expense",
-                    transaction_date=current_month_date,
-                    is_fixed=True,
-                    is_auto_loaded=True,
-                    monthly_closure_id=current_closure.id
-                )
-                db.session.add(new_transaction)
-                fixed_count += 1
-            
-            db.session.commit()
-            
-            return jsonify({
-                "auto_closed": True,
-                "previous_month": prev_month,
-                "previous_year": prev_year,
-                "fixed_expenses_copied": fixed_count
-            }), 200
-        
-        return jsonify({"auto_closed": False}), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        resp = jsonify({"error": str(e)})
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp, 500
 
 
 @gerenciamento_financeiro_bp.route("/api/monthly-closure/history", methods=["GET"])

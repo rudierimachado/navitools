@@ -249,7 +249,3 @@ function editTransaction(id) {
 function showMonthlyHistory() {
     showToast('Funcionalidade em desenvolvimento', 'info');
 }
-
-function closeMonthConfirm() {
-    showToast('Funcionalidade em desenvolvimento', 'info');
-}

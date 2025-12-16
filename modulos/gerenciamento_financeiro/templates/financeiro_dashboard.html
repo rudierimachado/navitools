@@ -1,5 +1,4 @@
 {% extends 'finance_base.html' %}
-
 {% block title %}Dashboard Financeiro · NEXUSRDR{% endblock %}
 
 {% block content %}
@@ -154,22 +153,21 @@
 
     <!-- Cards de Status -->
     <div class="col-12">
-        <div class="row g-3 g-md-4 mb-4">
+        <div class="row g-3 g-md-4 mb-4 dashboard-cards">
             <!-- Saldo Total -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-md-3">
                 <div class="card value-card h-100">
                     <div class="card-body p-3">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="card-subtitle mb-1 opacity-75" style="font-size: 0.85rem;">Saldo Atual</h6>
-                                <h3 class="card-title mb-1" style="font-size: 1.5rem;">R$ {{ "{:,.2f}".format(balance or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
-                                <small class="opacity-75" style="font-size: 0.75rem;">
-                                    <i class="bi bi-arrow-up me-1"></i>
-                                    Atualizado agora
-                                </small>
+                        <div class="dashboard-card-content">
+                            <div class="dashboard-card-icon">
+                                <i class="bi bi-wallet2"></i>
                             </div>
-                            <div class="opacity-50 d-none d-sm-block">
-                                <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
+                            <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Saldo Atual</h6>
+                            <h3 id="totalBalance" class="card-title mb-0 fw-bold" style="font-size: 1.65rem; line-height: 1.15;">R$ {{ "{:,.2f}".format(balance or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                            <div class="dashboard-card-meta">
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Atualizado agora
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -177,23 +175,19 @@
             </div>
             
             <!-- Entradas do Mês -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-md-3">
                 <div class="card income-card h-100" style="animation: slideInUp 0.5s ease-out 0.1s both;">
                     <div class="card-body text-white p-3 p-md-4">
-                        <div class="d-flex align-items-start justify-content-between">
-                            <div class="flex-grow-1" style="position: relative; z-index: 2;">
-                                <div class="d-flex align-items-center gap-2 mb-2">
-                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; backdrop-filter: blur(10px);">
-                                        <i class="bi bi-arrow-up-circle" style="font-size: 1.5rem;"></i>
-                                    </div>
-                                    <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Entradas</h6>
-                                </div>
-                                <h3 id="totalIncome" class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
-                                        <i class="bi bi-graph-up-arrow me-1"></i>{{ income_count }} transações
-                                    </span>
-                                </div>
+                        <div class="dashboard-card-content" style="position: relative; z-index: 2;">
+                            <div class="dashboard-card-icon">
+                                <i class="bi bi-arrow-up-circle"></i>
+                            </div>
+                            <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Entradas</h6>
+                            <h3 id="totalIncome" class="card-title mb-0 fw-bold" style="font-size: 1.65rem; line-height: 1.15;">+R$ {{ "{:,.2f}".format(monthly_income or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                            <div class="dashboard-card-meta">
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                    <i class="bi bi-graph-up-arrow me-1"></i>{{ income_count }} transações
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -201,23 +195,39 @@
             </div>
             
             <!-- Gastos do Mês -->
-            <div class="col-12 col-md-6 col-xl-3">
+            <div class="col-6 col-md-3">
                 <div class="card expense-card h-100" style="animation: slideInUp 0.5s ease-out 0.2s both;">
                     <div class="card-body text-white p-3 p-md-4">
-                        <div class="d-flex align-items-start justify-content-between">
-                            <div class="flex-grow-1" style="position: relative; z-index: 2;">
-                                <div class="d-flex align-items-center gap-2 mb-2">
-                                    <div class="d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; backdrop-filter: blur(10px);">
-                                        <i class="bi bi-arrow-down-circle" style="font-size: 1.5rem;"></i>
-                                    </div>
-                                    <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Despesas</h6>
-                                </div>
-                                <h3 id="totalExpense" class="card-title mb-2 fw-bold" style="font-size: 1.75rem; line-height: 1.2;">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
-                                        <i class="bi bi-graph-down-arrow me-1"></i>{{ expense_count }} transações
-                                    </span>
-                                </div>
+                        <div class="dashboard-card-content" style="position: relative; z-index: 2;">
+                            <div class="dashboard-card-icon">
+                                <i class="bi bi-arrow-down-circle"></i>
+                            </div>
+                            <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Despesas total do mês</h6>
+                            <h3 id="totalExpense" class="card-title mb-0 fw-bold" style="font-size: 1.65rem; line-height: 1.15;">-R$ {{ "{:,.2f}".format(monthly_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                            <div class="dashboard-card-meta">
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                    <i class="bi bi-graph-down-arrow me-1"></i>{{ expense_count }} transações
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Despesas Pagas do Mês (somente fechadas) -->
+            <div class="col-6 col-md-3">
+                <div class="card expense-card h-100" style="animation: slideInUp 0.5s ease-out 0.3s both;">
+                    <div class="card-body text-white p-3 p-md-4">
+                        <div class="dashboard-card-content" style="position: relative; z-index: 2;">
+                            <div class="dashboard-card-icon">
+                                <i class="bi bi-check2-circle"></i>
+                            </div>
+                            <h6 class="card-subtitle mb-0 opacity-90 fw-semibold" style="font-size: 0.8rem; letter-spacing: 0.5px; text-transform: uppercase;">Despesas pagas do mês</h6>
+                            <h3 id="totalPaidExpense" class="card-title mb-0 fw-bold" style="font-size: 1.65rem; line-height: 1.15;">-R$ {{ "{:,.2f}".format(monthly_paid_expense or 0).replace(",", "X").replace(".", ",").replace("X", ".") }}</h3>
+                            <div class="dashboard-card-meta">
+                                <span class="badge" style="background: rgba(255, 255, 255, 0.25); font-size: 0.7rem; padding: 0.35rem 0.65rem; border-radius: 6px;">
+                                    <i class="bi bi-lock-fill me-1"></i>Somente fechadas
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -263,11 +273,11 @@
                         {% for t in recent_transactions %}
                         <div data-transaction-id="{{ t.id }}" 
                              data-type="{{ t.type }}"
-                             class="transaction-item {% if t.type == 'income' %}item-income{% else %}item-expense{% endif %}" 
+                             class="transaction-item {% if t.type == 'income' %}item-income{% else %}item-expense{% endif %} {% if t.type != 'income' and t.is_closed %}is-closed{% endif %}" 
                              onclick="showTransactionDetails({{ t.id }})">
                             
                             <div class="item-left">
-                                <div class="item-icon {% if t.type == 'income' %}icon-green{% else %}icon-red{% endif %}">
+                                <div class="item-icon {% if t.type == 'income' or (t.type != 'income' and t.is_closed) %}icon-green{% else %}icon-red{% endif %}">
                                     {% if t.subcategory and t.subcategory.icon %}
                                         {{ t.subcategory.icon }}
                                     {% elif t.category and t.category.icon %}
@@ -308,13 +318,31 @@
                             </div>
                             
                             <div class="item-right">
-                                <div class="item-value {% if t.type == 'income' %}value-green{% else %}value-red{% endif %}">
+                                <div class="item-value {% if t.type == 'income' or (t.type != 'income' and t.is_closed) %}value-green{% else %}value-red{% endif %}">
                                     {{ '+' if t.type == 'income' else '-' }}R$ {{ "{:,.2f}".format(t.amount).replace(",", "X").replace(".", ",").replace("X", ".") }}
                                 </div>
                                 <div class="item-actions">
                                     <button class="btn-action" onclick="editTransaction({{ t.id }}); event.stopPropagation();" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    {% if t.type != 'income' and not t.is_closed %}
+                                    <button class="btn-action btn-close-expense" onclick="closeExpense({{ t.id }}); event.stopPropagation();" title="Fechar Despesa">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if t.type != 'income' and t.is_closed %}
+                                    <button class="btn-action btn-reopen-expense" onclick="reopenExpense({{ t.id }}); event.stopPropagation();" title="Reabrir Despesa">
+                                        <i class="bi bi-unlock"></i>
+                                    </button>
+                                    <button class="btn-action btn-update-proof" onclick="updateExpenseProof({{ t.id }}); event.stopPropagation();" title="Trocar Comprovante">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                    {% if t.proof_document_url %}
+                                    <button class="btn-action" onclick="viewProofDocument('{{ t.proof_document_url }}'); event.stopPropagation();" title="Ver Comprovante">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% endif %}
                                     <button class="btn-action btn-delete" onclick="deleteTransaction({{ t.id }}); event.stopPropagation();" title="Excluir">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -892,6 +920,82 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
     }
+
+    .dashboard-cards .card {
+        border-radius: 18px;
+        overflow: hidden;
+    }
+
+    .dashboard-cards .card-body {
+        padding: 1.05rem !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        align-items: center;
+    }
+
+    .dashboard-cards .dashboard-card-content {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+    }
+
+    .dashboard-cards .dashboard-card-icon {
+        width: 46px;
+        height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        font-size: 1.35rem;
+    }
+
+    .dashboard-cards .dashboard-card-meta {
+        margin-top: 0.1rem;
+    }
+
+    .dashboard-cards .col-6,
+    .dashboard-cards .col-md-3 {
+        display: flex;
+    }
+
+    .dashboard-cards .card {
+        width: 100%;
+    }
+
+    .dashboard-cards .card-body > .d-flex {
+        flex: 1;
+    }
+
+    .dashboard-cards .card-title {
+        letter-spacing: -0.02em;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-cards .card {
+            aspect-ratio: 1 / 1;
+        }
+        .dashboard-cards .card-body {
+            padding: 1rem !important;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .dashboard-cards .card {
+            aspect-ratio: auto;
+        }
+        .dashboard-cards .card-body {
+            min-height: 160px;
+        }
+    }
     
     /* ========== LISTA LIMPA DE TRANSAÇÕES ========== */
     .transactions-list {
@@ -920,6 +1024,25 @@
     .item-expense {
         border-left-color: #ef4444;
         background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, var(--bg-secondary) 20%);
+    }
+
+    .transaction-item.is-closed {
+        border-left-color: #10b981;
+        background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-secondary) 26%);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.08);
+        position: relative;
+    }
+
+    .transaction-item.is-closed::after {
+        content: '';
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: rgba(239, 68, 68, 0.9);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
     }
     
     .transaction-item:hover {
@@ -1095,6 +1218,55 @@
     .btn-delete:hover {
         background: #ef4444;
         border-color: #ef4444;
+    }
+    
+    .btn-close-expense {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+    
+    .btn-close-expense:hover {
+        background: #059669;
+        border-color: #059669;
+        transform: scale(1.05);
+    }
+    
+    .btn-closed {
+        background: #6b7280;
+        border-color: #6b7280;
+        color: white;
+        opacity: 0.7;
+    }
+    
+    .btn-closed:hover {
+        background: #6b7280;
+        border-color: #6b7280;
+        transform: none;
+    }
+
+    .btn-reopen-expense {
+        background: #f59e0b;
+        border-color: #f59e0b;
+        color: white;
+    }
+
+    .btn-reopen-expense:hover {
+        background: #d97706;
+        border-color: #d97706;
+        transform: scale(1.05);
+    }
+
+    .btn-update-proof {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+
+    .btn-update-proof:hover {
+        background: #2563eb;
+        border-color: #2563eb;
+        transform: scale(1.05);
     }
     
     /* Responsividade mobile */
@@ -1875,6 +2047,12 @@ function updateCardsDisplay(data) {
     if (expenseEl) {
         expenseEl.textContent = `-R$ ${formatBRL(data.monthly_expense || 0)}`;
     }
+
+    // Atualizar despesas pagas do mês (somente fechadas)
+    const paidExpenseEl = document.getElementById('totalPaidExpense');
+    if (paidExpenseEl) {
+        paidExpenseEl.textContent = `-R$ ${formatBRL(data.monthly_paid_expense || 0)}`;
+    }
 }
 
 // Inicializar filtro ao carregar página
@@ -2490,9 +2668,15 @@ function _buildTransactionCard(t) {
         tags += '</div>';
     }
     
+    const isExpenseLike = t.type !== 'income';
+    const isPaid = !!t.is_closed;
+    const itemClass = `transaction-item ${t.type === 'income' ? 'item-income' : 'item-expense'} ${isExpenseLike && isPaid ? 'is-closed' : ''}`;
+    const iconClass = (t.type === 'income' || (isExpenseLike && isPaid)) ? 'icon-green' : 'icon-red';
+    const valueClass = (t.type === 'income' || (isExpenseLike && isPaid)) ? 'value-green' : 'value-red';
+
     return `
         <div class="item-left">
-            <div class="item-icon ${t.type === 'income' ? 'icon-green' : 'icon-red'}">
+            <div class="item-icon ${iconClass}">
                 ${categoryIcon}
             </div>
             
@@ -2509,13 +2693,31 @@ function _buildTransactionCard(t) {
         </div>
         
         <div class="item-right">
-            <div class="item-value ${t.type === 'income' ? 'value-green' : 'value-red'}">
+            <div class="item-value ${valueClass}">
                 ${t.type === 'income' ? '+' : '-'}R$ ${formattedAmount}
             </div>
             <div class="item-actions">
                 <button class="btn-action" onclick="editTransaction(${t.id}); event.stopPropagation();" title="Editar">
                     <i class="bi bi-pencil"></i>
                 </button>
+                ${isExpenseLike && !isPaid ? `
+                <button class="btn-action btn-close-expense" onclick="closeExpense(${t.id}); event.stopPropagation();" title="Fechar Despesa">
+                    <i class="bi bi-check-circle"></i>
+                </button>
+                ` : ''}
+                ${isExpenseLike && isPaid ? `
+                <button class="btn-action btn-reopen-expense" onclick="reopenExpense(${t.id}); event.stopPropagation();" title="Reabrir Despesa">
+                    <i class="bi bi-unlock"></i>
+                </button>
+                <button class="btn-action btn-update-proof" onclick="updateExpenseProof(${t.id}); event.stopPropagation();" title="Trocar Comprovante">
+                    <i class="bi bi-arrow-repeat"></i>
+                </button>
+                ${t.proof_document_url ? `
+                <button class="btn-action" onclick="viewProofDocument('${t.proof_document_url}'); event.stopPropagation();" title="Ver Comprovante">
+                    <i class="bi bi-file-earmark-text"></i>
+                </button>
+                ` : ''}
+                ` : ''}
                 <button class="btn-action btn-delete" onclick="deleteTransaction(${t.id}); event.stopPropagation();" title="Excluir">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -2542,7 +2744,7 @@ function addTransactionToTable(t) {
     const cardWrapper = document.createElement('div');
     cardWrapper.setAttribute('data-transaction-id', t.id);
     cardWrapper.setAttribute('data-type', t.type);
-    cardWrapper.className = `transaction-item ${t.type === 'income' ? 'item-income' : 'item-expense'}`;
+    cardWrapper.className = `transaction-item ${t.type === 'income' ? 'item-income' : 'item-expense'} ${(t.type !== 'income' && t.is_closed) ? 'is-closed' : ''}`;
     cardWrapper.setAttribute('onclick', `showTransactionDetails(${t.id})`);
     cardWrapper.style.animation = 'slideInUp 0.4s ease-out both';
     cardWrapper.innerHTML = _buildTransactionCard(t);
@@ -3340,5 +3542,259 @@ function executeShare() { sendInvite(); }
 function acceptInviteAndClose() {}
 function createOwnWorkspaceAndClose() {}
 function checkFirstAccess() {}
+
+function _refreshRecentTransactions() {
+    try {
+        if (typeof loadRecentTransactions === 'function') {
+            loadRecentTransactions();
+            return;
+        }
+    } catch (e) {}
+    try {
+        if (typeof applyGlobalFilter === 'function') {
+            applyGlobalFilter();
+            return;
+        }
+    } catch (e) {}
+    location.reload();
+}
+
+async function reopenExpense(transactionId) {
+    const ok = await window._openConfirmModal({
+        title: 'Reabrir despesa',
+        body: 'Tem certeza que deseja reabrir esta despesa? Ela deixará de contar como paga.',
+        confirmText: 'Reabrir',
+        confirmClass: 'btn-warning'
+    });
+    if (!ok) return;
+
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/expenses/reopen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transaction_id: transactionId })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showToast(result.message || 'Despesa reaberta!', 'success');
+            _refreshRecentTransactions();
+            if (typeof loadSummaryCards === 'function') loadSummaryCards();
+        } else {
+            showToast(result.error || 'Erro ao reabrir despesa', 'error');
+        }
+    } catch (e) {
+        showToast('Erro ao reabrir despesa', 'error');
+    }
+}
+
+function updateExpenseProof(transactionId) {
+    const idEl = document.getElementById('updateProofExpenseId');
+    const fileEl = document.getElementById('updateProofDocument');
+    if (idEl) idEl.value = transactionId;
+    if (fileEl) fileEl.value = '';
+    const modalEl = document.getElementById('updateProofModal');
+    if (!modalEl) return;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function confirmUpdateProof() {
+    const transactionId = document.getElementById('updateProofExpenseId')?.value;
+    const file = document.getElementById('updateProofDocument')?.files?.[0];
+    if (!transactionId) {
+        showToast('ID inválido', 'error');
+        return;
+    }
+    if (!file) {
+        showToast('Selecione um arquivo', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('transaction_id', transactionId);
+    formData.append('proof_document', file);
+
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/expenses/proof', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showToast(result.message || 'Comprovante atualizado!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('updateProofModal')).hide();
+            _refreshRecentTransactions();
+        } else {
+            showToast(result.error || 'Erro ao atualizar comprovante', 'error');
+        }
+    } catch (e) {
+        showToast('Erro ao atualizar comprovante', 'error');
+    }
+}
+
+// Close Expense Functions
+function closeExpense(transactionId) {
+    document.getElementById('closeExpenseId').value = transactionId;
+    document.getElementById('proofDocument').value = '';
+    document.getElementById('closeNotes').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('closeExpenseModal'));
+    modal.show();
+}
+
+async function confirmCloseExpense() {
+    const transactionId = document.getElementById('closeExpenseId').value;
+    const formData = new FormData();
+    formData.append('transaction_id', transactionId);
+    
+    const proofFile = document.getElementById('proofDocument').files[0];
+    if (proofFile) {
+        formData.append('proof_document', proofFile);
+    }
+    
+    const closeNotes = document.getElementById('closeNotes').value;
+    if (closeNotes) {
+        formData.append('close_notes', closeNotes);
+    }
+    
+    try {
+        const response = await fetch('/gerenciamento-financeiro/api/expenses/close', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Despesa fechada com sucesso!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('closeExpenseModal')).hide();
+            
+            // Refresh transactions list
+            _refreshRecentTransactions();
+        } else {
+            showToast(result.error || 'Erro ao fechar despesa', 'error');
+        }
+    } catch (error) {
+        showToast('Erro ao fechar despesa', 'error');
+    }
+}
+
+function viewProofDocument(proofUrl) {
+    const content = document.getElementById('proofDocumentContent');
+    
+    if (proofUrl.match(/\.(jpg|jpeg|png|gif)$/i)) {
+        content.innerHTML = `<img src="${proofUrl}" class="img-fluid" alt="Comprovante">`;
+    } else if (proofUrl.match(/\.pdf$/i)) {
+        content.innerHTML = `<embed src="${proofUrl}" type="application/pdf" width="100%" height="600px">`;
+    } else {
+        content.innerHTML = `<p>Tipo de arquivo não suportado para visualização</p>`;
+    }
+    
+    document.getElementById('downloadProofBtn').onclick = () => downloadProofDocument(proofUrl);
+    
+    const modal = new bootstrap.Modal(document.getElementById('proofDocumentModal'));
+    modal.show();
+}
+
+function downloadProofDocument(proofUrl) {
+    if (!proofUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = proofUrl;
+    link.download = proofUrl.split('/').pop();
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Verification function to check if expense is closed
+function isExpenseClosed(transaction) {
+    return transaction.type === 'expense' && transaction.is_closed === true;
+}
 </script>
+
+<!-- Close Expense Modal -->
+<div class="modal fade" id="closeExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Fechar Despesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="closeExpenseForm" enctype="multipart/form-data">
+                    <input type="hidden" id="closeExpenseId" name="transaction_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Anexar Comprovante (Opcional)</label>
+                        <input type="file" class="form-control" id="proofDocument" name="proof_document" accept="image/*,.pdf,.doc,.docx">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, PDF, DOC, DOCX (máx 5MB)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Observações do Fechamento (Opcional)</label>
+                        <textarea class="form-control" id="closeNotes" name="close_notes" rows="3" placeholder="Adicione observações sobre o fechamento desta despesa..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmCloseExpense()">
+                    <i class="bi bi-check-circle me-1"></i>Fechar Despesa
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Proof Modal -->
+<div class="modal fade" id="updateProofModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2"></i>Trocar Comprovante</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateProofForm" enctype="multipart/form-data">
+                    <input type="hidden" id="updateProofExpenseId" name="transaction_id">
+                    <div class="mb-3">
+                        <label class="form-label">Novo comprovante</label>
+                        <input type="file" class="form-control" id="updateProofDocument" name="proof_document" accept="image/*,.pdf,.doc,.docx">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, PDF, DOC, DOCX (máx 5MB)</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmUpdateProof()">
+                    <i class="bi bi-cloud-upload me-1"></i>Atualizar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Proof Document Modal -->
+<div class="modal fade" id="proofDocumentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Comprovante</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="proofDocumentContent">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="downloadProofBtn" onclick="downloadProofDocument()">
+                    <i class="bi bi-download me-1"></i>Baixar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

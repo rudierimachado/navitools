@@ -21,8 +21,9 @@ class User(db.Model):
 
     # Relacionamentos financeiros
     finance_config = db.relationship("FinanceConfig", backref="user", uselist=False, cascade="all, delete-orphan")
-    transactions = db.relationship("Transaction", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    transactions = db.relationship("Transaction", backref="user", lazy="dynamic", foreign_keys="Transaction.user_id", cascade="all, delete-orphan")
     recurring_transactions = db.relationship("RecurringTransaction", backref="user", lazy="dynamic", cascade="all, delete-orphan")
+    closed_transactions = db.relationship("Transaction", backref="closed_by_user", foreign_keys="Transaction.closed_by_user_id", lazy="dynamic")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User {self.email}>"
@@ -268,6 +269,17 @@ class Transaction(db.Model):
     
     # Workspace (para compartilhamento)
     workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=True)
+    
+    # Fechamento de despesa
+    is_closed = db.Column(db.Boolean, default=False, nullable=False)
+    proof_document_url = db.Column(db.String(500))
+    proof_document_data = db.Column(db.LargeBinary)
+    proof_document_name = db.Column(db.String(255))
+    proof_document_storage_name = db.Column(db.String(255))
+    proof_document_mime = db.Column(db.String(255))
+    proof_document_size = db.Column(db.Integer)
+    closed_date = db.Column(db.Date)
+    closed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
