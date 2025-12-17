@@ -18,6 +18,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import calendar
 import math
+import json
 import os
 import time
 import hashlib
@@ -73,6 +74,10 @@ _CATEGORIES_WORKSPACE_COLUMN_READY = False
 _TRANSACTIONS_CLOSE_COLUMNS_READY = False
 _TRANSACTIONS_SUBCATEGORY_TEXT_READY = False
 _RECURRING_SUBCATEGORY_TEXT_READY = False
+
+class IconGenerationError(Exception):
+    """Raised when the AI icon generation process cannot complete."""
+    pass
 
 
 def _log_debug(msg: str) -> None:
@@ -301,11 +306,11 @@ def _ensure_default_subcategories(category_id: int) -> None:
             ))
         db.session.commit()
     except Exception as e:
-        _log_exception(f"[SUBCATEGORIES] Erro ao criar subcategorias padrão: {e}")
         try:
             db.session.rollback()
         except Exception:
             pass
+        _log_exception(f"[SUBCATEGORIES] Erro ao criar subcategorias padrão: {e}")
 
 
 def _estimate_tokens(text: str) -> int:
@@ -330,6 +335,126 @@ def _ai_rate_limit_check(user_id: int, tokens_to_consume: int) -> tuple[bool, in
     entries.append((now, tokens_to_consume))
     _AI_TOKEN_USAGE[user_id] = entries
     return True, used + tokens_to_consume, limit
+
+
+def _fallback_icon_for_category(name: str, ctype: str | None) -> str:
+    n = str(name or "").lower()
+    if "mercad" in n or "super" in n:
+        return "🛒"
+    if "alug" in n or "morad" in n or "casa" in n:
+        return "🏠"
+    if "internet" in n or "wifi" in n:
+        return "📶"
+    if "energia" in n or "luz" in n:
+        return "💡"
+    if "agua" in n:
+        return "🚰"
+    if "gas" in n:
+        return "🔥"
+    if any(word in n for word in ["carro", "uber", "ônibus", "onibus", "transporte"]):
+        return "🚗"
+    if any(word in n for word in ["saúde", "saude", "médic", "medic", "farm"]):
+        return "💊"
+    if any(word in n for word in ["salár", "salari", "renda"]):
+        return "💼"
+    if any(word in n for word in ["pix", "transfer"]):
+        return "🏦"
+    return "💰" if (ctype or "").lower() == "income" else "💸"
+
+
+PLACEHOLDER_CATEGORY_ICONS = {"💰", "💸"}
+
+
+def _fallback_icon_for_subcategory(
+    name: str,
+    category_name: str | None,
+    ctype: str | None,
+) -> str:
+    icon = _fallback_icon_for_category(name, ctype)
+    if not icon and category_name:
+        icon = _fallback_icon_for_category(category_name, ctype)
+    return icon or ("💰" if (ctype or "").lower() == "income" else "💸")
+
+
+def _fetch_ai_icon_mapping(user_id: int, items: list[dict], context_label: str) -> tuple[dict, list[str]]:
+    """
+    items: [{"id": "123", "name": "...", "type": "...", ...}]
+    Returns (mapping, notes)
+    """
+    notes: list[str] = []
+    if not items:
+        return {}, notes
+
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        notes.append("IA indisponível: GROQ_API_KEY não configurada. Aplicando fallback.")
+        return {}, notes
+
+    model = os.getenv("GROQ_ICON_MODEL", os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"))
+    max_tokens = int(os.getenv("GROQ_ICON_MAX_TOKENS", "350") or "350")
+
+    system_prompt = (
+        "Você escolhe emojis para categorias financeiras. "
+        "Responda APENAS com JSON válido (sem markdown) no formato: {\"<id>\": \"<emoji>\", ...}. "
+        "Use apenas UM emoji por item. Não use texto extra. Contexto: "
+        f"{context_label}"
+    )
+    user_prompt = "Itens: " + json.dumps(items, ensure_ascii=False)
+
+    tokens_to_consume = _estimate_tokens(system_prompt) + _estimate_tokens(user_prompt) + max_tokens
+    ok, used_now, limit = _ai_rate_limit_check(user_id=user_id, tokens_to_consume=tokens_to_consume)
+    if not ok:
+        raise IconGenerationError(
+            f"Limite de uso de IA atingido. Aguarde 1 minuto. ({used_now}/{limit} tokens)"
+        )
+
+    try:
+        groq_resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+                "max_tokens": max_tokens,
+            },
+            timeout=35,
+        )
+    except Exception as e:
+        raise IconGenerationError(f"Falha ao chamar IA: {e}") from e
+
+    if groq_resp.status_code >= 400:
+        try:
+            err_body = groq_resp.json()
+        except Exception:
+            err_body = groq_resp.text
+        raise IconGenerationError(f"Erro na IA ({groq_resp.status_code}): {err_body}")
+
+    try:
+        payload = groq_resp.json()
+        content = (((payload.get("choices") or [])[0] or {}).get("message") or {}).get("content")
+        content = (content or "").strip()
+    except Exception:
+        content = ""
+
+    mapping: dict[str, str] = {}
+    if content:
+        try:
+            m = re.search(r"\{[\s\S]*\}", content)
+            raw = m.group(0) if m else content
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                mapping = parsed
+        except Exception as e:
+            raise IconGenerationError(f"Resposta inválida da IA: {content}") from e
+
+    return mapping, notes
 
 
 @gerenciamento_financeiro_bp.route("/download/app")
@@ -3009,6 +3134,118 @@ def api_subcategory_detail(subcategory_id: int):
             
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+
+@gerenciamento_financeiro_bp.route("/api/categories/auto-icons", methods=["POST", "OPTIONS"])
+def api_categories_auto_icons():
+    origin = request.headers.get("Origin", "*")
+
+    if request.method == "OPTIONS":
+        resp = jsonify({"ok": True})
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Credentials"] = "true"
+        return resp
+
+    if "finance_user_id" not in session:
+        return jsonify({"error": "Não autorizado"}), 401
+
+    user_id = session["finance_user_id"]
+
+    workspace_id = session.get("active_workspace_id")
+    if not workspace_id:
+        return jsonify({"error": "Workspace não selecionado"}), 400
+
+    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
+    if not workspace_role:
+        return jsonify({"error": "Sem permissão"}), 403
+
+    if workspace_role == "viewer":
+        return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
+    ws = Workspace.query.get(workspace_id)
+    if not ws:
+        return jsonify({"error": "Workspace não encontrado"}), 404
+
+    owner_id = ws.owner_id
+    _ensure_default_categories(owner_id, workspace_id)
+    config = FinanceConfig.query.filter_by(user_id=owner_id).first()
+    if not config:
+        return jsonify({"error": "Configuração financeira não encontrada"}), 404
+
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if not groq_api_key:
+        return jsonify({"error": "GROQ_API_KEY não configurada"}), 500
+
+    data = request.get_json(silent=True) or {}
+    category_type = str(data.get("type") or "").strip().lower()
+    if category_type not in ["income", "expense"]:
+        category_type = None
+
+    force_all = bool(data.get("force"))
+
+    base_query = Category.query.filter_by(
+        config_id=config.id,
+        workspace_id=workspace_id,
+        is_active=True,
+    )
+    if category_type:
+        base_query = base_query.filter_by(type=category_type)
+
+    categories = base_query.order_by(Category.name.asc()).all()
+
+    def _needs_icon(cat: Category) -> bool:
+        icon_val = str(cat.icon or "").strip()
+        if not icon_val:
+            return True
+        return icon_val in PLACEHOLDER_CATEGORY_ICONS
+
+    eligible_categories = [c for c in categories if _needs_icon(c)]
+    if force_all:
+        cats = categories[:60]
+    else:
+        cats = eligible_categories[:60]
+
+    if not cats:
+        return jsonify({
+            "message": "Nenhuma categoria com ícone padrão encontrada.",
+            "updated": 0,
+            "categories": [],
+        })
+
+    items = [{"id": str(c.id), "name": c.name, "type": c.type} for c in cats]
+
+    try:
+        mapping, notes = _fetch_ai_icon_mapping(
+            user_id=user_id,
+            items=items,
+            context_label="Categorias do gerenciador financeiro",
+        )
+    except IconGenerationError as exc:
+        return jsonify({"error": str(exc)}), 502
+
+    updated = 0
+    updated_items = []
+    for c in cats:
+        key = str(c.id)
+        emoji = str((mapping.get(key) or mapping.get(c.id) or "")).strip()
+        if not emoji:
+            emoji = _fallback_icon_for_category(c.name, c.type)
+
+        c.icon = emoji
+        updated += 1
+        updated_items.append({"id": c.id, "name": c.name, "type": c.type, "icon": c.icon})
+
+    db.session.commit()
+    suffix = " (forçado)" if force_all else ""
+    return jsonify({
+        "message": f"Ícones gerados/atualizados: {updated}{suffix}",
+        "updated": updated,
+        "notes": notes,
+        "categories": updated_items,
+    })
 
 # ============================================================================
 # API DE CATEGORIAS

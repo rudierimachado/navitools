@@ -153,7 +153,7 @@
 
     <!-- Cards de Status -->
     <div class="col-12">
-        <div class="row g-3 g-md-4 mb-4 dashboard-cards">
+        <div class="row g-3 g-md-4 mb-2 dashboard-cards">
             <!-- Saldo Total -->
             <div class="col-6 col-md-3">
                 <div class="card value-card h-100">
@@ -237,18 +237,11 @@
     </div>
 
     <!-- Transações Recentes -->
-    <div class="col-12">
+    <div class="col-12 mt-1">
         <div class="card" style="border: none; background: transparent; box-shadow: none;">
-            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center" style="background: transparent; border: none; padding: 0 0 1rem 0;">
-                <div class="mb-2 mb-md-0">
-                    <h4 class="mb-1 fw-bold" style="font-size: 1.5rem;">
-                        <i class="bi bi-clock-history me-2" style="color: #3b82f6;"></i>Transações
-                    </h4>
-                </div>
-            </div>
-            
+
             <!-- Abas modernas: Entradas e Saídas -->
-            <div class="d-flex align-items-center gap-2 mb-3" style="border-bottom: 2px solid var(--border-color); padding-bottom: 0;">
+            <div class="d-flex align-items-center gap-2 mb-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 0;">
                 <button class="btn px-4 py-2 fw-semibold transactions-tab active" 
                         id="tabEntradas" 
                         onclick="filterTransactionsByType('income')"
@@ -278,9 +271,9 @@
                             
                             <div class="item-left">
                                 <div class="item-icon {% if t.type == 'income' or (t.type != 'income' and t.is_closed) %}icon-green{% else %}icon-red{% endif %}">
-                                    {% if t.subcategory and t.subcategory.icon %}
+                                    {% if t.subcategory and t.subcategory.icon and (t.subcategory.icon | trim) %}
                                         {{ t.subcategory.icon }}
-                                    {% elif t.category and t.category.icon %}
+                                    {% elif t.category and t.category.icon and (t.category.icon | trim) %}
                                         {{ t.category.icon }}
                                     {% else %}
                                         {% if t.type == 'income' %}💰{% else %}💸{% endif %}
@@ -927,37 +920,60 @@
     
     /* ========== LISTA LIMPA DE TRANSAÇÕES ========== */
     .transactions-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .transactions-list {
+            grid-template-columns: 1fr;
+        }
     }
     
     .transaction-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px;
+        padding: 14px;
         background: var(--bg-secondary);
-        border-radius: 10px;
-        border-left: 4px solid;
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
         cursor: pointer;
         transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .transaction-item::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
     }
     
     .item-income {
-        border-left-color: #10b981;
-        background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, var(--bg-secondary) 20%);
+        border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .item-income::before {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, transparent 55%);
     }
     
     .item-expense {
-        border-left-color: #ef4444;
-        background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, var(--bg-secondary) 20%);
+        border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .item-expense::before {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, transparent 55%);
     }
 
     .transaction-item.is-closed {
-        border-left-color: #10b981;
-        background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-secondary) 26%);
-        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.08);
+        border-color: rgba(16, 185, 129, 0.45);
+        box-shadow: 0 10px 26px rgba(16, 185, 129, 0.10);
         position: relative;
     }
 
@@ -974,18 +990,20 @@
     }
     
     .transaction-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+    }
+
+    .transaction-item:hover::before {
+        opacity: 1;
     }
     
     .item-income:hover {
-        border-left-color: #059669;
-        background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-secondary) 20%);
+        border-color: rgba(16, 185, 129, 0.55);
     }
     
     .item-expense:hover {
-        border-left-color: #dc2626;
-        background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, var(--bg-secondary) 20%);
+        border-color: rgba(239, 68, 68, 0.55);
     }
     
     /* Lado esquerdo */
@@ -2658,11 +2676,35 @@ function _getRecentContainer() {
     return document.getElementById('recentTransactionsTbody');
 }
 
+function _autoIconFromText(text, type) {
+    const n = String(text || '').toLowerCase();
+    if (n.includes('mercad') || n.includes('super')) return '🛒';
+    if (n.includes('alug') || n.includes('morad') || n.includes('casa')) return '🏠';
+    if (n.includes('internet') || n.includes('wifi')) return '📶';
+    if (n.includes('energia') || n.includes('luz')) return '💡';
+    if (n.includes('agua')) return '🚰';
+    if (n.includes('gas')) return '🔥';
+    if (n.includes('carro') || n.includes('uber') || n.includes('ônibus') || n.includes('onibus') || n.includes('transporte')) return '🚗';
+    if (n.includes('saúde') || n.includes('saude') || n.includes('médic') || n.includes('medic') || n.includes('farm')) return '💊';
+    if (n.includes('salár') || n.includes('salari') || n.includes('renda')) return '💼';
+    if (n.includes('pix') || n.includes('transfer')) return '🏦';
+    return type === 'income' ? '💰' : '💸';
+}
+
+function _safeIcon(value) {
+    if (value === null || value === undefined) return null;
+    const s = String(value);
+    const t = s.trim();
+    return t ? t : null;
+}
+
 function _buildTransactionCard(t) {
     const date = new Date(t.transaction_date);
     const formattedDate = date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-    
-    const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+
+    const rawIcon = _safeIcon(t?.subcategory?.icon) || _safeIcon(t?.category?.icon);
+    const iconFallbackText = (t && (t.subcategory_text || t.subcategory?.name || t.category?.name || t.description)) || '';
+    const categoryIcon = rawIcon || _autoIconFromText(iconFallbackText, t?.type);
     const title = t.subcategory_text || t.subcategory?.name || t.description || 'Sem descrição';
     const categoryName = t.category?.name || 'Sem categoria';
     

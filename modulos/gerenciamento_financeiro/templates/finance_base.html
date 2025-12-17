@@ -263,6 +263,97 @@
             color: var(--text-primary);
         }
         
+        .catmgr-categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .catmgr-grid-placeholder {
+            grid-column: 1 / -1;
+            border: 1px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+            background: rgba(148, 163, 184, 0.06);
+        }
+
+        .catmgr-cat-card {
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .catmgr-cat-head {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .catmgr-cat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background: rgba(99, 102, 241, 0.12);
+            font-size: 1.25rem;
+            flex: 0 0 auto;
+        }
+
+        .catmgr-cat-head-main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .catmgr-cat-name-preview {
+            font-weight: 700;
+            font-size: 0.95rem;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .catmgr-cat-type {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.15rem;
+        }
+
+        .catmgr-cat-actions {
+            display: flex;
+            gap: 0.4rem;
+            flex: 0 0 auto;
+        }
+
+        .catmgr-cat-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .catmgr-cat-form .form-control {
+            padding: 0.5rem 0.65rem;
+            border-radius: 10px;
+        }
+
+        .catmgr-cat-form-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .catmgr-icon-input {
+            width: 64px;
+            text-align: center;
+        }
 
     @media (max-width: 768px) {
         :root {
@@ -600,9 +691,12 @@
                                         <option value="expense">Saídas</option>
                                     </select>
                                 </div>
-                                <button class="btn btn-outline-secondary" type="button" id="catMgrRefreshCatsBtn"><i class="bi bi-arrow-repeat me-1"></i>Recarregar</button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-secondary" type="button" id="catMgrRefreshCatsBtn"><i class="bi bi-arrow-repeat me-1"></i>Recarregar</button>
+                                    <button class="btn btn-outline-primary" type="button" id="catMgrAutoIconsBtn"><i class="bi bi-stars me-1"></i>Gerar ícones (IA)</button>
+                                </div>
                             </div>
-                            <div id="catMgrCategoriesList" class="list-group"></div>
+                            <div id="catMgrCategoriesList" class="catmgr-categories-grid"></div>
                         </div>
 
                         <div class="tab-pane fade" id="catMgrSubTab" role="tabpanel" aria-labelledby="catMgrSubTabBtn" tabindex="0">
@@ -732,27 +826,27 @@
                 </div>
                 <div class="modal-body">
                     <div class="list-group list-group-flush">
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('history'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('history'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-clock-history fs-5 text-info"></i>
                             <span>Histórico</span>
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('charts'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('charts'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-bar-chart fs-5 text-warning"></i>
                             <span>Gráficos</span>
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('ai'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('ai'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-robot fs-5 text-info"></i>
                             <span>IA</span>
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('workspaces'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('workspaces'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-folder fs-5 text-primary"></i>
                             <span>Gerenciar Workspaces</span>
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('share'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('share'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-share fs-5 text-success"></i>
                             <span>Compartilhar</span>
                         </button>
-                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" onclick="financeMobileAction('toggle_theme'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
+                        <button class="list-group-item list-group-item-action d-flex align-items-center gap-3" type="button" onclick="financeMobileAction('toggle_theme'); bootstrap.Modal.getInstance(document.getElementById('financeMobileMenuModal')).hide();">
                             <i class="bi bi-moon fs-5 text-warning"></i>
                             <span>Alternar Tema</span>
                         </button>
@@ -1062,6 +1156,23 @@
                 .replaceAll('>', '&gt;');
         }
 
+        function __catMgrAutoIcon(name, type) {
+            const n = String(name || '').toLowerCase();
+
+            if (n.includes('mercad') || n.includes('super')) return '🛒';
+            if (n.includes('alug') || n.includes('morad') || n.includes('casa')) return '🏠';
+            if (n.includes('internet') || n.includes('wifi')) return '📶';
+            if (n.includes('energia') || n.includes('luz')) return '💡';
+            if (n.includes('agua')) return '🚰';
+            if (n.includes('gas')) return '🔥';
+            if (n.includes('carro') || n.includes('uber') || n.includes('ônibus') || n.includes('onibus') || n.includes('transporte')) return '🚗';
+            if (n.includes('saúde') || n.includes('saude') || n.includes('médic') || n.includes('medic') || n.includes('farm')) return '💊';
+            if (n.includes('salár') || n.includes('salari') || n.includes('renda')) return '💼';
+            if (n.includes('pix') || n.includes('transfer')) return '🏦';
+
+            return type === 'income' ? '💰' : '💸';
+        }
+
         async function __catMgrHideOtherOpenModals() {
             if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
             const openModals = Array.from(document.querySelectorAll('.modal.show'))
@@ -1107,43 +1218,83 @@
         async function __catMgrRenderCategoriesList(type) {
             const list = document.getElementById('catMgrCategoriesList');
             if (!list) return;
-            list.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+            list.innerHTML = '<div class="catmgr-grid-placeholder">Carregando...</div>';
             try {
                 const url = `${__catApiUrl}?type=${encodeURIComponent(type)}`;
                 const data = await __catMgrFetchJson(url, { method: 'GET' });
                 const cats = Array.isArray(data.categories) ? data.categories : [];
                 if (!cats.length) {
-                    list.innerHTML = '<div class="list-group-item text-muted">Nenhuma categoria encontrada.</div>';
+                    list.innerHTML = '<div class="catmgr-grid-placeholder">Nenhuma categoria encontrada.</div>';
                     return;
                 }
                 list.innerHTML = '';
                 cats.forEach(c => {
                     const row = document.createElement('div');
-                    row.className = 'list-group-item';
+                    row.className = 'catmgr-cat-card';
                     const disabledDel = !!c.is_default;
+                    const autoIcon = __catMgrAutoIcon(c.name, type);
+                    const typeLabel = (type === 'income') ? 'Entrada' : 'Saída';
                     row.innerHTML = `
-                        <div class="row g-2 align-items-center">
-                            <div class="col-2 col-md-1">
-                                <input class="form-control" value="${__catMgrEscapeAttr(c.icon || '')}" data-field="icon" autocomplete="off">
+                        <div class="catmgr-cat-head">
+                            <div class="catmgr-cat-icon" data-role="iconWrap">
+                                <span data-role="iconText"></span>
                             </div>
-                            <div class="col-6 col-md-5">
-                                <input class="form-control" value="${__catMgrEscapeAttr(c.name || '')}" data-field="name" autocomplete="off">
+                            <div class="catmgr-cat-head-main">
+                                <div class="catmgr-cat-name-preview" data-role="nameText">${__catMgrEscapeAttr(c.name || '')}</div>
+                                <div class="catmgr-cat-type">${typeLabel}</div>
                             </div>
-                            <div class="col-4 col-md-2">
-                                <input class="form-control form-control-color" type="color" value="${(c.color || '#6366f1')}" data-field="color">
-                            </div>
-                            <div class="col-12 col-md-4 d-flex justify-content-end gap-2">
+                            <div class="catmgr-cat-actions">
                                 <button class="btn btn-outline-primary btn-sm" type="button" data-action="save"><i class="bi bi-check-lg"></i></button>
                                 <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" ${disabledDel ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
                             </div>
                         </div>
+                        <div class="catmgr-cat-form">
+                            <input class="form-control" value="${__catMgrEscapeAttr(c.name || '')}" data-field="name" autocomplete="off">
+                            <div class="catmgr-cat-form-row">
+                                <input class="form-control catmgr-icon-input" value="${__catMgrEscapeAttr(c.icon || '')}" placeholder="${__catMgrEscapeAttr(autoIcon)}" data-field="icon" autocomplete="off">
+                                <input class="form-control form-control-color" type="color" value="${(c.color || '#6366f1')}" data-field="color">
+                            </div>
+                        </div>
                     `;
+
+                    const iconText = row.querySelector('[data-role="iconText"]');
+                    const nameText = row.querySelector('[data-role="nameText"]');
+                    const iconWrap = row.querySelector('[data-role="iconWrap"]');
+                    const nameInput = row.querySelector('[data-field="name"]');
+                    const iconInput = row.querySelector('[data-field="icon"]');
+                    const colorInput = row.querySelector('[data-field="color"]');
+
+                    const updatePreview = () => {
+                        const nameVal = nameInput ? String(nameInput.value || '') : String(c.name || '');
+                        const iconVal = iconInput ? String(iconInput.value || '').trim() : String(c.icon || '').trim();
+                        const fallbackIcon = __catMgrAutoIcon(nameVal, type);
+                        const displayIcon = iconVal ? iconVal : fallbackIcon;
+                        const col = (colorInput && colorInput.value) ? String(colorInput.value) : String(c.color || '#6366f1');
+
+                        if (iconText) iconText.textContent = displayIcon;
+                        if (nameText) nameText.textContent = nameVal || '';
+                        if (iconWrap) {
+                            iconWrap.style.borderColor = col + '55';
+                            iconWrap.style.background = col + '1f';
+                            iconWrap.style.color = col;
+                        }
+                    };
+
+                    if (nameInput) nameInput.addEventListener('input', updatePreview);
+                    if (iconInput) iconInput.addEventListener('input', updatePreview);
+                    if (colorInput) colorInput.addEventListener('input', updatePreview);
+                    updatePreview();
 
                     row.querySelector('[data-action="save"]').addEventListener('click', async () => {
                         const payload = {};
                         row.querySelectorAll('[data-field]').forEach(inp => {
                             payload[inp.getAttribute('data-field')] = inp.value;
                         });
+
+                        payload.icon = String(payload.icon || '').trim();
+                        if (!payload.icon) {
+                            payload.icon = __catMgrAutoIcon(payload.name || c.name, type);
+                        }
                         try {
                             const url2 = `${__catApiUrl}/${c.id}`;
                             const res = await __catMgrFetchJson(url2, {
@@ -1153,7 +1304,10 @@
                             });
                             window._showToast(res.message || 'Atualizado!', 'success');
                             const sel = __catMgrState.selectElId ? document.getElementById(__catMgrState.selectElId) : null;
-                            if (sel) __catMgrEnsureOption(sel, c.id, `${__catMgrEscapeAttr(payload.icon || c.icon || '')} ${__catMgrEscapeAttr(payload.name || c.name || '')}`);
+                            if (sel && res.category) {
+                                __catMgrEnsureOption(sel, res.category.id, `${res.category.icon || '💰'} ${res.category.name}`);
+                            }
+                            await __catMgrRenderCategoriesList(type);
                         } catch (e) {
                             window._showToast(e.message || 'Erro', 'danger');
                         }
@@ -1175,7 +1329,7 @@
                     list.appendChild(row);
                 });
             } catch (e) {
-                list.innerHTML = '<div class="list-group-item text-danger">' + (e.message || 'Erro') + '</div>';
+                list.innerHTML = '<div class="catmgr-grid-placeholder" style="color: #ef4444;">' + (e.message || 'Erro') + '</div>';
             }
         }
 
@@ -1333,6 +1487,7 @@
 
             const createBtn = document.getElementById('catMgrCreateBtn');
             const refreshCatsBtn = document.getElementById('catMgrRefreshCatsBtn');
+            const autoIconsBtn = document.getElementById('catMgrAutoIconsBtn');
             const editType = document.getElementById('catMgrEditType');
             const createType = document.getElementById('catMgrType');
             const subCatSel = document.getElementById('catMgrSubCategory');
@@ -1353,7 +1508,7 @@
                         const res = await __catMgrFetchJson(__catApiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name, type: t, icon: icon || '💰', color: color || '#6366f1' })
+                            body: JSON.stringify({ name, type: t, icon: icon || null, color: color || '#6366f1' })
                         });
                         window._showToast(res.message || 'Categoria criada!', 'success');
                         const sel = __catMgrState.selectElId ? document.getElementById(__catMgrState.selectElId) : null;
@@ -1376,6 +1531,33 @@
                 refreshCatsBtn.addEventListener('click', async () => {
                     const t = (editType && editType.value) ? String(editType.value) : 'expense';
                     await __catMgrRenderCategoriesList(t);
+                });
+            }
+
+            if (autoIconsBtn) {
+                autoIconsBtn.addEventListener('click', async () => {
+                    const t = (editType && editType.value) ? String(editType.value) : '';
+                    try {
+                        if (window.showLoading) window.showLoading('Gerando ícones com IA...');
+                        const resp = await fetch('{{ url_for("gerenciamento_financeiro.api_categories_auto_icons") }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            cache: 'no-store',
+                            credentials: 'include',
+                            body: JSON.stringify({ type: t, force: true })
+                        });
+
+                        const data = await resp.json().catch(() => ({}));
+                        if (!resp.ok) {
+                            throw new Error((data && data.error) ? data.error : 'Falha ao gerar ícones');
+                        }
+                        window._showToast((data && data.message) ? data.message : 'Ícones atualizados!', 'success');
+                        await __catMgrRenderCategoriesList(t || 'expense');
+                    } catch (e) {
+                        window._showToast((e && e.message) ? e.message : 'Erro ao usar IA', 'danger');
+                    } finally {
+                        if (window.hideLoading) window.hideLoading();
+                    }
                 });
             }
 
