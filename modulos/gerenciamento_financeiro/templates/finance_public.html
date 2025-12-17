@@ -1,0 +1,670 @@
+{% extends 'base.html' %}
+
+{% block title %}Gerenciamento Financeiro - NEXUSRDR{% endblock %}
+
+{% block meta_description %}Sistema de gerenciamento financeiro da NEXUSRDR: controle de receitas e despesas, workspaces, compartilhamento e recomendações com IA (opcional). Organize suas finanças com dashboards, recorrências e relatórios.{% endblock %}
+
+{% block meta_keywords %}gerenciamento financeiro, controle financeiro, finanças pessoais, fluxo de caixa, receitas e despesas, recorrências, dashboard financeiro, workspaces, compartilhamento, recomendação de IA, NEXUSRDR{% endblock %}
+
+{% block og_type %}website{% endblock %}
+{% block og_url %}{{ page_url }}{% endblock %}
+{% block og_title %}Gerenciamento Financeiro - NEXUSRDR{% endblock %}
+{% block og_description %}Controle receitas e despesas com categorias, recorrências e workspaces. Recomendação de IA (opcional) para planos e alertas. Sistema financeiro moderno da NEXUSRDR.{% endblock %}
+
+{% block twitter_url %}{{ page_url }}{% endblock %}
+{% block twitter_title %}Gerenciamento Financeiro - NEXUSRDR{% endblock %}
+{% block twitter_description %}Controle receitas e despesas com categorias, recorrências e workspaces. Recomendação de IA (opcional) para planos e alertas. Sistema financeiro moderno da NEXUSRDR.{% endblock %}
+
+{% block canonical_url %}{{ canonical_url }}{% endblock %}
+
+{% block styles %}
+<style>
+    .finance-public-hero {
+        padding: 7rem 0 3rem 0;
+        background: radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.20), transparent 55%),
+                    radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.18), transparent 55%),
+                    linear-gradient(180deg, rgba(15, 23, 42, 0.00) 0%, rgba(15, 23, 42, 0.35) 100%);
+    }
+
+    .finance-public-card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 24px;
+        padding: 2.25rem;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+    }
+
+    .finance-public-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 1rem;
+        border-radius: 999px;
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.30);
+        color: rgba(241, 245, 249, 0.95);
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+
+    .finance-public-title {
+        margin-top: 1rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        font-size: clamp(2.2rem, 4.8vw, 3.6rem);
+        line-height: 1.05;
+        background: linear-gradient(135deg, #ffffff, #22c55e, #06b6d4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .finance-public-subtitle {
+        margin-top: 1rem;
+        color: rgba(241, 245, 249, 0.80);
+        font-size: 1.1rem;
+        line-height: 1.6;
+        max-width: 60ch;
+    }
+
+    .finance-public-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .finance-public-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        border-radius: 999px;
+        padding: 0.85rem 1.4rem;
+        font-weight: 800;
+        text-decoration: none;
+        border: none;
+        background: linear-gradient(135deg, #22c55e, #06b6d4);
+        color: white;
+        box-shadow: 0 12px 30px rgba(34, 197, 94, 0.25);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .finance-public-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 44px rgba(34, 197, 94, 0.35);
+        color: white;
+    }
+
+    .finance-public-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        border-radius: 999px;
+        padding: 0.85rem 1.4rem;
+        font-weight: 800;
+        text-decoration: none;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(241, 245, 249, 0.95);
+        backdrop-filter: blur(10px);
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .finance-public-btn-secondary:hover {
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.4);
+        color: rgba(241, 245, 249, 0.98);
+    }
+
+    .finance-public-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-top: 1.75rem;
+    }
+
+    .finance-public-feature {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 1.25rem;
+    }
+
+    .finance-public-feature-title {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        color: rgba(241, 245, 249, 0.95);
+    }
+
+    .finance-public-feature-desc {
+        color: rgba(241, 245, 249, 0.75);
+        margin: 0;
+        line-height: 1.6;
+        font-size: 0.98rem;
+    }
+
+    .finance-public-faq {
+        margin-top: 2rem;
+        color: rgba(241, 245, 249, 0.8);
+    }
+
+    .finance-public-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+    }
+
+    .finance-public-nav a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.55rem 0.9rem;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 0.92rem;
+        color: rgba(241, 245, 249, 0.92);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .finance-public-nav a:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.10);
+        border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .finance-public-section {
+        padding: 2.75rem 0;
+        scroll-margin-top: 110px;
+    }
+
+    .finance-public-section + .finance-public-section {
+        padding-top: 0;
+    }
+
+    .finance-public-section-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 24px;
+        padding: 2rem;
+        backdrop-filter: blur(14px);
+    }
+
+    .finance-public-section-title {
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        margin: 0;
+    }
+
+    .finance-public-section-subtitle {
+        margin: 0.75rem 0 0 0;
+        color: rgba(241, 245, 249, 0.78);
+        max-width: 85ch;
+        line-height: 1.65;
+    }
+
+    .finance-public-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .finance-public-step {
+        border-radius: 18px;
+        padding: 1.25rem;
+        background: rgba(15, 23, 42, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .finance-public-step-number {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        font-weight: 900;
+        background: rgba(34, 197, 94, 0.16);
+        border: 1px solid rgba(34, 197, 94, 0.30);
+        color: rgba(241, 245, 249, 0.95);
+    }
+
+    .finance-public-step-title {
+        margin-top: 0.9rem;
+        font-weight: 900;
+    }
+
+    .finance-public-step-desc {
+        margin: 0.5rem 0 0 0;
+        color: rgba(241, 245, 249, 0.74);
+        line-height: 1.65;
+    }
+
+    .finance-public-highlight {
+        background: radial-gradient(circle at 15% 25%, rgba(34, 197, 94, 0.16), transparent 55%),
+                    radial-gradient(circle at 85% 15%, rgba(6, 182, 212, 0.14), transparent 55%),
+                    rgba(255, 255, 255, 0.04);
+    }
+
+    .finance-public-accordion .accordion-item {
+        background: rgba(15, 23, 42, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .finance-public-accordion .accordion-button {
+        background: transparent;
+        color: rgba(241, 245, 249, 0.95);
+        font-weight: 800;
+        border: none;
+        box-shadow: none;
+    }
+
+    .finance-public-accordion .accordion-button:not(.collapsed) {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(241, 245, 249, 0.98);
+    }
+
+    .finance-public-accordion .accordion-body {
+        color: rgba(241, 245, 249, 0.78);
+        line-height: 1.65;
+    }
+ </style>
+{% endblock %}
+
+{% block content %}
+<section class="finance-public-hero">
+    <div class="container">
+        <div class="finance-public-card">
+            <div class="finance-public-badge">
+                <i class="bi bi-cash-stack"></i>
+                Gerenciamento Financeiro
+            </div>
+
+            <h1 class="finance-public-title">Gestão financeira moderna com IA (opcional)</h1>
+
+            <p class="finance-public-subtitle">
+                Controle receitas e despesas com categorias, recorrências e workspaces.
+                Compartilhe com família ou contador e use recomendações de IA para planos e alertas.
+            </p>
+
+            <div class="finance-public-actions">
+                {% if session.get('finance_user_id') %}
+                <a class="finance-public-btn-primary" href="{{ url_for('gerenciamento_financeiro.home') }}">
+                    <i class="bi bi-speedometer2"></i>
+                    Acessar painel
+                </a>
+                {% else %}
+                <a class="finance-public-btn-primary" href="{{ url_for('gerenciamento_financeiro.login') }}">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Entrar
+                </a>
+                <a class="finance-public-btn-secondary" href="{{ url_for('gerenciamento_financeiro.register') }}">
+                    <i class="bi bi-person-plus"></i>
+                    Criar conta
+                </a>
+                {% endif %}
+                <a class="finance-public-btn-secondary" href="{{ url_for('gerenciamento_financeiro.download_app') }}">
+                    <i class="bi bi-android2"></i>
+                    Baixar App Android
+                </a>
+            </div>
+
+            <div class="finance-public-nav">
+                <a href="#recursos" class="finance-public-anchors"><i class="bi bi-grid-1x2"></i>Recursos</a>
+                <a href="#ia" class="finance-public-anchors"><i class="bi bi-stars"></i>IA integrada</a>
+                <a href="#seguranca" class="finance-public-anchors"><i class="bi bi-shield-lock"></i>Segurança</a>
+                <a href="#faq" class="finance-public-anchors"><i class="bi bi-question-circle"></i>FAQ</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="recursos" class="finance-public-section">
+    <div class="container">
+        <div class="finance-public-section-card">
+            <h2 class="finance-public-section-title">Tudo que você precisa no dia a dia</h2>
+            <p class="finance-public-section-subtitle">
+                O sistema foi desenhado para organizar a rotina financeira com clareza e automação.
+                Você centraliza lançamentos, acompanha indicadores, controla workspaces e ativa recomendações com IA quando quiser.
+            </p>
+
+            <div class="finance-public-grid">
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        Dashboard e indicadores
+                    </div>
+                    <p class="finance-public-feature-desc">Saldo, entradas e despesas por período com visão clara e rápida.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-tags"></i>
+                        Categorias e subcategorias
+                    </div>
+                    <p class="finance-public-feature-desc">Organize lançamentos por categoria e mantenha consistência ao longo do tempo.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-arrow-repeat"></i>
+                        Recorrências e parcelas
+                    </div>
+                    <p class="finance-public-feature-desc">Automatize lançamentos recorrentes e mantenha o histórico sempre atualizado.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-folder"></i>
+                        Workspaces
+                    </div>
+                    <p class="finance-public-feature-desc">Separe finanças por projetos, casas ou empresas em workspaces independentes.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-share"></i>
+                        Compartilhamento
+                    </div>
+                    <p class="finance-public-feature-desc">Convide família/contador e controle o nível de acesso por workspace.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-paperclip"></i>
+                        Anexos e comprovantes
+                    </div>
+                    <p class="finance-public-feature-desc">Anexe comprovantes às despesas e centralize evidências para conferência.</p>
+                </div>
+            </div>
+
+            <div class="finance-public-steps">
+                <div class="finance-public-step">
+                    <div class="finance-public-step-number">1</div>
+                    <div class="finance-public-step-title">Defina o workspace</div>
+                    <p class="finance-public-step-desc">Crie um espaço para sua casa, empresa ou projeto e mantenha tudo separado.</p>
+                </div>
+                <div class="finance-public-step">
+                    <div class="finance-public-step-number">2</div>
+                    <div class="finance-public-step-title">Registre e categorize</div>
+                    <p class="finance-public-step-desc">Lance entradas e despesas com categorias e datas para ter visão do fluxo de caixa.</p>
+                </div>
+                <div class="finance-public-step">
+                    <div class="finance-public-step-number">3</div>
+                    <div class="finance-public-step-title">Automatize recorrências</div>
+                    <p class="finance-public-step-desc">Ganhe tempo com lançamentos recorrentes e histórico mensal sempre completo.</p>
+                </div>
+                <div class="finance-public-step">
+                    <div class="finance-public-step-number">4</div>
+                    <div class="finance-public-step-title">Ative a IA quando quiser</div>
+                    <p class="finance-public-step-desc">Peça planos objetivos e alertas com base nos dados do seu workspace.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="ia" class="finance-public-section">
+    <div class="container">
+        <div class="finance-public-section-card finance-public-highlight">
+            <h2 class="finance-public-section-title">Recomendações com IA (opcional)</h2>
+            <p class="finance-public-section-subtitle">
+                Dentro do painel você pode gerar recomendações em português, em formato direto, com base nos dados do seu workspace e no período selecionado.
+                Você escolhe o objetivo e recebe ações práticas.
+            </p>
+
+            <div class="finance-public-grid">
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-stars"></i>
+                        Plano 7 dias
+                    </div>
+                    <p class="finance-public-feature-desc">Checklist objetivo para organizar o mês e reduzir desperdícios rapidamente.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-umbrella"></i>
+                        Reserva e metas
+                    </div>
+                    <p class="finance-public-feature-desc">A IA ajuda a estruturar metas como reserva de emergência e planejamento de férias.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Alertas
+                    </div>
+                    <p class="finance-public-feature-desc">Sinais de atenção baseados em tendências do seu período e categorias relevantes.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-lightning"></i>
+                        Regras automáticas
+                    </div>
+                    <p class="finance-public-feature-desc">Sugestões de regras e rotina para evitar atrasos e melhorar previsibilidade.</p>
+                </div>
+            </div>
+
+            <div class="finance-public-faq" style="margin-top: 1.75rem;">
+                <p style="margin:0;"><strong>Importante:</strong> o recurso de IA é opcional e depende de configuração de ambiente do sistema (chave de IA em produção).</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="seguranca" class="finance-public-section">
+    <div class="container">
+        <div class="finance-public-section-card">
+            <h2 class="finance-public-section-title">Segurança e privacidade</h2>
+            <p class="finance-public-section-subtitle">
+                A página pública é apenas de apresentação. O painel e os dados do usuário exigem autenticação.
+                O compartilhamento é controlado por convites e permissões por workspace.
+            </p>
+
+            <div class="finance-public-grid">
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-shield-lock"></i>
+                        Painel protegido
+                    </div>
+                    <p class="finance-public-feature-desc">Para acessar dados financeiros é necessário login no sistema.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-person-check"></i>
+                        Controle de acesso
+                    </div>
+                    <p class="finance-public-feature-desc">Permissões por workspace para convidar e gerenciar membros.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-boxes"></i>
+                        Separação por workspace
+                    </div>
+                    <p class="finance-public-feature-desc">Dados organizados por workspace para reduzir mistura de contextos.</p>
+                </div>
+                <div class="finance-public-feature">
+                    <div class="finance-public-feature-title">
+                        <i class="bi bi-eye-slash"></i>
+                        Sem dados públicos
+                    </div>
+                    <p class="finance-public-feature-desc">A landing é indexável, mas o conteúdo do painel não é exposto publicamente.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="faq" class="finance-public-section">
+    <div class="container">
+        <div class="finance-public-section-card">
+            <h2 class="finance-public-section-title">Perguntas frequentes</h2>
+            <p class="finance-public-section-subtitle">Respostas rápidas sobre acesso, IA, segurança e uso no celular.</p>
+
+            <div class="accordion finance-public-accordion" id="financeFaqAccordion" style="margin-top: 1.5rem;">
+                <div class="accordion-item mb-2">
+                    <h2 class="accordion-header" id="faqOneHeading">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqOne" aria-expanded="false" aria-controls="faqOne">
+                            Preciso pagar para usar o Gerenciamento Financeiro?
+                        </button>
+                    </h2>
+                    <div id="faqOne" class="accordion-collapse collapse" aria-labelledby="faqOneHeading" data-bs-parent="#financeFaqAccordion">
+                        <div class="accordion-body">Não. O acesso ao sistema é gratuito.</div>
+                    </div>
+                </div>
+
+                <div class="accordion-item mb-2">
+                    <h2 class="accordion-header" id="faqTwoHeading">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqTwo" aria-expanded="false" aria-controls="faqTwo">
+                            Meus dados financeiros ficam públicos?
+                        </button>
+                    </h2>
+                    <div id="faqTwo" class="accordion-collapse collapse" aria-labelledby="faqTwoHeading" data-bs-parent="#financeFaqAccordion">
+                        <div class="accordion-body">Não. O painel exige autenticação (login) para acessar os dados. Esta página é apenas de apresentação.</div>
+                    </div>
+                </div>
+
+                <div class="accordion-item mb-2">
+                    <h2 class="accordion-header" id="faqThreeHeading">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqThree" aria-expanded="false" aria-controls="faqThree">
+                            Como funciona a IA integrada?
+                        </button>
+                    </h2>
+                    <div id="faqThree" class="accordion-collapse collapse" aria-labelledby="faqThreeHeading" data-bs-parent="#financeFaqAccordion">
+                        <div class="accordion-body">No painel você escolhe um objetivo (ex.: cortar gastos, organizar dívidas, montar reserva) e o sistema gera recomendações curtas com base nos dados do workspace e período selecionado. O recurso é opcional e depende de configuração em produção.</div>
+                    </div>
+                </div>
+
+                <div class="accordion-item mb-2">
+                    <h2 class="accordion-header" id="faqFourHeading">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqFour" aria-expanded="false" aria-controls="faqFour">
+                            Posso usar no celular?
+                        </button>
+                    </h2>
+                    <div id="faqFour" class="accordion-collapse collapse" aria-labelledby="faqFourHeading" data-bs-parent="#financeFaqAccordion">
+                        <div class="accordion-body">Sim. Você pode usar no navegador e também baixar o app Android disponível no próprio módulo.</div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="faqFiveHeading">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqFive" aria-expanded="false" aria-controls="faqFive">
+                            Dá para compartilhar com família ou contador?
+                        </button>
+                    </h2>
+                    <div id="faqFive" class="accordion-collapse collapse" aria-labelledby="faqFiveHeading" data-bs-parent="#financeFaqAccordion">
+                        <div class="accordion-body">Sim. O compartilhamento é feito por convites e o acesso pode ser controlado conforme o workspace.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="finance-public-actions" style="margin-top: 1.75rem;">
+                {% if session.get('finance_user_id') %}
+                <a class="finance-public-btn-primary" href="{{ url_for('gerenciamento_financeiro.home') }}">
+                    <i class="bi bi-speedometer2"></i>
+                    Acessar painel
+                </a>
+                {% else %}
+                <a class="finance-public-btn-primary" href="{{ url_for('gerenciamento_financeiro.login') }}">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Entrar
+                </a>
+                <a class="finance-public-btn-secondary" href="{{ url_for('gerenciamento_financeiro.register') }}">
+                    <i class="bi bi-person-plus"></i>
+                    Criar conta
+                </a>
+                {% endif %}
+                <a class="finance-public-btn-secondary" href="{{ url_for('gerenciamento_financeiro.download_app') }}">
+                    <i class="bi bi-android2"></i>
+                    Baixar App Android
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Gerenciamento Financeiro",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Web",
+  "url": "{{ canonical_url }}",
+  "featureList": [
+    "Dashboard e indicadores",
+    "Categorias e subcategorias",
+    "Recorrências e histórico",
+    "Workspaces",
+    "Compartilhamento com permissões",
+    "Recomendações com IA (opcional)"
+  ],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "BRL"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "NEXUSRDR",
+    "url": "https://nexusrdr.com.br"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Preciso pagar para usar o Gerenciamento Financeiro?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Não. O acesso ao sistema é gratuito."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Meus dados financeiros ficam públicos?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Não. O painel exige autenticação (login) para acessar os dados. A página pública é apenas de apresentação."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Como funciona a IA integrada?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No painel você escolhe um objetivo e o sistema gera recomendações curtas com base nos dados do workspace e no período selecionado. O recurso é opcional e depende de configuração em produção."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Posso usar no celular?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sim. Você pode usar no navegador e também baixar o app Android disponível no módulo."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Dá para compartilhar com família ou contador?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sim. O compartilhamento é feito por convites e o acesso pode ser controlado conforme o workspace."
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}

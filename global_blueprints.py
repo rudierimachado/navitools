@@ -145,6 +145,16 @@ def serve_logo(filename):
     logos_dir = os.path.join(os.path.dirname(__file__), 'logos')
     return send_from_directory(logos_dir, filename)
 
+@main_bp.route("/robots.txt")
+def robots_txt():
+    base_url = os.getenv("APP_BASE_URL", "https://nexusrdr.com.br").rstrip("/")
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        f"Sitemap: {base_url}/sitemap.xml",
+    ]
+    return Response("\n".join(lines) + "\n", mimetype="text/plain")
+
 @main_bp.route("/")
 def index():
     priority_order = _priority_order()
@@ -358,7 +368,7 @@ def sitemap():
         ("/conversor-imagens", "0.9", "daily"),
         ("/youtube-downloader", "0.9", "daily"),
         ("/removedor-de-fundo", "0.9", "daily"),
-        ("/gerenciamento-financeiro", "0.8", "weekly"),
+        ("/gerenciamento-financeiro/apresentacao", "0.9", "weekly"),
     ]
 
     for path, priority, changefreq in tools:

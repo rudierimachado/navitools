@@ -692,15 +692,12 @@ def _ensure_recurring_transactions_for_month(workspace_id: int, year: int, month
 @gerenciamento_financeiro_bp.route("/")
 def home():
     if "finance_user_id" not in session:
-        return redirect(url_for("gerenciamento_financeiro.login", next=request.path))
-    
-    # Garantir que as colunas de fechamento de despesas existam
+        return redirect(url_for("gerenciamento_financeiro.apresentacao"))
+
     _ensure_transactions_close_columns()
-    
-    # Verificar se tem workspace ativo na sessão
+
     if "active_workspace_id" not in session:
         user_id = session["finance_user_id"]
-        # Tentar obter ou criar workspace padrão automaticamente
         default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
         if not default_workspace:
             default_workspace = Workspace(
@@ -711,8 +708,7 @@ def home():
             )
             db.session.add(default_workspace)
             db.session.commit()
-        
-        # Definir workspace ativo na sessão
+
         session["active_workspace_id"] = default_workspace.id
 
     user_id = session["finance_user_id"]
@@ -910,6 +906,18 @@ def home():
         active_workspace=active_workspace,
         selected_month=selected_month,
         selected_year=selected_year,
+    )
+
+
+@gerenciamento_financeiro_bp.route("/apresentacao")
+def apresentacao():
+    page_url = request.url
+    base_url = (os.getenv("APP_BASE_URL") or request.url_root).rstrip("/")
+    canonical_url = base_url + url_for("gerenciamento_financeiro.apresentacao")
+    return render_template(
+        "finance_public.html",
+        page_url=page_url,
+        canonical_url=canonical_url,
     )
 
 

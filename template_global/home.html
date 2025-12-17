@@ -409,6 +409,73 @@
         color: white;
     }
 
+    .tool-card-finance::before {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(6, 182, 212, 0.12));
+        opacity: 1;
+    }
+
+    .tool-card-finance:hover {
+        border-color: rgba(34, 197, 94, 0.35);
+        box-shadow: 0 30px 60px rgba(34, 197, 94, 0.20);
+    }
+
+    .tool-card-finance .tool-icon {
+        background: linear-gradient(135deg, #22c55e, #06b6d4);
+        box-shadow: 0 10px 30px rgba(34, 197, 94, 0.35);
+    }
+
+    .tool-card-finance .tool-btn {
+        background: linear-gradient(135deg, #22c55e, #06b6d4);
+    }
+
+    .tool-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        cursor: pointer;
+    }
+
+    .tool-card-link:hover {
+        color: inherit;
+    }
+
+    .tool-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 1rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.92);
+        margin-bottom: 1rem;
+    }
+
+    .tool-badge-finance {
+        background: rgba(34, 197, 94, 0.14);
+        border-color: rgba(34, 197, 94, 0.28);
+    }
+
+    .tool-points {
+        display: grid;
+        gap: 0.5rem;
+        margin: -1rem 0 1.75rem;
+        color: rgba(255, 255, 255, 0.88);
+        font-weight: 600;
+    }
+
+    .tool-point {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .tool-point i {
+        color: #22c55e;
+    }
+
     /* Blog Section */
     .blog-highlight {
         display: flex;
@@ -1023,6 +1090,30 @@
                 </div>
                 
                 <div class="tools-grid">
+                    <a class="tool-card tool-card-finance tool-card-link" href="/gerenciamento-financeiro/apresentacao">
+                        <div class="tool-icon">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
+                        <div class="tool-badge tool-badge-finance">
+                            <i class="bi bi-stars"></i>
+                            SaaS principal
+                        </div>
+                        <h3 class="tool-title">Gerenciamento Financeiro</h3>
+                        <p class="tool-description">
+                            Controle receitas e despesas com dashboards, recorrências e workspaces.
+                            Organize sua vida financeira (pessoal ou empresa) em um só lugar.
+                        </p>
+                        <div class="tool-points">
+                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Dashboards e relatórios</span></div>
+                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Categorias, recorrências e lançamentos</span></div>
+                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Workspaces e compartilhamento</span></div>
+                        </div>
+                        <span class="tool-btn">
+                            Ver apresentação
+                            <i class="bi bi-arrow-right"></i>
+                        </span>
+                    </a>
+
                     <div class="tool-card">
                         <div class="tool-icon">
                             <i class="bi bi-qr-code"></i>
@@ -1052,7 +1143,7 @@
                             <i class="bi bi-arrow-right"></i>
                         </a>
                     </div>
-                    
+
                     <div class="tool-card">
                         <div class="tool-icon">
                             <i class="fab fa-youtube"></i>
@@ -1232,6 +1323,19 @@ console.log('🚀 NEXUSRDR Full-Screen Home loaded!');
       "description": "Remova fundos de imagens automaticamente com inteligência artificial. Sem cadastro.",
       "url": "https://nexusrdr.com.br/removedor-de-fundo",
       "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://nexusrdr.com.br/gerenciamento-financeiro/apresentacao",
+      "name": "Gerenciamento Financeiro",
+      "description": "Sistema de gerenciamento financeiro: controle de receitas e despesas, categorias, recorrências e workspaces.",
+      "url": "https://nexusrdr.com.br/gerenciamento-financeiro/apresentacao",
+      "applicationCategory": "FinanceApplication",
       "offers": {
         "@type": "Offer",
         "price": "0",
