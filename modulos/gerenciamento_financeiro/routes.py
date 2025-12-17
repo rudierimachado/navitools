@@ -8,6 +8,7 @@ from flask import (
     session,
     jsonify,
     send_file,
+    make_response,
 )
 from io import BytesIO
 from sqlalchemy import func, extract, and_, or_, inspect, text
@@ -876,10 +877,15 @@ def login():
     mesmo email utilizado no login e, em caso positivo, marcará o convite como aceito.
     """
 
+    if request.method == "GET" and "finance_user_id" in session:
+        if session.get("active_workspace_id"):
+            return redirect(url_for("gerenciamento_financeiro.home"))
+        return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        remember_me = request.form.get("remember_me")
+        remember_me = request.form.get("remember_me") or request.form.get("auto_login")
 
         if not email or not password:
             flash("Informe e-mail e senha.", "danger")
@@ -956,9 +962,20 @@ def login():
                 db.session.rollback()
                 print(f"Erro ao aceitar convite de workspace no login: {e}")
 
-        return redirect(url_for("gerenciamento_financeiro.select_workspace"))
+        response = make_response(redirect(url_for("gerenciamento_financeiro.select_workspace")))
+        if remember_me:
+            response.set_cookie(
+                "finance_remember_email",
+                user.email,
+                max_age=60 * 60 * 24 * 30,
+                samesite="Lax",
+            )
+        else:
+            response.delete_cookie("finance_remember_email")
+        return response
 
-    return render_template("finance_login.html", user=None)
+    remembered_email = request.cookies.get("finance_remember_email", "")
+    return render_template("finance_login.html", user=None, remembered_email=remembered_email)
 
 
 @gerenciamento_financeiro_bp.route("/invites/<string:token>", methods=["GET"])
@@ -1041,6 +1058,7 @@ def api_login():
     data = request.get_json(silent=True) or {}
     email = str(data.get("email", "")).strip().lower()
     password = str(data.get("password", ""))
+    remember_me = data.get("remember_me") or data.get("auto_login")
 
     # Logs de depuração
     print("[API LOGIN] Requisição recebida do APP_FIN")
@@ -1087,6 +1105,7 @@ def api_login():
         return resp, 401
 
     # Autenticação bem-sucedida (mesma lógica da rota HTML)
+    session.permanent = bool(remember_me)
     session["finance_user_id"] = user.id
     session["finance_user_email"] = user.email
 

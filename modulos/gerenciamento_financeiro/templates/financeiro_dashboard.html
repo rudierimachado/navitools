@@ -2012,10 +2012,22 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Aplicar filtro global (server-driven: recarrega a página)
-function applyGlobalFilter() {
+// Aplicar filtro global (client-side: atualiza via API sem reload)
+async function applyGlobalFilter() {
+    // Atualizar URL sem recarregar
     const baseUrl = '{{ url_for("gerenciamento_financeiro.home") }}';
-    window.location.href = `${baseUrl}?month=${encodeURIComponent(globalFilterMonth)}&year=${encodeURIComponent(globalFilterYear)}`;
+    const newUrl = `${baseUrl}?month=${encodeURIComponent(globalFilterMonth)}&year=${encodeURIComponent(globalFilterYear)}`;
+    window.history.replaceState({}, '', newUrl);
+    
+    // Carregar dados via API
+    await Promise.all([
+        loadRecentTransactions(),
+        loadSummaryCards()
+    ]);
+    
+    // Reaplicar filtro de tipo atual
+    const activeTab = document.querySelector('#tabEntradas[style*="color: #10b981"], #tabEntradas.active');
+    filterTransactionsByType(activeTab ? 'income' : 'expense');
 }
 
 // Inicializar mobile menu ao carregar página
@@ -2082,6 +2094,90 @@ function updateCardsDisplay(data) {
     if (paidExpenseEl) {
         paidExpenseEl.textContent = `-R$ ${formatBRL(data.monthly_paid_expense || 0)}`;
     }
+}
+
+// Debounce para evitar chamadas duplicadas
+let _loadTransactionsTimer = null;
+let _loadingTransactions = false;
+
+// Carregar transações recentes via API (sem reload)
+async function loadRecentTransactions() {
+    // Debounce de 100ms para evitar chamadas duplicadas
+    if (_loadTransactionsTimer) clearTimeout(_loadTransactionsTimer);
+    
+    return new Promise((resolve) => {
+        _loadTransactionsTimer = setTimeout(async () => {
+            await _doLoadRecentTransactions();
+            resolve();
+        }, 100);
+    });
+}
+
+async function _doLoadRecentTransactions() {
+    if (_loadingTransactions) return;
+    _loadingTransactions = true;
+    
+    const container = document.getElementById('recentTransactionsTbody');
+    if (!container) {
+        _loadingTransactions = false;
+        return;
+    }
+    
+    try {
+        const url = `/gerenciamento-financeiro/api/transactions?year=${globalFilterYear}&month=${globalFilterMonth}&limit=50`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('Erro ao carregar transações:', data.error);
+            return;
+        }
+        
+        const transactions = Array.isArray(data) ? data : (data.transactions || []);
+        
+        if (transactions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <p>Nenhuma transação registrada</p>
+                </div>`;
+            return;
+        }
+        
+        container.innerHTML = '';
+        transactions.forEach(t => {
+            const div = document.createElement('div');
+            div.setAttribute('data-transaction-id', t.id);
+            div.setAttribute('data-type', t.type);
+            
+            const isExpenseLike = t.type !== 'income';
+            const isPaid = !!t.is_closed;
+            div.className = `transaction-item ${t.type === 'income' ? 'item-income' : 'item-expense'} ${isExpenseLike && isPaid ? 'is-closed' : ''}`;
+            div.onclick = () => showTransactionDetails(t.id);
+            div.innerHTML = _buildTransactionCard(t);
+            container.appendChild(div);
+        });
+        
+        // Atualizar contadores das tabs
+        updateTransactionTabs(transactions);
+        
+    } catch (error) {
+        console.error('Erro ao carregar transações:', error);
+    } finally {
+        _loadingTransactions = false;
+    }
+}
+
+// Atualizar contadores das tabs de transações
+function updateTransactionTabs(transactions) {
+    const incomeCount = transactions.filter(t => t.type === 'income').length;
+    const expenseCount = transactions.filter(t => t.type !== 'income').length;
+    
+    const incomeTab = document.querySelector('[data-filter-type="income"] .badge, #income-tab .badge');
+    const expenseTab = document.querySelector('[data-filter-type="expense"] .badge, #expense-tab .badge');
+    
+    if (incomeTab) incomeTab.textContent = `${incomeCount} entradas`;
+    if (expenseTab) expenseTab.textContent = `${expenseCount} saídas`;
 }
 
 // Inicializar filtro ao carregar página
@@ -2362,6 +2458,7 @@ function showAddTransaction(type) {
     
     currentEditingId = null;
     ti.value = type;
+    _activeCategoriesType = type;
     
     if (type === 'income') {
         t.innerHTML = '<i class="bi bi-plus-circle text-success me-2"></i>Nova Entrada';
@@ -2398,32 +2495,53 @@ function showAddTransaction(type) {
 }
 
 async function loadCategories(type) {
+    const reqId = ++_categoriesReqSeq;
+    _activeCategoriesType = type;
+
     const select = document.getElementById('category');
     if (select) {
         select.disabled = true;
         select.innerHTML = '<option value="">Carregando...</option>';
     }
 
+    const subField = document.getElementById('subcategoryField');
+    const subSelect = document.getElementById('subcategory');
+    if (subField) subField.style.display = 'none';
+    if (subSelect) {
+        subSelect.disabled = true;
+        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+    }
+
     try {
         const categories = await fetchCategories(type);
+        if (reqId !== _categoriesReqSeq) return;
+
+        const txTypeEl = document.getElementById('transactionType');
+        const currentTxType = txTypeEl ? String(txTypeEl.value || '') : '';
+        if (currentTxType && currentTxType !== type) return;
+
         const s = document.getElementById('category');
         if (!s) return;
         s.innerHTML = '<option value="">Selecione uma categoria</option>';
+        const defaultIcon = type === 'income' ? '💰' : '💸';
         categories.forEach(c => {
             const o = document.createElement('option');
             o.value = c.id;
-            o.textContent = `${c.icon || '💰'} ${c.name}`;
+            o.textContent = `${c.icon || defaultIcon} ${c.name}`;
             s.appendChild(o);
         });
         s.disabled = false;
+        if (subSelect) subSelect.disabled = false;
         s.dispatchEvent(new Event('change', { bubbles: true }));
     } catch (e) {
         console.error('Erro:', e);
+        if (reqId !== _categoriesReqSeq) return;
         const s = document.getElementById('category');
         if (s) {
             s.disabled = false;
             s.innerHTML = '<option value="">Selecione uma categoria</option>';
         }
+        if (subSelect) subSelect.disabled = false;
     }
 }
 
@@ -2431,9 +2549,13 @@ const _categoriesCache = { income: null, expense: null };
 const _categoriesFetchedAt = { income: 0, expense: 0 };
 const _categoriesInFlight = { income: null, expense: null };
 
+let _categoriesReqSeq = 0;
+let _activeCategoriesType = null;
+
 const _subcategoriesCache = {};
 const _subcategoriesFetchedAt = {};
 const _subcategoriesInFlight = {};
+const _subcategoriesHasAny = {};
 let _subcategoriesReqSeq = 0;
 
 async function fetchSubcategories(categoryId, force = false) {
@@ -2454,6 +2576,7 @@ async function fetchSubcategories(categoryId, force = false) {
         const subs = Array.isArray(d.subcategories) ? d.subcategories : [];
         _subcategoriesCache[key] = subs;
         _subcategoriesFetchedAt[key] = Date.now();
+        _subcategoriesHasAny[key] = subs.length > 0;
         return subs;
     })();
 
@@ -2494,29 +2617,81 @@ async function loadSubcategories(categoryId) {
     const subField = document.getElementById('subcategoryField');
     const subSelect = document.getElementById('subcategory');
     if (!categoryId) {
-        subField.style.display = 'none';
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+        if (subField) subField.style.display = 'none';
+        if (subSelect) subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+
+        const hint = document.getElementById('subcategoryLoadingHint');
+        if (hint) hint.style.display = 'none';
         return;
     }
 
     const reqId = ++_subcategoriesReqSeq;
 
+    const key = String(categoryId);
+    const knownHasSubs = _subcategoriesHasAny[key];
+
+    let hintTimer = null;
+    let hint = document.getElementById('subcategoryLoadingHint');
+    if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'subcategoryLoadingHint';
+        hint.className = 'text-muted small mt-2';
+        hint.textContent = 'Carregando subcategorias...';
+        if (subField && subField.parentNode) {
+            subField.parentNode.insertBefore(hint, subField);
+        }
+    }
+    if (hint) {
+        hint.style.display = 'none';
+        hintTimer = setTimeout(() => {
+            if (reqId !== _subcategoriesReqSeq) return;
+            hint.style.display = 'block';
+        }, 200);
+    }
+
+    let showFieldTimer = null;
+    if (knownHasSubs !== false) {
+        if (knownHasSubs === true) {
+            if (subField) subField.style.display = 'block';
+            if (subSelect) {
+                subSelect.disabled = true;
+                subSelect.innerHTML = '<option value="">Carregando...</option>';
+            }
+        } else {
+            showFieldTimer = setTimeout(() => {
+                if (reqId !== _subcategoriesReqSeq) return;
+                if (subField) subField.style.display = 'block';
+                if (subSelect) {
+                    subSelect.disabled = true;
+                    subSelect.innerHTML = '<option value="">Carregando...</option>';
+                }
+            }, 250);
+        }
+    }
+
     try {
-        subField.style.display = 'block';
-        subSelect.disabled = true;
-        subSelect.innerHTML = '<option value="">Carregando...</option>';
+        if (knownHasSubs === false) {
+            if (subField) subField.style.display = 'none';
+        }
 
         const subs = await fetchSubcategories(categoryId);
         if (reqId !== _subcategoriesReqSeq) return;
 
+        if (hintTimer) clearTimeout(hintTimer);
+        if (hint) hint.style.display = 'none';
+        if (showFieldTimer) clearTimeout(showFieldTimer);
+
         if (!subs || subs.length === 0) {
-            subField.style.display = 'none';
-            subSelect.disabled = false;
-            subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+            if (subField) subField.style.display = 'none';
+            if (subSelect) {
+                subSelect.disabled = false;
+                subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+            }
             return;
         }
 
-        subField.style.display = 'block';
+        if (subField) subField.style.display = 'block';
+        if (!subSelect) return;
         subSelect.disabled = false;
         subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
         subs.forEach(s => {
@@ -2528,9 +2703,15 @@ async function loadSubcategories(categoryId) {
     } catch (e) {
         console.error('Erro ao carregar subcategorias:', e);
         if (reqId !== _subcategoriesReqSeq) return;
-        subField.style.display = 'none';
-        subSelect.disabled = false;
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+        if (subField) subField.style.display = 'none';
+        if (subSelect) {
+            subSelect.disabled = false;
+            subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
+        }
+    } finally {
+        if (hintTimer) clearTimeout(hintTimer);
+        if (showFieldTimer) clearTimeout(showFieldTimer);
+        if (hint && reqId === _subcategoriesReqSeq) hint.style.display = 'none';
     }
 }
 
@@ -2634,24 +2815,24 @@ async function saveTransaction(e) {
             document.getElementById('addTransactionForm').reset();
             currentEditingId = null;
             
-            // Se foi criação de transações recorrentes, recarregar página
+            // Atualizar UI dinamicamente sem reload
             if (res.created && res.created > 1) {
                 showToast(res.message || `${res.created} transações criadas!`, 'success');
-                setTimeout(() => location.reload(), 800);
+                loadRecentTransactions();
+                loadSummaryCards();
             } else if (editingId) {
                 if (currentEditScope === 'series' && res.updated_count && res.updated_count > 1) {
                     showToast(res.message || 'Atualizado!', 'success');
-                    setTimeout(() => location.reload(), 800);
+                    loadRecentTransactions();
+                    loadSummaryCards();
                 } else {
                     showToast('Atualizado!', 'success');
                     upsertTransactionRow(res);
-                    // Atualizar cards de resumo automaticamente
                     loadSummaryCards();
                 }
             } else {
                 showToast('Salvo!', 'success');
                 addTransactionToTable(res);
-                // Atualizar cards de resumo automaticamente
                 loadSummaryCards();
             }
         } else {
@@ -3279,8 +3460,9 @@ async function clearCurrentWorkspace() {
         const result = await response.json();
         
         if (response.ok) {
-            showToast('Workspace limpo com sucesso! Recarregando...', 'success');
-            setTimeout(() => location.reload(), 1500);
+            showToast('Workspace limpo com sucesso!', 'success');
+            loadRecentTransactions();
+            loadSummaryCards();
         } else {
             showToast(result.error || 'Erro ao limpar workspace', 'error');
         }
@@ -3550,9 +3732,10 @@ async function acceptInvite(inviteId) {
         
         if (response.ok) {
             showToast(result.message, 'success');
-            // Fechar modal e recarregar página para mostrar novo workspace
             bootstrap.Modal.getInstance(document.getElementById('pendingInvitesModal')).hide();
-            setTimeout(() => location.reload(), 1000);
+            // Atualizar dados dinamicamente
+            loadRecentTransactions();
+            loadSummaryCards();
         } else {
             showToast(result.error || 'Erro ao aceitar convite', 'error');
         }
@@ -3600,19 +3783,7 @@ function createOwnWorkspaceAndClose() {}
 function checkFirstAccess() {}
 
 function _refreshRecentTransactions() {
-    try {
-        if (typeof loadRecentTransactions === 'function') {
-            loadRecentTransactions();
-            return;
-        }
-    } catch (e) {}
-    try {
-        if (typeof applyGlobalFilter === 'function') {
-            applyGlobalFilter();
-            return;
-        }
-    } catch (e) {}
-    location.reload();
+    loadRecentTransactions();
 }
 
 async function reopenExpense(transactionId) {

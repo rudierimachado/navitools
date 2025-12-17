@@ -231,25 +231,34 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" class="finance-form">
+        <form method="POST" class="finance-form" autocomplete="on">
             <label for="email">E-mail</label>
             <div class="finance-input">
                 <i class="bi bi-envelope"></i>
-                <input type="email" id="email" name="email" placeholder="voce@nexusrdr.com" required>
+                <input type="email" id="email" name="email" placeholder="voce@nexusrdr.com" required value="{{ remembered_email or '' }}" autocomplete="username" autocapitalize="none" spellcheck="false">
             </div>
 
             <label for="password">Senha</label>
             <div class="finance-input">
                 <i class="bi bi-lock"></i>
-                <input type="password" id="password" name="password" placeholder="Sua senha segura" required>
+                <input type="password" id="password" name="password" placeholder="Sua senha segura" required autocomplete="current-password">
             </div>
 
             <div class="d-flex align-items-center justify-content-between mt-2 mb-3">
+                <div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="remember_me" name="remember_me" value="1">
                     <label class="form-check-label text-white-50" for="remember_me" style="font-size: 0.9rem;">
                         Lembrar acesso
                     </label>
+                </div>
+
+                <div class="form-check mt-1" id="autoLoginRow" style="display:none;">
+                    <input class="form-check-input" type="checkbox" id="auto_login" name="auto_login" value="1">
+                    <label class="form-check-label text-white-50" for="auto_login" style="font-size: 0.9rem;">
+                        Entrar automaticamente
+                    </label>
+                </div>
                 </div>
 
                 <a href="{{ url_for('gerenciamento_financeiro.forgot_password') }}" class="text-decoration-none" style="color: #38bdf8; font-size: 0.9rem; font-weight: 600;">
@@ -288,6 +297,45 @@
 
         if (isInApk) {
             banner.style.display = 'none';
+        }
+    })();
+</script>
+
+<script>
+    (function () {
+        const ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
+        const isAndroidWebView = /;\s*wv\)/.test(ua) || /\bwv\b/.test(ua);
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (navigator.standalone === true);
+        const isInApk = Boolean(isAndroidWebView || isStandalone);
+
+        const autoRow = document.getElementById('autoLoginRow');
+        const autoCb = document.getElementById('auto_login');
+        const rememberCb = document.getElementById('remember_me');
+        const form = document.querySelector('form.finance-form');
+
+        if (isInApk && autoRow && autoCb && rememberCb) {
+            autoRow.style.display = '';
+            const saved = window.localStorage ? localStorage.getItem('finance_auto_login') : null;
+            if (saved === '1') {
+                autoCb.checked = true;
+                rememberCb.checked = true;
+            }
+
+            autoCb.addEventListener('change', function () {
+                if (autoCb.checked) {
+                    rememberCb.checked = true;
+                }
+            });
+        }
+
+        if (form && autoCb) {
+            form.addEventListener('submit', function () {
+                try {
+                    if (window.localStorage) {
+                        localStorage.setItem('finance_auto_login', autoCb.checked ? '1' : '0');
+                    }
+                } catch (e) {}
+            });
         }
     })();
 </script>
