@@ -141,30 +141,53 @@ async function saveTransaction() {
 
 // Deletar transação
 async function deleteTransaction(id) {
-    const ok = (window._openConfirmModal)
-        ? await window._openConfirmModal({
-            title: 'Excluir transação',
-            body: 'Tem certeza que deseja excluir esta transação?',
-            confirmText: 'Excluir',
-            confirmClass: 'btn-danger',
-        })
-        : window.confirm('Excluir esta transação?');
-    if (!ok) return;
-    
     try {
-        const response = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, {
-            method: 'DELETE'
-        });
-        
+        let tx = null;
+        try {
+            const r0 = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`);
+            const d0 = await r0.json();
+            if (r0.ok && d0 && d0.transaction) tx = d0.transaction;
+        } catch (e) {
+            // ignore
+        }
+
+        const isRecurring = !!(tx && (tx.recurring_transaction_id || tx.is_fixed || tx.is_recurring));
+        let applyScope = 'single';
+        if (isRecurring && typeof window._chooseDeleteScope === 'function') {
+            const scope = await window._chooseDeleteScope();
+            if (!scope) return;
+            applyScope = scope;
+        }
+
+        const body = (applyScope === 'series')
+            ? 'Esta transação é recorrente. Deseja excluir TODAS as ocorrências desta recorrência?'
+            : 'Tem certeza que deseja excluir esta transação?';
+
+        const ok = (window._openConfirmModal)
+            ? await window._openConfirmModal({
+                title: 'Excluir transação',
+                body,
+                confirmText: 'Excluir',
+                confirmClass: 'btn-danger',
+            })
+            : window.confirm(body);
+        if (!ok) return;
+
+        const url = (applyScope === 'series')
+            ? `/gerenciamento-financeiro/api/transactions/${id}?apply_scope=series`
+            : `/gerenciamento-financeiro/api/transactions/${id}`;
+
+        const response = await fetch(url, { method: 'DELETE' });
+        const d = await response.json().catch(() => ({}));
         if (response.ok) {
-            showToast('Transação excluída!', 'success');
+            showToast(applyScope === 'series' ? 'Recorrência excluída!' : 'Transação excluída!', 'success');
             const row = document.querySelector(`[data-transaction-id="${id}"]`);
             if (row) {
                 row.style.opacity = '0';
                 setTimeout(() => row.remove(), 300);
             }
         } else {
-            showToast('Erro ao excluir', 'error');
+            showToast((d && d.error) ? d.error : 'Erro ao excluir', 'error');
         }
     } catch (error) {
         console.error('Erro:', error);

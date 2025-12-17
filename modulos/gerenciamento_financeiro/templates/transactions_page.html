@@ -462,7 +462,13 @@ function displayTransactions(transactions) {
 function displayTableView(transactions) {
     const tbody = document.getElementById('transactionsTableBody');
     
-    tbody.innerHTML = transactions.map(t => `
+    tbody.innerHTML = transactions.map(t => {
+        const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+        const categoryColor = t.subcategory?.color || t.category?.color || '#6366f1';
+        const categoryName = t.subcategory?.name || t.category?.name || 'Sem categoria';
+        const parentCategoryName = t.category?.name || '';
+        
+        return `
         <tr>
             <td class="d-none d-md-table-cell">
                 <div class="fw-semibold">${new Date(t.transaction_date).toLocaleDateString('pt-BR')}</div>
@@ -471,17 +477,14 @@ function displayTableView(transactions) {
                 <div class="fw-semibold">${t.description}</div>
                 <small class="text-muted d-md-none">
                     ${new Date(t.transaction_date).toLocaleDateString('pt-BR')}
-                    ${t.category ? ' · ' + t.category.name : ''}
+                    ${parentCategoryName ? ' · ' + parentCategoryName : ''}
                 </small>
                 ${t.is_fixed ? '<small class="badge bg-info ms-2">Fixo</small>' : ''}
             </td>
             <td class="d-none d-lg-table-cell">
-                ${t.category ? 
-                    `<span class="badge rounded-pill" style="background-color: ${t.category.color}20; color: ${t.category.color};">
-                        ${t.category.icon} ${t.category.name}
-                    </span>` 
-                    : '<span class="text-muted">-</span>'
-                }
+                <span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor};">
+                    ${categoryIcon} ${categoryName}
+                </span>
             </td>
             <td class="d-none d-md-table-cell">
                 <small class="text-muted">${t.notes || '-'}</small>
@@ -502,7 +505,8 @@ function displayTableView(transactions) {
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
     
     showElement('tableViewContainer');
 }
@@ -511,12 +515,21 @@ function displayTableView(transactions) {
 function displayCardView(transactions) {
     const container = document.getElementById('transactionsCardContainer');
     
-    container.innerHTML = transactions.map(t => `
+    container.innerHTML = transactions.map(t => {
+        const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+        const categoryColor = t.subcategory?.color || t.category?.color || '#6366f1';
+        const categoryName = t.subcategory?.name || t.category?.name || 'Sem categoria';
+        const parentCategoryName = t.category?.name || '';
+        
+        return `
         <div class="col-12 col-md-6 col-lg-4 mb-3">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="card-title mb-0">${t.description}</h6>
+                        <div style="flex: 1;">
+                            <h6 class="card-title mb-1">${t.description}</h6>
+                            <small class="text-muted">${parentCategoryName ? parentCategoryName : ''}</small>
+                        </div>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-primary btn-sm" onclick="window.transactionsPage.editTransaction(${t.id})" title="Editar">
                                 <i class="bi bi-pencil"></i>
@@ -525,6 +538,12 @@ function displayCardView(transactions) {
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor}; font-size: 0.95rem; padding: 0.5rem 0.75rem;">
+                            ${categoryIcon} ${categoryName}
+                        </span>
                     </div>
                     
                     <div class="mb-2">
@@ -538,12 +557,6 @@ function displayCardView(transactions) {
                             <i class="bi bi-calendar me-1"></i>
                             ${new Date(t.transaction_date).toLocaleDateString('pt-BR')}
                         </small>
-                        ${t.category ? 
-                            `<span class="badge rounded-pill" style="background-color: ${t.category.color}20; color: ${t.category.color};">
-                                ${t.category.icon} ${t.category.name}
-                            </span>` 
-                            : ''
-                        }
                     </div>
                     
                     ${t.notes ? `<small class="text-muted d-block mt-2">${t.notes}</small>` : ''}
@@ -551,7 +564,8 @@ function displayCardView(transactions) {
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     showElement('cardViewContainer');
 }
@@ -918,36 +932,58 @@ window.transactionsPage.editTransaction = async function(id) {
 
 // Delete transaction
 window.transactionsPage.deleteTransaction = async function(id) {
-    const ok = (window._openConfirmModal)
-        ? await window._openConfirmModal({
-            title: 'Excluir transação',
-            body: 'Deseja realmente excluir esta transação?',
-            confirmText: 'Excluir',
-            confirmClass: 'btn-danger',
-        })
-        : window.confirm('Deseja realmente excluir esta transação?');
-    if (!ok) return;
-    
     try {
+        let tx = null;
+        try {
+            const r = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}`);
+            const d = await r.json();
+            if (r.ok && d && d.transaction) tx = d.transaction;
+        } catch (e) {
+            // ignore
+        }
+
+        const isRecurring = !!(tx && (tx.recurring_transaction_id || tx.is_fixed || tx.is_recurring));
+        let applyScope = 'single';
+
+        if (isRecurring && typeof window._chooseDeleteScope === 'function') {
+            const scope = await window._chooseDeleteScope();
+            if (!scope) return;
+            applyScope = scope;
+        }
+
+        const body = (applyScope === 'series')
+            ? 'Esta transação é recorrente. Deseja excluir TODAS as ocorrências desta recorrência?'
+            : 'Deseja realmente excluir esta transação?';
+
+        const ok = (window._openConfirmModal)
+            ? await window._openConfirmModal({
+                title: 'Excluir transação',
+                body,
+                confirmText: 'Excluir',
+                confirmClass: 'btn-danger',
+            })
+            : window.confirm(body);
+        if (!ok) return;
+
         showLoading();
-        
-        const response = await fetch(`{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}`, {
-            method: 'DELETE'
-        });
-        
+
+        const url = (applyScope === 'series')
+            ? `{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}?apply_scope=series`
+            : `{{ url_for("gerenciamento_financeiro.api_transactions") }}/${id}`;
+
+        const response = await fetch(url, { method: 'DELETE' });
         const result = await response.json();
-        
+
         if (response.ok) {
-            showToast('Transação excluída com sucesso!', 'success');
-            loadTransactions(currentPage); // Reload current page
+            showToast(applyScope === 'series' ? 'Recorrência excluída com sucesso!' : 'Transação excluída com sucesso!', 'success');
+            loadTransactions(currentPage);
         } else {
             showToast(result.error || 'Erro ao excluir transação', 'error');
         }
     } catch (error) {
         console.error('Erro ao excluir:', error);
         showToast('Erro ao excluir transação', 'error');
-    }
-    finally {
+    } finally {
         hideLoading();
     }
 }

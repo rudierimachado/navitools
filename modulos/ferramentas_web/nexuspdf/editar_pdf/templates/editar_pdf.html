@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar PDF - NexusPDF{% endblock %}
+
+{% block meta_description %}Editor de PDF online NexusPDF: adicione marca d'água, números de página e rotacione PDFs com facilidade, sem instalar programas.{% endblock %}
+{% block meta_keywords %}editar pdf, marca d'água pdf, números de página pdf, rotacionar pdf, editor pdf online, nexuspdf editor{% endblock %}
+
+{% block styles %}
+<style>
+    .edit-wrapper {
+        padding: 1rem;
+        width: 100%;
+        margin: 0;
+        min-height: calc(100vh - var(--header-height));
+    }
+
+    .edit-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 4rem;
+    }
+
+    .edit-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        color: #fff;
+    }
+
+    .edit-header h1 {
+        font-size: clamp(2rem, 3.2vw, 2.6rem);
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+    }
+
+    .edit-header p {
+        font-size: 1rem;
+        opacity: 0.85;
+    }
+
+    .edit-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 2rem 1.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(18px);
+        color: #fff;
+    }
+
+    .edit-form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .edit-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .edit-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(15, 23, 42, 0.7);
+        color: #fff;
+    }
+
+    .edit-input::file-selector-button {
+        padding: 0.5rem 1rem;
+        border-radius: 999px;
+        border: none;
+        margin-right: 1rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .edit-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .edit-tab {
+        padding: 1rem 1.5rem;
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
+        font-weight: 600;
+        border-bottom: 2px solid transparent;
+        transition: all 0.25s ease;
+    }
+
+    .edit-tab:hover {
+        color: #fff;
+    }
+
+    .edit-tab.active {
+        color: #fff;
+        border-bottom-color: #667eea;
+    }
+
+    .edit-tab-content {
+        display: none;
+    }
+
+    .edit-tab-content.active {
+        display: block;
+    }
+
+    .edit-options {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .edit-option {
+        cursor: pointer;
+        flex: 1 1 120px;
+    }
+
+    .edit-option input {
+        display: none;
+    }
+
+    .edit-option span {
+        display: block;
+        padding: 0.6rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.6);
+        text-align: center;
+        font-size: 0.9rem;
+        transition: all 0.25s ease;
+    }
+
+    .edit-option input:checked + span {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .edit-actions {
+        margin-top: 2rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary-edit {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        padding: 0.85rem 2.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 12px 30px rgba(102, 126, 234, 0.5);
+        transition: all 0.25s ease;
+    }
+
+    .btn-primary-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 40px rgba(102, 126, 234, 0.7);
+    }
+
+    .result-summary {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: rgba(34, 197, 94, 0.1);
+        border-left: 4px solid #22c55e;
+        border-radius: 8px;
+    }
+
+    .result-summary p {
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    @media (max-width: 768px) {
+        .edit-wrapper {
+            padding: 0.75rem;
+        }
+
+        .edit-container {
+            padding: 2.5rem 1.25rem 3.25rem;
+        }
+
+        .edit-card {
+            padding: 1.75rem 1.5rem;
+        }
+
+        .edit-header h1 {
+            font-size: 2.1rem;
+        }
+
+        .edit-header p {
+            font-size: 0.95rem;
+        }
+
+        .edit-tabs {
+            gap: 0.25rem;
+        }
+
+        .edit-tab {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .edit-wrapper {
+            padding: 0.5rem;
+        }
+
+        .edit-container {
+            padding: 2.25rem 1rem 3rem;
+        }
+
+        .edit-card {
+            padding: 1.5rem 1.25rem;
+        }
+
+        .edit-actions {
+            justify-content: center;
+        }
+
+        .edit-tabs {
+            gap: 0;
+        }
+
+        .edit-tab {
+            flex: 1;
+            padding: 0.75rem 0.5rem;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-wrapper">
+    <div class="edit-container">
+        <div class="edit-header">
+            <h1>Editar PDF</h1>
+            <p>Adicione marca d'água, números de página ou rotacione seu PDF com facilidade.</p>
+        </div>
+
+        <!-- Slot para Google AdSense (topo Editar PDF) -->
+        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
+            <!-- Insira aqui o bloco responsivo do Google AdSense -->
+        </div>
+
+        <div class="edit-card">
+            <form action="{{ url_for('nexuspdf_editar_pdf.editar_pdf') }}" method="post" enctype="multipart/form-data">
+                <div class="edit-form-group">
+                    <label class="edit-label">Arquivo PDF</label>
+                    <input type="file" name="pdf_file" accept="application/pdf" required class="edit-input" />
+                </div>
+
+                <div class="edit-tabs">
+                    <button type="button" class="edit-tab active" onclick="switchTab('watermark')">
+                        <i class="bi bi-droplet"></i> Marca d'água
+                    </button>
+                    <button type="button" class="edit-tab" onclick="switchTab('page_numbers')">
+                        <i class="bi bi-123"></i> Números de página
+                    </button>
+                    <button type="button" class="edit-tab" onclick="switchTab('rotate')">
+                        <i class="bi bi-arrow-clockwise"></i> Rotacionar
+                    </button>
+                </div>
+
+                <!-- Tab: Marca d'água -->
+                <div id="watermark" class="edit-tab-content active">
+                    <div class="edit-form-group">
+                        <label class="edit-label">Texto da marca d'água</label>
+                        <input type="text" name="watermark_text" value="CONFIDENCIAL" class="edit-input" placeholder="Digite o texto" />
+                    </div>
+
+                    <div class="edit-form-group">
+                        <label class="edit-label">Opacidade</label>
+                        <input type="range" name="opacity" min="0.1" max="1" step="0.1" value="0.3" class="edit-input" style="padding: 0.5rem;" />
+                        <small style="opacity: 0.7;">Ajuste a transparência da marca</small>
+                    </div>
+
+                    <input type="hidden" name="edit_type" value="watermark" />
+                </div>
+
+                <!-- Tab: Números de página -->
+                <div id="page_numbers" class="edit-tab-content">
+                    <div class="edit-form-group">
+                        <label class="edit-label">Página inicial</label>
+                        <input type="number" name="start_page" value="1" min="1" class="edit-input" />
+                    </div>
+
+                    <div class="edit-form-group">
+                        <label class="edit-label">Posição dos números</label>
+                        <div class="edit-options">
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="bottom_right" checked>
+                                <span>Inferior direita</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="bottom_center">
+                                <span>Inferior centro</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="bottom_left">
+                                <span>Inferior esquerda</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="top_right">
+                                <span>Superior direita</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="top_center">
+                                <span>Superior centro</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="position" value="top_left">
+                                <span>Superior esquerda</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="edit_type" value="page_numbers" />
+                </div>
+
+                <!-- Tab: Rotacionar -->
+                <div id="rotate" class="edit-tab-content">
+                    <div class="edit-form-group">
+                        <label class="edit-label">Ângulo de rotação</label>
+                        <div class="edit-options">
+                            <label class="edit-option">
+                                <input type="radio" name="rotation" value="90" checked>
+                                <span>90°</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="rotation" value="180">
+                                <span>180°</span>
+                            </label>
+                            <label class="edit-option">
+                                <input type="radio" name="rotation" value="270">
+                                <span>270°</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="edit_type" value="rotate" />
+                </div>
+
+                <div class="edit-actions">
+                    <button type="submit" class="btn-primary-edit">
+                        <i class="bi bi-pencil-square"></i>
+                        Editar PDF
+                    </button>
+                </div>
+            </form>
+
+            {% if result %}
+            <div class="result-summary">
+                <p><strong>✓ PDF editado com sucesso!</strong></p>
+                {% if result.type == 'watermark' %}
+                    <p>Marca d'água adicionada: "{{ result.watermark_text }}"</p>
+                {% elif result.type == 'page_numbers' %}
+                    <p>Números de página adicionados a partir da página {{ result.start_page }}</p>
+                    <p>Posição: {{ result.position|replace('_', ' ')|title }}</p>
+                {% elif result.type == 'rotate' %}
+                    <p>PDF rotacionado em {{ result.rotation }}°</p>
+                {% endif %}
+                <a href="{{ url_for('nexuspdf_editar_pdf.editar_pdf_download', filename=result.filename) }}" class="btn-primary-edit" style="text-decoration: none; margin-top: 1rem;">
+                    <i class="bi bi-download"></i>
+                    Baixar PDF editado
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Texto explicativo para SEO -->
+            <section style="margin-top: 2.25rem; color: rgba(255,255,255,0.9); font-size: 0.96rem; line-height: 1.7;">
+                <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">Por que editar um PDF?</h2>
+                <p style="margin-bottom: 0.75rem;">
+                    Muitas vezes você precisa adicionar informações importantes a um PDF, como marca d'água para proteger documentos confidenciais, 
+                    números de página para facilitar referências, ou rotacionar páginas que ficaram de cabeça para baixo.
+                </p>
+                <p style="margin-bottom: 1.1rem;">
+                    Com a ferramenta <strong>Editar PDF</strong> do NexusPDF você faz tudo isso online, sem precisar instalar programas caros ou 
+                    complicados no seu computador.
+                </p>
+
+                <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Recursos de edição disponíveis</h3>
+                <ul style="padding-left: 1.1rem; margin-bottom: 0.75rem;">
+                    <li style="margin-bottom: 0.35rem;"><strong>Marca d'água:</strong> Adicione texto de proteção com opacidade ajustável.</li>
+                    <li style="margin-bottom: 0.35rem;"><strong>Números de página:</strong> Numere automaticamente as páginas em diferentes posições.</li>
+                    <li style="margin-bottom: 0.35rem;"><strong>Rotação:</strong> Rotacione todas as páginas em 90°, 180° ou 270°.</li>
+                </ul>
+
+                <p style="margin-bottom: 0;">
+                    Use esta ferramenta para preparar seus PDFs para impressão, compartilhamento seguro ou arquivamento profissional.
+                </p>
+            </section>
+
+            <!-- Slot para Google AdSense (rodapé Editar PDF) -->
+            <div class="adsense-slot" style="margin-top: 2rem; text-align: center;">
+                <!-- Bloco adicional de anúncio ou destaque SEO para a ferramenta de edição de PDF -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+    // Esconder todos os tabs
+    const tabs = document.querySelectorAll('.edit-tab-content');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // Remover active de todos os botões
+    const buttons = document.querySelectorAll('.edit-tab');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    // Mostrar tab selecionado
+    const selectedTab = document.getElementById(tabName);
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+    
+    // Adicionar active ao botão clicado
+    if (event && event.target) {
+        const btn = event.target.closest('.edit-tab');
+        if (btn) {
+            btn.classList.add('active');
+        }
+    }
+    
+    // Atualizar o valor do edit_type no formulário
+    const form = document.querySelector('form');
+    if (form) {
+        const editTypeInput = form.querySelector('input[name="edit_type"]');
+        if (editTypeInput) {
+            editTypeInput.value = tabName;
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Garantir que a primeira aba esteja ativa ao carregar
+    const firstTab = document.querySelector('.edit-tab-content');
+    if (firstTab) {
+        firstTab.classList.add('active');
+    }
+    const firstButton = document.querySelector('.edit-tab');
+    if (firstButton) {
+        firstButton.classList.add('active');
+    }
+});
+</script>
+{% endblock %}

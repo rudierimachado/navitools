@@ -288,16 +288,12 @@
                                 </div>
                                 
                                 <div class="item-details">
-                                    <div class="item-name">{{ t.description }}</div>
+                                    <div class="item-name">{% if t.subcategory %}{{ t.subcategory.name }}{% else %}{{ t.description }}{% endif %}</div>
                                     <div class="item-info">
                                         <span class="info-date">{{ t.transaction_date.strftime('%d/%m/%Y') }}</span>
                                         {% if t.category %}
                                             <span class="info-sep">•</span>
                                             <span class="info-cat">{{ t.category.name }}</span>
-                                        {% endif %}
-                                        {% if t.subcategory %}
-                                            <span class="info-sep">•</span>
-                                            <span class="info-subcat">{{ t.subcategory.name }}</span>
                                         {% endif %}
                                         {% if t.notes %}
                                             <span class="info-sep">•</span>
@@ -2650,8 +2646,8 @@ function _buildTransactionCard(t) {
     const formattedDate = date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
     
     const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+    const title = t.subcategory?.name || t.description || 'Sem descrição';
     const categoryName = t.category?.name || 'Sem categoria';
-    const subcategoryName = t.subcategory?.name || '';
     
     const amount = parseFloat(t.amount || 0);
     const formattedAmount = amount.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -2681,11 +2677,10 @@ function _buildTransactionCard(t) {
             </div>
             
             <div class="item-details">
-                <div class="item-name">${t.description || 'Sem descrição'}</div>
+                <div class="item-name">${title}</div>
                 <div class="item-info">
                     <span class="info-date">${formattedDate}</span>
                     ${categoryName ? '<span class="info-sep">•</span><span class="info-cat">' + categoryName + '</span>' : ''}
-                    ${subcategoryName ? '<span class="info-sep">•</span><span class="info-subcat">' + subcategoryName + '</span>' : ''}
                     ${t.notes ? '<span class="info-sep">•</span><span class="info-note">' + t.notes + '</span>' : ''}
                 </div>
                 ${tags}
@@ -2825,26 +2820,54 @@ async function editTransaction(id) {
 }
 
 async function deleteTransaction(id) {
-    const ok = await window._openConfirmModal({
-        title: 'Excluir transação',
-        body: 'Tem certeza que deseja excluir esta transação?',
-        confirmText: 'Excluir',
-        confirmClass: 'btn-danger'
-    });
-    if (!ok) return;
     try {
+        let tx = null;
+        try {
+            const r0 = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`);
+            const d0 = await r0.json();
+            if (r0.ok && d0 && d0.transaction) tx = d0.transaction;
+        } catch (e) {
+            // ignore
+        }
+
+        const isRecurring = !!(tx && (tx.recurring_transaction_id || tx.is_fixed || tx.is_recurring));
+        let applyScope = 'single';
+
+        if (isRecurring && typeof window._chooseDeleteScope === 'function') {
+            const scope = await window._chooseDeleteScope();
+            if (!scope) return;
+            applyScope = scope;
+        }
+
+        const body = (applyScope === 'series')
+            ? 'Esta transação é recorrente. Deseja excluir TODAS as ocorrências desta recorrência?'
+            : 'Tem certeza que deseja excluir esta transação?';
+
+        const ok = await window._openConfirmModal({
+            title: 'Excluir transação',
+            body,
+            confirmText: 'Excluir',
+            confirmClass: 'btn-danger'
+        });
+        if (!ok) return;
+
         showLoading('Excluindo...');
-        const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`, { method: 'DELETE' });
+        const url = (applyScope === 'series')
+            ? `/gerenciamento-financeiro/api/transactions/${id}?apply_scope=series`
+            : `/gerenciamento-financeiro/api/transactions/${id}`;
+        const r = await fetch(url, { method: 'DELETE' });
+        const d = await r.json().catch(() => ({}));
         hideLoading();
         if (r.ok) {
-            showToast('Excluído!', 'success');
+            showToast(applyScope === 'series' ? 'Recorrência excluída!' : 'Excluído!', 'success');
             const row = document.querySelector(`[data-transaction-id="${id}"]`);
             if (row) {
                 row.style.opacity = '0';
                 setTimeout(() => row.remove(), 300);
             }
-            // Atualizar cards de resumo automaticamente
             loadSummaryCards();
+        } else {
+            showToast((d && d.error) ? d.error : 'Erro ao excluir', 'error');
         }
     } catch (e) {
         console.error('Erro:', e);

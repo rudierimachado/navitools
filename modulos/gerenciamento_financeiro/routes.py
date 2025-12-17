@@ -131,6 +131,53 @@ def _ensure_transactions_close_columns() -> None:
         # não marcar como ready para tentar novamente depois
 
 
+_RECURRING_EXCLUSIONS_READY = False
+
+
+def _ensure_recurring_exclusions_table() -> None:
+    """Garante a tabela de exclusões de recorrências (para não recriar ocorrências deletadas)."""
+    global _RECURRING_EXCLUSIONS_READY
+    if _RECURRING_EXCLUSIONS_READY:
+        return
+
+    try:
+        dialect = getattr(db.engine, "dialect", None)
+        dialect_name = getattr(dialect, "name", "") if dialect else ""
+
+        if dialect_name == "postgresql":
+            pk = "SERIAL PRIMARY KEY"
+            created_at = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        else:
+            pk = "INTEGER PRIMARY KEY AUTOINCREMENT"
+            created_at = "DATETIME DEFAULT CURRENT_TIMESTAMP"
+
+        db.session.execute(text(
+            "CREATE TABLE IF NOT EXISTS recurring_transaction_exclusions ("
+            f"id {pk}, "
+            "workspace_id INTEGER NOT NULL, "
+            "recurring_transaction_id INTEGER NOT NULL, "
+            "transaction_date DATE NOT NULL, "
+            f"created_at {created_at}, "
+            "UNIQUE(workspace_id, recurring_transaction_id, transaction_date)"
+            ")"
+        ))
+        try:
+            db.session.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_rte_ws_series_date ON recurring_transaction_exclusions (workspace_id, recurring_transaction_id, transaction_date)"
+            ))
+        except Exception:
+            pass
+        db.session.commit()
+        _RECURRING_EXCLUSIONS_READY = True
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"[RECURRING_EXCLUSIONS] Erro ao garantir tabela: {e}")
+        # não marcar como ready para tentar novamente depois
+
+
 def _ensure_default_subcategories(category_id: int) -> None:
     """Cria subcategorias padrão para uma categoria específica se não existirem."""
     try:
@@ -392,6 +439,21 @@ def _ensure_recurring_transactions_for_month(workspace_id: int, year: int, month
             tx_date = date(year, month, day)
             if rt.start_date and tx_date < rt.start_date:
                 continue
+
+            try:
+                _ensure_recurring_exclusions_table()
+                excluded = db.session.execute(
+                    text(
+                        "SELECT 1 FROM recurring_transaction_exclusions "
+                        "WHERE workspace_id = :ws AND recurring_transaction_id = :rid AND transaction_date = :dt "
+                        "LIMIT 1"
+                    ),
+                    {"ws": workspace_id, "rid": int(rt.id), "dt": tx_date},
+                ).first()
+                if excluded:
+                    continue
+            except Exception:
+                pass
 
             exists = (
                 Transaction.query
@@ -1715,7 +1777,7 @@ def api_transactions():
                 pass
             
             # Filtrar por workspace ativo
-            query = Transaction.query.filter_by(workspace_id=workspace_id)
+            query = Transaction.query.options(joinedload(Transaction.category), joinedload(Transaction.subcategory)).filter_by(workspace_id=workspace_id)
             
             if transaction_type:
                 query = query.filter_by(type=transaction_type)
@@ -1760,12 +1822,12 @@ def api_transactions():
                             "icon": t.category.icon,
                             "color": t.category.color
                         } if t.category else None,
-                        "subcategory": (lambda sc: {
-                            "id": sc.id,
-                            "name": sc.name,
-                            "icon": sc.icon,
-                            "color": sc.color,
-                        } if sc else None)(SubCategory.query.get(getattr(t, 'subcategory_id', None)) if getattr(t, 'subcategory_id', None) else None)
+                        "subcategory": {
+                            "id": t.subcategory.id,
+                            "name": t.subcategory.name,
+                            "icon": t.subcategory.icon,
+                            "color": t.subcategory.color,
+                        } if t.subcategory else None
                     } for t in transactions_list],
                     "total": len(transactions_list)
                 })
@@ -1796,12 +1858,12 @@ def api_transactions():
                             "icon": t.category.icon,
                             "color": t.category.color
                         } if t.category else None,
-                        "subcategory": (lambda sc: {
-                            "id": sc.id,
-                            "name": sc.name,
-                            "icon": sc.icon,
-                            "color": sc.color,
-                        } if sc else None)(SubCategory.query.get(getattr(t, 'subcategory_id', None)) if getattr(t, 'subcategory_id', None) else None)
+                        "subcategory": {
+                            "id": t.subcategory.id,
+                            "name": t.subcategory.name,
+                            "icon": t.subcategory.icon,
+                            "color": t.subcategory.color,
+                        } if t.subcategory else None
                     } for t in transactions.items],
                     "pagination": {
                         "page": transactions.page,
@@ -2069,9 +2131,57 @@ def api_transaction_detail(transaction_id):
             if workspace_role == "viewer":
                 return _json({"error": "Sem permissão para excluir (somente visualização)"}, 403)
 
+            apply_scope = (request.args.get("apply_scope") or "single").strip().lower()
+            if apply_scope == "series" and getattr(transaction, "recurring_transaction_id", None):
+                series_id = int(transaction.recurring_transaction_id)
+
+                deleted_count = (
+                    Transaction.query
+                    .filter_by(workspace_id=workspace_id, recurring_transaction_id=series_id)
+                    .delete(synchronize_session=False)
+                )
+
+                try:
+                    rt = RecurringTransaction.query.get(series_id)
+                    if rt:
+                        rt.is_active = False
+                except Exception:
+                    pass
+
+                db.session.commit()
+                return _json({
+                    "message": "Recorrência excluída com sucesso",
+                    "apply_scope": "series",
+                    "recurring_transaction_id": series_id,
+                    "deleted_count": int(deleted_count or 0),
+                }, 200)
+
+            if apply_scope == "single" and getattr(transaction, "recurring_transaction_id", None):
+                try:
+                    _ensure_recurring_exclusions_table()
+                    series_id = int(transaction.recurring_transaction_id)
+                    tx_date = transaction.transaction_date
+
+                    dialect = getattr(db.engine, "dialect", None)
+                    dialect_name = getattr(dialect, "name", "") if dialect else ""
+                    if dialect_name == "postgresql":
+                        sql = (
+                            "INSERT INTO recurring_transaction_exclusions (workspace_id, recurring_transaction_id, transaction_date) "
+                            "VALUES (:ws, :rid, :dt) "
+                            "ON CONFLICT (workspace_id, recurring_transaction_id, transaction_date) DO NOTHING"
+                        )
+                    else:
+                        sql = (
+                            "INSERT OR IGNORE INTO recurring_transaction_exclusions (workspace_id, recurring_transaction_id, transaction_date) "
+                            "VALUES (:ws, :rid, :dt)"
+                        )
+                    db.session.execute(text(sql), {"ws": workspace_id, "rid": series_id, "dt": tx_date})
+                except Exception:
+                    pass
+
             db.session.delete(transaction)
             db.session.commit()
-            return _json({"message": "Transação excluída com sucesso", "id": transaction_id}, 200)
+            return _json({"message": "Transação excluída com sucesso", "id": transaction_id, "apply_scope": "single"}, 200)
         except Exception as e:
             db.session.rollback()
             return _json({"error": str(e)}, 500)
@@ -2640,7 +2750,7 @@ def api_subcategories():
         return jsonify({"error": str(e)}), 500
 
 
-@gerenciamento_financeiro_bp.route("/api/subcategories/<int:subcategory_id>", methods=["DELETE"])
+@gerenciamento_financeiro_bp.route("/api/subcategories/<int:subcategory_id>", methods=["PUT", "DELETE"])
 def api_subcategory_detail(subcategory_id: int):
     if "finance_user_id" not in session:
         return jsonify({"error": "Não autorizado"}), 401
@@ -2674,6 +2784,55 @@ def api_subcategory_detail(subcategory_id: int):
     ).first()
     if not sub:
         return jsonify({"error": "Subcategoria não encontrada"}), 404
+
+    if request.method == "PUT":
+        try:
+            data = request.get_json() or {}
+
+            name = str(data.get("name") or "").strip()
+            icon = data.get("icon")
+            color = data.get("color")
+            new_category_id = data.get("category_id")
+
+            if name:
+                sub.name = name
+            if icon is not None:
+                sub.icon = icon
+            if color is not None:
+                sub.color = color
+
+            if new_category_id is not None:
+                try:
+                    new_category_id = int(new_category_id)
+                except (TypeError, ValueError):
+                    return jsonify({"error": "Categoria inválida"}), 400
+
+                category = Category.query.filter_by(
+                    id=new_category_id,
+                    config_id=owner_config.id,
+                    workspace_id=workspace_id,
+                    is_active=True,
+                ).first()
+                if not category:
+                    return jsonify({"error": "Categoria não encontrada para este workspace"}), 404
+
+                sub.category_id = new_category_id
+
+            db.session.commit()
+            return jsonify({
+                "message": "Subcategoria atualizada com sucesso!",
+                "subcategory": {
+                    "id": sub.id,
+                    "category_id": sub.category_id,
+                    "name": sub.name,
+                    "icon": sub.icon,
+                    "color": sub.color,
+                    "is_default": sub.is_default,
+                }
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
 
     if getattr(sub, "is_default", False):
         return jsonify({"error": "Subcategorias padrão não podem ser excluídas"}), 400
@@ -2813,7 +2972,7 @@ def api_categories():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-@gerenciamento_financeiro_bp.route("/api/categories/<int:category_id>", methods=["DELETE"])
+@gerenciamento_financeiro_bp.route("/api/categories/<int:category_id>", methods=["PUT", "DELETE"])
 def api_category_detail(category_id: int):
     """Permite operações sobre uma categoria específica (atualmente apenas DELETE)."""
     if "finance_user_id" not in session:
@@ -2844,6 +3003,40 @@ def api_category_detail(category_id: int):
     category = Category.query.filter_by(id=category_id, config_id=config.id, workspace_id=workspace_id).first()
     if not category:
         return jsonify({"error": "Categoria não encontrada"}), 404
+
+    if request.method == "PUT":
+        if workspace_role == "viewer":
+            return jsonify({"error": "Sem permissão para criar/editar/excluir (somente visualização)"}), 403
+
+        try:
+            data = request.get_json() or {}
+
+            name = str(data.get("name") or "").strip()
+            icon = data.get("icon")
+            color = data.get("color")
+
+            if name:
+                category.name = name
+            if icon is not None:
+                category.icon = icon
+            if color is not None:
+                category.color = color
+
+            db.session.commit()
+            return jsonify({
+                "message": "Categoria atualizada com sucesso!",
+                "category": {
+                    "id": category.id,
+                    "name": category.name,
+                    "type": category.type,
+                    "icon": category.icon,
+                    "color": category.color,
+                    "is_default": category.is_default,
+                }
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
 
     if request.method == "DELETE":
         if workspace_role == "viewer":

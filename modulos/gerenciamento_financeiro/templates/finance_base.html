@@ -190,6 +190,24 @@
             border-color: var(--border-color);
         }
         
+        #categoriesManagerModal {
+            z-index: 20000;
+        }
+
+        .modal-backdrop.catmgr-backdrop {
+            z-index: 19999;
+        }
+
+        #categoriesManagerModal.modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        
         /* Dark Mode - Forms */
         [data-bs-theme="dark"] .form-control,
         [data-bs-theme="dark"] .form-select {
@@ -456,6 +474,130 @@
         </div>
     </div>
 
+    <div class="modal fade" id="deleteScopeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Excluir recorrência</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Esta transação faz parte de uma recorrência.
+                    <br>
+                    O que você deseja excluir?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-outline-danger" id="deleteScopeSingleBtn">Somente esta</button>
+                    <button type="button" class="btn btn-danger" id="deleteScopeSeriesBtn">Todas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="categoriesManagerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-tags me-2"></i>Categorias</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="catMgrCreateTabBtn" data-bs-toggle="tab" data-bs-target="#catMgrCreateTab" type="button" role="tab" aria-controls="catMgrCreateTab" aria-selected="true">Criar categoria</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="catMgrEditTabBtn" data-bs-toggle="tab" data-bs-target="#catMgrEditTab" type="button" role="tab" aria-controls="catMgrEditTab" aria-selected="false">Editar categorias</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="catMgrSubTabBtn" data-bs-toggle="tab" data-bs-target="#catMgrSubTab" type="button" role="tab" aria-controls="catMgrSubTab" aria-selected="false">Subcategorias</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content pt-3">
+                        <div class="tab-pane fade show active" id="catMgrCreateTab" role="tabpanel" aria-labelledby="catMgrCreateTabBtn" tabindex="0">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">Tipo</label>
+                                    <select class="form-select" id="catMgrType">
+                                        <option value="income">Entradas</option>
+                                        <option value="expense">Saídas</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-5">
+                                    <label class="form-label">Nome</label>
+                                    <input class="form-control" id="catMgrName" placeholder="Ex: Contas" autocomplete="off">
+                                </div>
+                                <div class="col-6 col-md-1">
+                                    <label class="form-label">Ícone</label>
+                                    <input class="form-control" id="catMgrIcon" placeholder="💡" autocomplete="off">
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">Cor</label>
+                                    <input class="form-control form-control-color" type="color" id="catMgrColor" value="#6366f1" title="Escolher cor">
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary" type="button" id="catMgrCreateBtn"><i class="bi bi-plus-circle me-1"></i>Criar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="catMgrEditTab" role="tabpanel" aria-labelledby="catMgrEditTabBtn" tabindex="0">
+                            <div class="d-flex align-items-end justify-content-between gap-2 flex-wrap mb-2">
+                                <div style="min-width: 200px;">
+                                    <label class="form-label">Tipo</label>
+                                    <select class="form-select" id="catMgrEditType">
+                                        <option value="income">Entradas</option>
+                                        <option value="expense">Saídas</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-outline-secondary" type="button" id="catMgrRefreshCatsBtn"><i class="bi bi-arrow-repeat me-1"></i>Recarregar</button>
+                            </div>
+                            <div id="catMgrCategoriesList" class="list-group"></div>
+                        </div>
+
+                        <div class="tab-pane fade" id="catMgrSubTab" role="tabpanel" aria-labelledby="catMgrSubTabBtn" tabindex="0">
+                            <div class="row g-2 align-items-end mb-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Categoria</label>
+                                    <select class="form-select" id="catMgrSubCategory"></select>
+                                </div>
+                                <div class="col-12 col-md-6 d-flex justify-content-end gap-2">
+                                    <button class="btn btn-outline-secondary" type="button" id="catMgrRefreshSubsBtn"><i class="bi bi-arrow-repeat me-1"></i>Recarregar</button>
+                                </div>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="row g-3 align-items-end">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">Nome</label>
+                                            <input class="form-control" id="catMgrSubName" placeholder="Ex: Internet" autocomplete="off">
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label">Ícone</label>
+                                            <input class="form-control" id="catMgrSubIcon" placeholder="🌐" autocomplete="off">
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label">Cor</label>
+                                            <input class="form-control form-control-color" type="color" id="catMgrSubColor" value="#6366f1" title="Escolher cor">
+                                        </div>
+                                        <div class="col-12 col-md-2">
+                                            <button class="btn btn-primary w-100" type="button" id="catMgrCreateSubBtn"><i class="bi bi-plus-circle me-1"></i>Criar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="catMgrSubcategoriesList" class="list-group"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=True) %}
         {% if messages %}
@@ -643,6 +785,601 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        window._showToast = window._showToast || function(message, level) {
+            const container = document.querySelector('.toast-container');
+            if (!container) return;
+
+            const cls = (level === 'danger' || level === 'error') ? 'text-bg-danger'
+                : (level === 'warning') ? 'text-bg-warning'
+                : (level === 'success') ? 'text-bg-success'
+                : (level === 'info') ? 'text-bg-info'
+                : 'text-bg-secondary';
+
+            const el = document.createElement('div');
+            el.className = `toast align-items-center ${cls} border-0`;
+            el.setAttribute('role', 'alert');
+            el.setAttribute('aria-live', 'assertive');
+            el.setAttribute('aria-atomic', 'true');
+            el.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">${String(message || '')}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            container.appendChild(el);
+            const t = new bootstrap.Toast(el, { delay: 3500 });
+            t.show();
+            el.addEventListener('hidden.bs.toast', () => el.remove());
+        };
+
+        window.showToast = window.showToast || function(message, level) {
+            return window._showToast(message, level);
+        };
+
+        window.showLoading = window.showLoading || function(message) {
+            const id = 'globalLoadingOverlay';
+            let el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.style.position = 'fixed';
+                el.style.inset = '0';
+                el.style.zIndex = '2000';
+                el.style.background = 'rgba(0,0,0,0.35)';
+                el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.70); color: #fff; padding: 14px 16px; border-radius: 10px; display: flex; align-items: center; gap: 10px; max-width: 92vw;">
+                        <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                        <div id="globalLoadingOverlayMsg" style="font-weight: 600;">Carregando...</div>
+                    </div>
+                `;
+                document.body.appendChild(el);
+            }
+            const msgEl = document.getElementById('globalLoadingOverlayMsg');
+            if (msgEl) msgEl.textContent = String(message || 'Carregando...');
+            el.style.display = 'flex';
+        };
+
+        window.hideLoading = window.hideLoading || function() {
+            const el = document.getElementById('globalLoadingOverlay');
+            if (el) el.style.display = 'none';
+        };
+
+        let __confirmResolve = null;
+        window._openConfirmModal = window._openConfirmModal || function(opts) {
+            const el = document.getElementById('confirmActionModal');
+            if (!el || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                const ok = window.confirm(String((opts && opts.body) ? opts.body : 'Confirmar ação?'));
+                return Promise.resolve(!!ok);
+            }
+
+            const titleEl = document.getElementById('confirmActionTitle');
+            const bodyEl = document.getElementById('confirmActionBody');
+            const btnEl = document.getElementById('confirmActionBtn');
+
+            if (titleEl) titleEl.textContent = String((opts && opts.title) ? opts.title : 'Confirmar');
+            if (bodyEl) bodyEl.textContent = String((opts && opts.body) ? opts.body : 'Deseja continuar?');
+
+            if (btnEl) {
+                btnEl.textContent = String((opts && opts.confirmText) ? opts.confirmText : 'Confirmar');
+                btnEl.className = 'btn ' + String((opts && opts.confirmClass) ? opts.confirmClass : 'btn-primary');
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            return new Promise(resolve => {
+                __confirmResolve = resolve;
+
+                const cleanup = () => {
+                    if (__confirmResolve === resolve) __confirmResolve = null;
+                    el.removeEventListener('hidden.bs.modal', onHidden);
+                    if (btnEl) btnEl.removeEventListener('click', onConfirm);
+                };
+                const onHidden = () => {
+                    cleanup();
+                    resolve(false);
+                };
+                const onConfirm = () => {
+                    try { modal.hide(); } catch (_) {}
+                    cleanup();
+                    resolve(true);
+                };
+
+                el.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                if (btnEl) btnEl.addEventListener('click', onConfirm, { once: true });
+                modal.show();
+            });
+        };
+
+        let __deleteScopeResolve = null;
+        window._chooseDeleteScope = window._chooseDeleteScope || function() {
+            const scopeEl = document.getElementById('deleteScopeModal');
+            if (!scopeEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                return Promise.resolve('single');
+            }
+
+            const singleBtn = document.getElementById('deleteScopeSingleBtn');
+            const seriesBtn = document.getElementById('deleteScopeSeriesBtn');
+
+            const modal = bootstrap.Modal.getOrCreateInstance(scopeEl);
+            return new Promise(resolve => {
+                __deleteScopeResolve = resolve;
+
+                const cleanup = () => {
+                    if (__deleteScopeResolve === resolve) __deleteScopeResolve = null;
+                    scopeEl.removeEventListener('hidden.bs.modal', onHidden);
+                    if (singleBtn) singleBtn.removeEventListener('click', onSingle);
+                    if (seriesBtn) seriesBtn.removeEventListener('click', onSeries);
+                };
+
+                const onHidden = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                const onSingle = () => {
+                    try { modal.hide(); } catch (_) {}
+                    cleanup();
+                    resolve('single');
+                };
+                const onSeries = () => {
+                    try { modal.hide(); } catch (_) {}
+                    cleanup();
+                    resolve('series');
+                };
+
+                scopeEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                if (singleBtn) singleBtn.addEventListener('click', onSingle, { once: true });
+                if (seriesBtn) seriesBtn.addEventListener('click', onSeries, { once: true });
+                modal.show();
+            });
+        };
+
+        const __catMgrState = window.__catMgrState || {
+            typeElId: null,
+            selectElId: null,
+            categorySelectId: null,
+            subcategorySelectId: null,
+        };
+        window.__catMgrState = __catMgrState;
+
+        const __catApiUrl = '{{ url_for("gerenciamento_financeiro.api_categories") }}';
+        const __subApiUrl = '{{ url_for("gerenciamento_financeiro.api_subcategories") }}';
+
+        function __catMgrGetModal() {
+            const el = document.getElementById('categoriesManagerModal');
+            if (!el) return null;
+            if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                window._showToast('Bootstrap não carregou corretamente (modal indisponível). Recarregue a página.', 'danger');
+                return null;
+            }
+            const inst = bootstrap.Modal.getInstance(el);
+            if (inst) {
+                try { inst.dispose(); } catch (_) {}
+            }
+            return new bootstrap.Modal(el, { backdrop: true, focus: true, keyboard: true });
+        }
+
+        function __catMgrHardResetModalState() {
+            document.querySelectorAll('.modal-backdrop').forEach(el => {
+                try { el.remove(); } catch (_) {}
+            });
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('paddingRight');
+            document.body.style.removeProperty('position');
+        }
+
+        function __catMgrSetActiveTab(tabBtnId) {
+            const btn = document.getElementById(tabBtnId);
+            if (!btn) return;
+            const tab = bootstrap.Tab.getOrCreateInstance(btn);
+            tab.show();
+        }
+
+        async function __catMgrFetchJson(url, options) {
+            const resp = await fetch(url, options);
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+                const msg = (data && data.error) ? data.error : 'Erro';
+                throw new Error(msg);
+            }
+            return data;
+        }
+
+        function __catMgrEnsureOption(selectEl, value, label) {
+            if (!selectEl) return;
+            const v = String(value);
+            let opt = Array.from(selectEl.options).find(o => String(o.value) === v);
+            if (!opt) {
+                opt = document.createElement('option');
+                opt.value = v;
+                selectEl.appendChild(opt);
+            }
+            opt.textContent = label;
+            selectEl.value = v;
+        }
+
+        function __catMgrEscapeAttr(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;');
+        }
+
+        async function __catMgrHideOtherOpenModals() {
+            if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+            const openModals = Array.from(document.querySelectorAll('.modal.show'))
+                .filter(el => el && el.id && el.id !== 'categoriesManagerModal');
+
+            if (!openModals.length) return;
+
+            await new Promise(resolve => {
+                let pending = openModals.length;
+                const done = () => {
+                    pending -= 1;
+                    if (pending <= 0) resolve();
+                };
+
+                openModals.forEach(el => {
+                    try {
+                        const inst = bootstrap.Modal.getInstance(el) || bootstrap.Modal.getOrCreateInstance(el);
+                        el.addEventListener('hidden.bs.modal', done, { once: true });
+                        inst.hide();
+                        setTimeout(done, 450);
+                    } catch (_) {
+                        done();
+                    }
+                });
+            });
+        }
+
+        async function __catMgrLoadCategoriesIntoSelect(selectEl, type) {
+            if (!selectEl) return [];
+            const url = type ? `${__catApiUrl}?type=${encodeURIComponent(type)}` : __catApiUrl;
+            const data = await __catMgrFetchJson(url, { method: 'GET' });
+            const cats = Array.isArray(data.categories) ? data.categories : [];
+            selectEl.innerHTML = '';
+            cats.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c.id;
+                o.textContent = `${__catMgrEscapeAttr(c.icon || '')} ${__catMgrEscapeAttr(c.name || '')}`;
+                selectEl.appendChild(o);
+            });
+            return cats;
+        }
+
+        async function __catMgrRenderCategoriesList(type) {
+            const list = document.getElementById('catMgrCategoriesList');
+            if (!list) return;
+            list.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+            try {
+                const url = `${__catApiUrl}?type=${encodeURIComponent(type)}`;
+                const data = await __catMgrFetchJson(url, { method: 'GET' });
+                const cats = Array.isArray(data.categories) ? data.categories : [];
+                if (!cats.length) {
+                    list.innerHTML = '<div class="list-group-item text-muted">Nenhuma categoria encontrada.</div>';
+                    return;
+                }
+                list.innerHTML = '';
+                cats.forEach(c => {
+                    const row = document.createElement('div');
+                    row.className = 'list-group-item';
+                    const disabledDel = !!c.is_default;
+                    row.innerHTML = `
+                        <div class="row g-2 align-items-center">
+                            <div class="col-2 col-md-1">
+                                <input class="form-control" value="${__catMgrEscapeAttr(c.icon || '')}" data-field="icon" autocomplete="off">
+                            </div>
+                            <div class="col-6 col-md-5">
+                                <input class="form-control" value="${__catMgrEscapeAttr(c.name || '')}" data-field="name" autocomplete="off">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <input class="form-control form-control-color" type="color" value="${(c.color || '#6366f1')}" data-field="color">
+                            </div>
+                            <div class="col-12 col-md-4 d-flex justify-content-end gap-2">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="save"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" ${disabledDel ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+
+                    row.querySelector('[data-action="save"]').addEventListener('click', async () => {
+                        const payload = {};
+                        row.querySelectorAll('[data-field]').forEach(inp => {
+                            payload[inp.getAttribute('data-field')] = inp.value;
+                        });
+                        try {
+                            const url2 = `${__catApiUrl}/${c.id}`;
+                            const res = await __catMgrFetchJson(url2, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            window._showToast(res.message || 'Atualizado!', 'success');
+                            const sel = __catMgrState.selectElId ? document.getElementById(__catMgrState.selectElId) : null;
+                            if (sel) __catMgrEnsureOption(sel, c.id, `${__catMgrEscapeAttr(payload.icon || c.icon || '')} ${__catMgrEscapeAttr(payload.name || c.name || '')}`);
+                        } catch (e) {
+                            window._showToast(e.message || 'Erro', 'danger');
+                        }
+                    });
+
+                    row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+                        const ok = window.confirm('Excluir categoria?');
+                        if (!ok) return;
+                        try {
+                            const url2 = `${__catApiUrl}/${c.id}`;
+                            const res = await __catMgrFetchJson(url2, { method: 'DELETE' });
+                            window._showToast(res.message || 'Excluída!', 'success');
+                            await __catMgrRenderCategoriesList(type);
+                        } catch (e) {
+                            window._showToast(e.message || 'Erro', 'danger');
+                        }
+                    });
+
+                    list.appendChild(row);
+                });
+            } catch (e) {
+                list.innerHTML = '<div class="list-group-item text-danger">' + (e.message || 'Erro') + '</div>';
+            }
+        }
+
+        async function __catMgrLoadSubcategories(categoryId) {
+            const list = document.getElementById('catMgrSubcategoriesList');
+            if (!list) return [];
+            if (!categoryId) {
+                list.innerHTML = '<div class="list-group-item text-muted">Selecione uma categoria.</div>';
+                return [];
+            }
+            list.innerHTML = '<div class="list-group-item text-muted">Carregando...</div>';
+            try {
+                const url = `${__subApiUrl}?category_id=${encodeURIComponent(categoryId)}`;
+                const data = await __catMgrFetchJson(url, { method: 'GET' });
+                const subs = Array.isArray(data.subcategories) ? data.subcategories : [];
+                if (!subs.length) {
+                    list.innerHTML = '<div class="list-group-item text-muted">Nenhuma subcategoria encontrada.</div>';
+                    return [];
+                }
+                list.innerHTML = '';
+                subs.forEach(s => {
+                    const row = document.createElement('div');
+                    row.className = 'list-group-item';
+                    const disabledDel = !!s.is_default;
+                    row.innerHTML = `
+                        <div class="row g-2 align-items-center">
+                            <div class="col-2 col-md-1">
+                                <input class="form-control" value="${__catMgrEscapeAttr(s.icon || '')}" data-field="icon" autocomplete="off">
+                            </div>
+                            <div class="col-6 col-md-5">
+                                <input class="form-control" value="${__catMgrEscapeAttr(s.name || '')}" data-field="name" autocomplete="off">
+                            </div>
+                            <div class="col-4 col-md-2">
+                                <input class="form-control form-control-color" type="color" value="${(s.color || '#6366f1')}" data-field="color">
+                            </div>
+                            <div class="col-12 col-md-4 d-flex justify-content-end gap-2">
+                                <button class="btn btn-outline-primary btn-sm" type="button" data-action="save"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete" ${disabledDel ? 'disabled' : ''}><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+
+                    row.querySelector('[data-action="save"]').addEventListener('click', async () => {
+                        const payload = { category_id: categoryId };
+                        row.querySelectorAll('[data-field]').forEach(inp => {
+                            payload[inp.getAttribute('data-field')] = inp.value;
+                        });
+                        try {
+                            const url2 = `${__subApiUrl}/${s.id}`;
+                            const res = await __catMgrFetchJson(url2, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            window._showToast(res.message || 'Atualizado!', 'success');
+                            const subSel = __catMgrState.subcategorySelectId ? document.getElementById(__catMgrState.subcategorySelectId) : null;
+                            const catSel = __catMgrState.categorySelectId ? document.getElementById(__catMgrState.categorySelectId) : null;
+                            if (subSel && catSel && String(catSel.value) === String(categoryId)) {
+                                __catMgrEnsureOption(subSel, s.id, `${payload.icon || s.icon || '📌'} ${payload.name || s.name || ''}`);
+                            }
+                        } catch (e) {
+                            window._showToast(e.message || 'Erro', 'danger');
+                        }
+                    });
+
+                    row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+                        const ok = window.confirm('Excluir subcategoria?');
+                        if (!ok) return;
+                        try {
+                            const url2 = `${__subApiUrl}/${s.id}`;
+                            const res = await __catMgrFetchJson(url2, { method: 'DELETE' });
+                            window._showToast(res.message || 'Excluída!', 'success');
+                            await __catMgrLoadSubcategories(categoryId);
+                        } catch (e) {
+                            window._showToast(e.message || 'Erro', 'danger');
+                        }
+                    });
+
+                    list.appendChild(row);
+                });
+                return subs;
+            } catch (e) {
+                list.innerHTML = '<div class="list-group-item text-danger">' + (e.message || 'Erro') + '</div>';
+                return [];
+            }
+        }
+
+        window.openCategoriesManager = async function(opts) {
+            __catMgrState.typeElId = opts && opts.typeElId ? String(opts.typeElId) : null;
+            __catMgrState.selectElId = opts && opts.selectElId ? String(opts.selectElId) : null;
+            __catMgrState.categorySelectId = null;
+            __catMgrState.subcategorySelectId = null;
+
+            const typeEl = __catMgrState.typeElId ? document.getElementById(__catMgrState.typeElId) : null;
+            const t = typeEl ? String(typeEl.value || 'expense') : 'expense';
+
+            const createType = document.getElementById('catMgrType');
+            const editType = document.getElementById('catMgrEditType');
+            if (createType) createType.value = t;
+            if (editType) editType.value = t;
+
+            await __catMgrHideOtherOpenModals();
+            __catMgrHardResetModalState();
+            __catMgrSetActiveTab('catMgrCreateTabBtn');
+            const modal = __catMgrGetModal();
+            if (modal) modal.show();
+
+            await __catMgrRenderCategoriesList(t);
+            const subCatSel = document.getElementById('catMgrSubCategory');
+            if (subCatSel) {
+                await __catMgrLoadCategoriesIntoSelect(subCatSel, null);
+            }
+        };
+
+        window.openSubcategoriesManager = async function(opts) {
+            __catMgrState.categorySelectId = opts && opts.categorySelectId ? String(opts.categorySelectId) : null;
+            __catMgrState.subcategorySelectId = opts && opts.subcategorySelectId ? String(opts.subcategorySelectId) : null;
+            __catMgrState.typeElId = null;
+            __catMgrState.selectElId = null;
+
+            const catSel = __catMgrState.categorySelectId ? document.getElementById(__catMgrState.categorySelectId) : null;
+            const currentCategoryId = catSel ? String(catSel.value || '') : '';
+
+            if (!currentCategoryId) {
+                window._showToast('Selecione uma categoria antes de criar/gerenciar subcategorias', 'warning');
+                return;
+            }
+
+            const subCatSel = document.getElementById('catMgrSubCategory');
+            if (subCatSel) {
+                await __catMgrLoadCategoriesIntoSelect(subCatSel, null);
+                if (currentCategoryId) subCatSel.value = currentCategoryId;
+            }
+
+            await __catMgrHideOtherOpenModals();
+            __catMgrHardResetModalState();
+            __catMgrSetActiveTab('catMgrSubTabBtn');
+            const modal = __catMgrGetModal();
+            if (modal) modal.show();
+
+            await __catMgrLoadSubcategories(subCatSel ? subCatSel.value : currentCategoryId);
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const catMgrModalEl = document.getElementById('categoriesManagerModal');
+            if (catMgrModalEl) {
+                catMgrModalEl.addEventListener('shown.bs.modal', () => {
+                    setTimeout(() => {
+                        const backdrops = document.querySelectorAll('.modal-backdrop');
+                        const last = backdrops.length ? backdrops[backdrops.length - 1] : null;
+                        if (last) last.classList.add('catmgr-backdrop');
+                    }, 0);
+                });
+            }
+
+            const createBtn = document.getElementById('catMgrCreateBtn');
+            const refreshCatsBtn = document.getElementById('catMgrRefreshCatsBtn');
+            const editType = document.getElementById('catMgrEditType');
+            const createType = document.getElementById('catMgrType');
+            const subCatSel = document.getElementById('catMgrSubCategory');
+            const refreshSubsBtn = document.getElementById('catMgrRefreshSubsBtn');
+            const createSubBtn = document.getElementById('catMgrCreateSubBtn');
+
+            if (createBtn) {
+                createBtn.addEventListener('click', async () => {
+                    const t = (createType && createType.value) ? String(createType.value) : 'expense';
+                    const name = String((document.getElementById('catMgrName') || {}).value || '').trim();
+                    const icon = String((document.getElementById('catMgrIcon') || {}).value || '').trim();
+                    const color = String((document.getElementById('catMgrColor') || {}).value || '').trim();
+                    if (!name) {
+                        window._showToast('Informe o nome da categoria', 'warning');
+                        return;
+                    }
+                    try {
+                        const res = await __catMgrFetchJson(__catApiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, type: t, icon: icon || '💰', color: color || '#6366f1' })
+                        });
+                        window._showToast(res.message || 'Categoria criada!', 'success');
+                        const sel = __catMgrState.selectElId ? document.getElementById(__catMgrState.selectElId) : null;
+                        if (sel && res.category) {
+                            __catMgrEnsureOption(sel, res.category.id, `${res.category.icon || '💰'} ${res.category.name}`);
+                        }
+                        const editTypeEl = document.getElementById('catMgrEditType');
+                        if (editTypeEl) editTypeEl.value = t;
+                        await __catMgrRenderCategoriesList(t);
+                        if (subCatSel) await __catMgrLoadCategoriesIntoSelect(subCatSel, null);
+                        const nameEl = document.getElementById('catMgrName');
+                        if (nameEl) nameEl.value = '';
+                    } catch (e) {
+                        window._showToast(e.message || 'Erro', 'danger');
+                    }
+                });
+            }
+
+            if (refreshCatsBtn) {
+                refreshCatsBtn.addEventListener('click', async () => {
+                    const t = (editType && editType.value) ? String(editType.value) : 'expense';
+                    await __catMgrRenderCategoriesList(t);
+                });
+            }
+
+            if (editType) {
+                editType.addEventListener('change', async () => {
+                    await __catMgrRenderCategoriesList(editType.value);
+                });
+            }
+
+            if (subCatSel) {
+                subCatSel.addEventListener('change', async () => {
+                    await __catMgrLoadSubcategories(subCatSel.value);
+                });
+            }
+
+            if (refreshSubsBtn && subCatSel) {
+                refreshSubsBtn.addEventListener('click', async () => {
+                    await __catMgrLoadSubcategories(subCatSel.value);
+                });
+            }
+
+            if (createSubBtn) {
+                createSubBtn.addEventListener('click', async () => {
+                    const categoryId = subCatSel ? String(subCatSel.value || '') : '';
+                    const name = String((document.getElementById('catMgrSubName') || {}).value || '').trim();
+                    const icon = String((document.getElementById('catMgrSubIcon') || {}).value || '').trim();
+                    const color = String((document.getElementById('catMgrSubColor') || {}).value || '').trim();
+                    if (!categoryId) {
+                        window._showToast('Selecione uma categoria', 'warning');
+                        return;
+                    }
+                    if (!name) {
+                        window._showToast('Informe o nome da subcategoria', 'warning');
+                        return;
+                    }
+                    try {
+                        const res = await __catMgrFetchJson(__subApiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ category_id: categoryId, name, icon: icon || null, color: color || null })
+                        });
+                        window._showToast(res.message || 'Subcategoria criada!', 'success');
+                        const subSel = __catMgrState.subcategorySelectId ? document.getElementById(__catMgrState.subcategorySelectId) : null;
+                        const catSel = __catMgrState.categorySelectId ? document.getElementById(__catMgrState.categorySelectId) : null;
+                        if (subSel && catSel && String(catSel.value) === String(categoryId) && res.subcategory) {
+                            __catMgrEnsureOption(subSel, res.subcategory.id, `${res.subcategory.icon || '📌'} ${res.subcategory.name}`);
+                        }
+                        await __catMgrLoadSubcategories(categoryId);
+                        const n = document.getElementById('catMgrSubName');
+                        if (n) n.value = '';
+                    } catch (e) {
+                        window._showToast(e.message || 'Erro', 'danger');
+                    }
+                });
+            }
+        });
+
         window.showWorkspaceMenu = async function() {
             const el = document.getElementById('workspaceManagerModal');
             if (!el) {
