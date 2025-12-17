@@ -291,7 +291,7 @@
                                 </div>
                                 
                                 <div class="item-details">
-                                    <div class="item-name">{% if t.subcategory %}{{ t.subcategory.name }}{% else %}{{ t.description }}{% endif %}</div>
+                                    <div class="item-name">{% if t.subcategory_text %}{{ t.subcategory_text }}{% elif t.subcategory %}{{ t.subcategory.name }}{% else %}{{ t.description }}{% endif %}</div>
                                     <div class="item-info">
                                         <span class="info-date">{{ t.transaction_date.strftime('%d/%m/%Y') }}</span>
                                         {% if t.category %}
@@ -416,11 +416,9 @@
                         </select>
                     </div>
 
-                    <div class="mb-3" id="subcategoryField" style="display: none;">
-                        <label for="subcategory" class="form-label">Subcategoria</label>
-                        <select class="form-select" id="subcategory">
-                            <option value="">Selecione uma subcategoria</option>
-                        </select>
+                    <div class="mb-3">
+                        <label for="subcategoryText" class="form-label">Subcategoria</label>
+                        <input type="text" class="form-control" id="subcategoryText" placeholder="Ex: Mercado, Uber, Salário..." autocomplete="off">
                     </div>
                     
                     <div class="mb-3" id="descriptionField" style="display: none;">
@@ -541,11 +539,6 @@
                             <i class="bi bi-list-ul me-1"></i>Transações
                         </button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts-pane" type="button" role="tab" onclick="loadCharts()">
-                            <i class="bi bi-bar-chart-line me-1"></i>Gráficos
-                        </button>
-                    </li>
                 </ul>
 
                 <!-- Tab Content -->
@@ -631,41 +624,6 @@
                         </div>
                     </div>
 
-                    <!-- Aba Gráficos -->
-                    <div class="tab-pane fade" id="charts-pane" role="tabpanel">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="card" style="border-radius: 12px;">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Despesas por Categoria</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <canvas id="categoryChart" height="300"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card" style="border-radius: 12px;">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <canvas id="monthlyChart" height="300"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="card" style="border-radius: 12px;">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparativo Entradas vs Despesas</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <canvas id="comparisonChart" height="200"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -690,7 +648,7 @@
                                 <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Despesas por Categoria</h6>
                             </div>
                             <div class="card-body">
-                                <canvas id="categoryChart" height="300"></canvas>
+                                <img id="categoryChartModal" alt="Despesas por Categoria" style="width: 100%; height: 300px;" />
                             </div>
                         </div>
                     </div>
@@ -700,7 +658,7 @@
                                 <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal</h6>
                             </div>
                             <div class="card-body">
-                                <canvas id="monthlyChart" height="300"></canvas>
+                                <img id="monthlyChartModal" alt="Evolução Mensal" style="width: 100%; height: 300px;" />
                             </div>
                         </div>
                     </div>
@@ -710,7 +668,7 @@
                                 <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparativo Entradas vs Despesas</h6>
                             </div>
                             <div class="card-body">
-                                <canvas id="comparisonChart" height="200"></canvas>
+                                <img id="comparisonChartModal" alt="Comparativo Entradas vs Despesas" style="width: 100%; height: 220px;" />
                             </div>
                         </div>
                     </div>
@@ -2024,6 +1982,8 @@ async function applyGlobalFilter() {
         loadRecentTransactions(),
         loadSummaryCards()
     ]);
+
+    try { loadCharts(); } catch (_) {}
     
     // Reaplicar filtro de tipo atual
     const activeTab = document.querySelector('#tabEntradas[style*="color: #10b981"], #tabEntradas.active');
@@ -2231,11 +2191,9 @@ function filterTransactionsByType(type) {
     // Filtrar itens
     items.forEach(item => {
         const itemType = item.getAttribute('data-type');
-        if (itemType === type) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
+        const isIncome = (itemType === 'income');
+        const shouldShow = (type === 'income') ? isIncome : !isIncome;
+        item.style.display = shouldShow ? 'flex' : 'none';
     });
     
     // Atualizar contador
@@ -2490,7 +2448,6 @@ function showAddTransaction(type) {
 
     updateFixedDurationUI();
     loadCategories(type);
-    setupSubcategoryListener();
     m.show();
 }
 
@@ -2502,14 +2459,6 @@ async function loadCategories(type) {
     if (select) {
         select.disabled = true;
         select.innerHTML = '<option value="">Carregando...</option>';
-    }
-
-    const subField = document.getElementById('subcategoryField');
-    const subSelect = document.getElementById('subcategory');
-    if (subField) subField.style.display = 'none';
-    if (subSelect) {
-        subSelect.disabled = true;
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
     }
 
     try {
@@ -2531,7 +2480,6 @@ async function loadCategories(type) {
             s.appendChild(o);
         });
         s.disabled = false;
-        if (subSelect) subSelect.disabled = false;
         s.dispatchEvent(new Event('change', { bubbles: true }));
     } catch (e) {
         console.error('Erro:', e);
@@ -2541,7 +2489,6 @@ async function loadCategories(type) {
             s.disabled = false;
             s.innerHTML = '<option value="">Selecione uma categoria</option>';
         }
-        if (subSelect) subSelect.disabled = false;
     }
 }
 
@@ -2551,41 +2498,6 @@ const _categoriesInFlight = { income: null, expense: null };
 
 let _categoriesReqSeq = 0;
 let _activeCategoriesType = null;
-
-const _subcategoriesCache = {};
-const _subcategoriesFetchedAt = {};
-const _subcategoriesInFlight = {};
-const _subcategoriesHasAny = {};
-let _subcategoriesReqSeq = 0;
-
-async function fetchSubcategories(categoryId, force = false) {
-    const ttlMs = 5 * 60 * 1000;
-    const key = String(categoryId);
-    const last = _subcategoriesFetchedAt[key] || 0;
-    if (!force && _subcategoriesCache[key] && (Date.now() - last) < ttlMs) {
-        return _subcategoriesCache[key];
-    }
-    if (!force && _subcategoriesInFlight[key]) {
-        return _subcategoriesInFlight[key];
-    }
-
-    _subcategoriesInFlight[key] = (async () => {
-        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_subcategories') }}?category_id=${encodeURIComponent(key)}`);
-        const d = await r.json();
-        if (!r.ok) throw new Error(d?.error || 'Erro ao carregar subcategorias');
-        const subs = Array.isArray(d.subcategories) ? d.subcategories : [];
-        _subcategoriesCache[key] = subs;
-        _subcategoriesFetchedAt[key] = Date.now();
-        _subcategoriesHasAny[key] = subs.length > 0;
-        return subs;
-    })();
-
-    try {
-        return await _subcategoriesInFlight[key];
-    } finally {
-        _subcategoriesInFlight[key] = null;
-    }
-}
 
 async function fetchCategories(type, force = false) {
     const ttlMs = 5 * 60 * 1000;
@@ -2613,129 +2525,10 @@ async function fetchCategories(type, force = false) {
     }
 }
 
-async function loadSubcategories(categoryId) {
-    const subField = document.getElementById('subcategoryField');
-    const subSelect = document.getElementById('subcategory');
-    if (!categoryId) {
-        if (subField) subField.style.display = 'none';
-        if (subSelect) subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-
-        const hint = document.getElementById('subcategoryLoadingHint');
-        if (hint) hint.style.display = 'none';
-        return;
-    }
-
-    const reqId = ++_subcategoriesReqSeq;
-
-    const key = String(categoryId);
-    const knownHasSubs = _subcategoriesHasAny[key];
-
-    let hintTimer = null;
-    let hint = document.getElementById('subcategoryLoadingHint');
-    if (!hint) {
-        hint = document.createElement('div');
-        hint.id = 'subcategoryLoadingHint';
-        hint.className = 'text-muted small mt-2';
-        hint.textContent = 'Carregando subcategorias...';
-        if (subField && subField.parentNode) {
-            subField.parentNode.insertBefore(hint, subField);
-        }
-    }
-    if (hint) {
-        hint.style.display = 'none';
-        hintTimer = setTimeout(() => {
-            if (reqId !== _subcategoriesReqSeq) return;
-            hint.style.display = 'block';
-        }, 200);
-    }
-
-    let showFieldTimer = null;
-    if (knownHasSubs !== false) {
-        if (knownHasSubs === true) {
-            if (subField) subField.style.display = 'block';
-            if (subSelect) {
-                subSelect.disabled = true;
-                subSelect.innerHTML = '<option value="">Carregando...</option>';
-            }
-        } else {
-            showFieldTimer = setTimeout(() => {
-                if (reqId !== _subcategoriesReqSeq) return;
-                if (subField) subField.style.display = 'block';
-                if (subSelect) {
-                    subSelect.disabled = true;
-                    subSelect.innerHTML = '<option value="">Carregando...</option>';
-                }
-            }, 250);
-        }
-    }
-
-    try {
-        if (knownHasSubs === false) {
-            if (subField) subField.style.display = 'none';
-        }
-
-        const subs = await fetchSubcategories(categoryId);
-        if (reqId !== _subcategoriesReqSeq) return;
-
-        if (hintTimer) clearTimeout(hintTimer);
-        if (hint) hint.style.display = 'none';
-        if (showFieldTimer) clearTimeout(showFieldTimer);
-
-        if (!subs || subs.length === 0) {
-            if (subField) subField.style.display = 'none';
-            if (subSelect) {
-                subSelect.disabled = false;
-                subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-            }
-            return;
-        }
-
-        if (subField) subField.style.display = 'block';
-        if (!subSelect) return;
-        subSelect.disabled = false;
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-        subs.forEach(s => {
-            const o = document.createElement('option');
-            o.value = s.id;
-            o.textContent = `${s.icon || '📌'} ${s.name}`;
-            subSelect.appendChild(o);
-        });
-    } catch (e) {
-        console.error('Erro ao carregar subcategorias:', e);
-        if (reqId !== _subcategoriesReqSeq) return;
-        if (subField) subField.style.display = 'none';
-        if (subSelect) {
-            subSelect.disabled = false;
-            subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-        }
-    } finally {
-        if (hintTimer) clearTimeout(hintTimer);
-        if (showFieldTimer) clearTimeout(showFieldTimer);
-        if (hint && reqId === _subcategoriesReqSeq) hint.style.display = 'none';
-    }
-}
-
-function setupSubcategoryListener() {
-    const catSelect = document.getElementById('category');
-    if (catSelect) {
-        catSelect.removeEventListener('change', handleCategoryChange);
-        catSelect.addEventListener('change', handleCategoryChange);
-    }
-}
-
-function handleCategoryChange(e) {
-    loadSubcategories(e.target.value);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    setupSubcategoryListener();
-});
-
 function _computeIncomeDateFromDay(day, baseYear = null, baseMonth = null) {
-    const n = parseInt(day, 10);
     const today = new Date();
-
     const y = Number.isFinite(Number(baseYear)) ? Number(baseYear) : today.getFullYear();
+    const n = parseInt(day, 10);
     const mIndex = Number.isFinite(Number(baseMonth)) ? (Number(baseMonth) - 1) : today.getMonth();
 
     const lastDay = new Date(y, mIndex + 1, 0).getDate();
@@ -2789,7 +2582,7 @@ async function saveTransaction(e) {
         amount: _parseBRL(document.getElementById('amount').value),
         transaction_date: txDate,
         category_id: document.getElementById('category').value,
-        subcategory_id: document.getElementById('subcategory').value || null,
+        subcategory_text: document.getElementById('subcategoryText') ? (document.getElementById('subcategoryText').value || '').trim() || null : null,
         frequency: 'once',
         is_recurring: isFixed,
         is_fixed: isFixed,
@@ -2860,7 +2653,7 @@ function _buildTransactionCard(t) {
     const formattedDate = date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
     
     const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
-    const title = t.subcategory?.name || t.description || 'Sem descrição';
+    const title = t.subcategory_text || t.subcategory?.name || t.description || 'Sem descrição';
     const categoryName = t.category?.name || 'Sem categoria';
     
     const amount = parseFloat(t.amount || 0);
@@ -3013,6 +2806,8 @@ async function editTransaction(id) {
         document.getElementById('transactionDate').value = t.transaction_date;
         const notesEl = document.getElementById('notes');
         if (notesEl) notesEl.value = t.notes || '';
+        const subTextEl = document.getElementById('subcategoryText');
+        if (subTextEl) subTextEl.value = t.subcategory_text || '';
         
         // Load categories and set current one
         await loadCategories(t.type);
@@ -3215,7 +3010,7 @@ function renderTransactionsList(container, transactions, type) {
                     ${items.map(t => {
                         const date = new Date(t.transaction_date);
                         const categoryIcon = t.category?.icon || (t.type === 'income' ? '💵' : '💸');
-                        const subcategoryBadge = t.subcategory ? `<span class="badge" style="background: #8b5cf6; color: white; font-size: 0.65rem;">${t.subcategory.icon || '📌'} ${t.subcategory.name}</span>` : '';
+                        const subcategoryBadge = t.subcategory_text ? `<span class="badge" style="background: #8b5cf6; color: white; font-size: 0.65rem;">📌 ${t.subcategory_text}</span>` : (t.subcategory ? `<span class="badge" style="background: #8b5cf6; color: white; font-size: 0.65rem;">${t.subcategory.icon || '📌'} ${t.subcategory.name}</span>` : '');
                         const amountColor = t.type === 'income' ? '#11998e' : '#ee0979';
                         const amountSign = t.type === 'income' ? '+' : '-';
                         return `
@@ -3250,185 +3045,61 @@ function filterHistoryByType(type) {
 
 // Abrir modal de gráficos
 async function showChartsModal() {
-    const modal = new bootstrap.Modal(document.getElementById('chartsModal'));
+    const el = document.getElementById('chartsModal');
+    const modal = new bootstrap.Modal(el);
     modal.show();
+    await new Promise((resolve) => {
+        const onShown = () => {
+            el.removeEventListener('shown.bs.modal', onShown);
+            resolve();
+        };
+        el.addEventListener('shown.bs.modal', onShown);
+    });
     await loadCharts();
 }
 
-// Carregar gráficos
-let categoryChartInstance = null;
-let monthlyChartInstance = null;
-let comparisonChartInstance = null;
-
 async function loadCharts() {
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/transactions?page=1&per_page=1000');
-        const data = await response.json();
-        const transactions = data.transactions || [];
-        
-        // Destruir gráficos existentes
-        if (categoryChartInstance) categoryChartInstance.destroy();
-        if (monthlyChartInstance) monthlyChartInstance.destroy();
-        if (comparisonChartInstance) comparisonChartInstance.destroy();
-        
-        // 1. Gráfico de Pizza - Despesas por Categoria
-        const expensesByCategory = {};
-        transactions.filter(t => t.type === 'expense').forEach(t => {
-            const catName = t.category?.name || 'Sem categoria';
-            expensesByCategory[catName] = (expensesByCategory[catName] || 0) + t.amount;
-        });
-        
-        const categoryCtx = document.getElementById('categoryChart');
-        if (categoryCtx) {
-            categoryChartInstance = new Chart(categoryCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(expensesByCategory),
-                    datasets: [{
-                        data: Object.values(expensesByCategory),
-                        backgroundColor: [
-                            '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6',
-                            '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#6366f1'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => {
-                                    const label = context.label || '';
-                                    const value = _formatBRL(context.parsed);
-                                    return `${label}: R$ ${value}`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 2. Gráfico de Linha - Evolução Mensal
-        const monthlyData = {};
-        transactions.forEach(t => {
-            const date = new Date(t.transaction_date);
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            if (!monthlyData[key]) {
-                monthlyData[key] = { income: 0, expense: 0 };
-            }
-            if (t.type === 'income') {
-                monthlyData[key].income += t.amount;
-            } else {
-                monthlyData[key].expense += t.amount;
-            }
-        });
-        
-        const sortedMonths = Object.keys(monthlyData).sort();
-        const monthlyCtx = document.getElementById('monthlyChart');
-        if (monthlyCtx) {
-            monthlyChartInstance = new Chart(monthlyCtx, {
-                type: 'line',
-                data: {
-                    labels: sortedMonths.map(m => {
-                        const [year, month] = m.split('-');
-                        return new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-                    }),
-                    datasets: [
-                        {
-                            label: 'Entradas',
-                            data: sortedMonths.map(m => monthlyData[m].income),
-                            borderColor: '#11998e',
-                            backgroundColor: 'rgba(17, 153, 142, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: 'Despesas',
-                            data: sortedMonths.map(m => monthlyData[m].expense),
-                            borderColor: '#ee0979',
-                            backgroundColor: 'rgba(238, 9, 121, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => `${context.dataset.label}: R$ ${_formatBRL(context.parsed.y)}`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: (value) => 'R$ ' + _formatBRL(value)
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 3. Gráfico de Barras - Comparativo
-        const comparisonCtx = document.getElementById('comparisonChart');
-        if (comparisonCtx) {
-            comparisonChartInstance = new Chart(comparisonCtx, {
-                type: 'bar',
-                data: {
-                    labels: sortedMonths.map(m => {
-                        const [year, month] = m.split('-');
-                        return new Date(year, month - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-                    }),
-                    datasets: [
-                        {
-                            label: 'Entradas',
-                            data: sortedMonths.map(m => monthlyData[m].income),
-                            backgroundColor: '#11998e'
-                        },
-                        {
-                            label: 'Despesas',
-                            data: sortedMonths.map(m => monthlyData[m].expense),
-                            backgroundColor: '#ee0979'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => `${context.dataset.label}: R$ ${_formatBRL(context.parsed.y)}`
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: (value) => 'R$ ' + _formatBRL(value)
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
+        const chartsMonth = globalFilterMonth;
+        const chartsYear = globalFilterYear;
+        const monthsBack = 12;
+
+        const setSvg = (imgId, path, heightFallback) => {
+            const el = document.getElementById(imgId);
+            if (!el) return;
+            const w = Math.max(360, (el.clientWidth || 0) || 760);
+            const h = Math.max(220, (el.clientHeight || 0) || (heightFallback || 320));
+            const u = `${path}?year=${encodeURIComponent(chartsYear)}&month=${encodeURIComponent(chartsMonth)}&months_back=${encodeURIComponent(monthsBack)}&limit=10&width=${encodeURIComponent(w)}&height=${encodeURIComponent(h)}&_ts=${Date.now()}`;
+            el.src = u;
+        };
+
+        setSvg('categoryChart', '/gerenciamento-financeiro/api/charts/svg/expenses-by-category', 300);
+        setSvg('categoryChartModal', '/gerenciamento-financeiro/api/charts/svg/expenses-by-category', 300);
+        setSvg('monthlyChart', '/gerenciamento-financeiro/api/charts/svg/monthly-balance', 300);
+        setSvg('monthlyChartModal', '/gerenciamento-financeiro/api/charts/svg/monthly-balance', 300);
+        setSvg('comparisonChart', '/gerenciamento-financeiro/api/charts/svg/income-vs-expense', 220);
+        setSvg('comparisonChartModal', '/gerenciamento-financeiro/api/charts/svg/income-vs-expense', 220);
+
     } catch (error) {
         console.error('Erro ao carregar gráficos:', error);
         showToast('Erro ao carregar gráficos', 'error');
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const chartsTab = document.getElementById('charts-tab');
+    if (chartsTab) {
+        chartsTab.addEventListener('shown.bs.tab', () => {
+            setTimeout(() => { try { loadCharts(); } catch (_) {} }, 50);
+        });
+    }
+    const chartsModal = document.getElementById('chartsModal');
+    if (chartsModal) {
+        chartsModal.addEventListener('shown.bs.modal', () => {
+            setTimeout(() => { try { loadCharts(); } catch (_) {} }, 50);
+        });
+    }
+});
 
 // Verificar convites pendentes ao carregar página
 document.addEventListener('DOMContentLoaded', async function() {

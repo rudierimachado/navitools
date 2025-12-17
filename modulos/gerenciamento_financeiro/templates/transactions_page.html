@@ -351,17 +351,9 @@
                         </div>
                     </div>
 
-                    <div class="mb-3" id="subcategoryField" style="display: none;">
-                        <label for="subcategory" class="form-label">Subcategoria</label>
-                        <div class="input-group">
-                            <select class="form-select" id="subcategory">
-                                <option value="">Selecione uma subcategoria</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" onclick="openSubcategoriesManager({ categorySelectId: 'category', subcategorySelectId: 'subcategory' });">
-                                <i class="bi bi-plus"></i>
-                                Nova subcategoria
-                            </button>
-                        </div>
+                    <div class="mb-3">
+                        <label for="subcategoryText" class="form-label">Subcategoria</label>
+                        <input type="text" class="form-control" id="subcategoryText" placeholder="Digite a subcategoria" autocomplete="off">
                     </div>
                     
                     <div class="mb-3">
@@ -406,37 +398,6 @@ function _chooseEditScope() {
     });
 }
 
-// Load subcategories for modal
-async function loadSubcategoriesModal(categoryId) {
-    const subField = document.getElementById('subcategoryField');
-    const subSelect = document.getElementById('subcategory');
-    if (!categoryId) {
-        subField.style.display = 'none';
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-        return;
-    }
-    try {
-        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_subcategories') }}?category_id=${categoryId}`);
-        const d = await r.json();
-        if (!r.ok || !d.subcategories || d.subcategories.length === 0) {
-            subField.style.display = 'none';
-            subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-            return;
-        }
-        subField.style.display = 'block';
-        subSelect.innerHTML = '<option value="">Selecione uma subcategoria</option>';
-        d.subcategories.forEach(s => {
-            const o = document.createElement('option');
-            o.value = s.id;
-            o.textContent = `${s.icon || '📌'} ${s.name}`;
-            subSelect.appendChild(o);
-        });
-    } catch (e) {
-        console.error('Erro ao carregar subcategorias:', e);
-        subField.style.display = 'none';
-    }
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
@@ -458,14 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // View mode switch
     document.getElementById('tableView').addEventListener('change', switchToTableView);
     document.getElementById('cardView').addEventListener('change', switchToCardView);
-    
-    // Category change listener for subcategories
-    const catSelect = document.getElementById('category');
-    if (catSelect) {
-        catSelect.addEventListener('change', (e) => {
-            loadSubcategoriesModal(e.target.value);
-        });
-    }
     
     // Edit scope modal buttons
     const scopeEl = document.getElementById('editScopeModal');
@@ -583,10 +536,11 @@ function displayTableView(transactions) {
     const tbody = document.getElementById('transactionsTableBody');
     
     tbody.innerHTML = transactions.map(t => {
-        const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
-        const categoryColor = t.subcategory?.color || t.category?.color || '#6366f1';
-        const categoryName = t.subcategory?.name || t.category?.name || 'Sem categoria';
+        const categoryIcon = t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+        const categoryColor = t.category?.color || '#6366f1';
+        const categoryName = t.category?.name || 'Sem categoria';
         const parentCategoryName = t.category?.name || '';
+        const subText = t.subcategory_text || '';
         
         return `
         <tr>
@@ -605,6 +559,7 @@ function displayTableView(transactions) {
                 <span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor};">
                     ${categoryIcon} ${categoryName}
                 </span>
+                ${subText ? `<span class="badge bg-secondary ms-2">📌 ${subText}</span>` : ''}
             </td>
             <td class="d-none d-md-table-cell">
                 <small class="text-muted">${t.notes || '-'}</small>
@@ -636,10 +591,11 @@ function displayCardView(transactions) {
     const container = document.getElementById('transactionsCardContainer');
     
     container.innerHTML = transactions.map(t => {
-        const categoryIcon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
-        const categoryColor = t.subcategory?.color || t.category?.color || '#6366f1';
-        const categoryName = t.subcategory?.name || t.category?.name || 'Sem categoria';
+        const categoryIcon = t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+        const categoryColor = t.category?.color || '#6366f1';
+        const categoryName = t.category?.name || 'Sem categoria';
         const parentCategoryName = t.category?.name || '';
+        const subText = t.subcategory_text || '';
         
         return `
         <div class="col-12 col-md-6 col-lg-4 mb-3">
@@ -664,6 +620,7 @@ function displayCardView(transactions) {
                         <span class="badge rounded-pill" style="background-color: ${categoryColor}20; color: ${categoryColor}; font-size: 0.95rem; padding: 0.5rem 0.75rem;">
                             ${categoryIcon} ${categoryName}
                         </span>
+                        ${subText ? `<span class="badge bg-secondary ms-2">📌 ${subText}</span>` : ''}
                     </div>
                     
                     <div class="mb-2">
@@ -869,15 +826,6 @@ window.transactionsPage.showAddTransaction = function(type, options = {}) {
     // Load categories
     loadCategories(type);
     
-    // Setup subcategory listener
-    const catSelect = document.getElementById('category');
-    if (catSelect) {
-        catSelect.removeEventListener('change', loadSubcategoriesModal);
-        catSelect.addEventListener('change', (e) => {
-            loadSubcategoriesModal(e.target.value);
-        });
-    }
-    
     modal.show();
 }
 
@@ -924,7 +872,7 @@ document.getElementById('addTransactionForm').addEventListener('submit', async f
         amount: parseBRL(document.getElementById('amount').value),
         transaction_date: document.getElementById('transactionDate').value,
         category_id: document.getElementById('category').value || null,
-        subcategory_id: document.getElementById('subcategory').value || null,
+        subcategory_text: document.getElementById('subcategoryText') ? (document.getElementById('subcategoryText').value || '').trim() || null : null,
         notes: document.getElementById('notes').value || null,
         apply_scope: currentEditScope
     };

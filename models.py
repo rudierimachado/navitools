@@ -237,6 +237,7 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     subcategory_id = db.Column(db.Integer, db.ForeignKey("subcategories.id"), nullable=True)
+    subcategory_text = db.Column(db.String(255), nullable=True)
     family_member_id = db.Column(db.Integer, db.ForeignKey("family_members.id"))
     
     # Dados da transação
@@ -300,6 +301,7 @@ class RecurringTransaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=False)
     subcategory_id = db.Column(db.Integer, db.ForeignKey("subcategories.id"), nullable=True)
+    subcategory_text = db.Column(db.String(255), nullable=True)
     
     # Dados da transação
     description = db.Column(db.String(255), nullable=False)
