@@ -281,7 +281,6 @@
         }
 
         async function selectWorkspace(workspaceId) {
-            console.log('Selecionando workspace:', workspaceId);
             try {
                 const response = await fetch(`/gerenciamento-financeiro/api/workspaces/select/${workspaceId}`, {
                     method: 'POST',
@@ -291,7 +290,6 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    console.log('Workspace selecionado, redirecionando...');
                     await new Promise(resolve => setTimeout(resolve, 300));
                     window.location.replace('/gerenciamento-financeiro/');
                 } else {
@@ -324,7 +322,6 @@
                 
                 if (response.ok) {
                     bootstrap.Modal.getInstance(document.getElementById('createWorkspaceModal')).hide();
-                    console.log('Workspace criado, selecionando...');
                     await selectWorkspace(result.id);
                 } else {
                     alert(result.error || 'Erro ao criar workspace');

@@ -231,10 +231,8 @@
     }
 
     async function selectWorkspace(workspaceId) {
-        console.log('Selecionando workspace:', workspaceId);
         try {
             const url = `{{ url_for("gerenciamento_financeiro.api_select_workspace", workspace_id=0) }}`.replace('/0', `/${workspaceId}`);
-            console.log('URL:', url);
             
             const response = await fetch(url, {
                 method: 'POST',
@@ -243,27 +241,21 @@
                 }
             });
             
-            console.log('Response status:', response.status);
             const result = await response.json();
-            console.log('Result:', result);
             
             if (response.ok) {
-                console.log('Workspace selecionado com sucesso!');
-                console.log('Result completo:', JSON.stringify(result));
                 
                 // Aguardar um momento para garantir que a sessão foi salva
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
                 // Redirecionar para o dashboard - usar URL raiz
                 const dashboardUrl = '/';
-                console.log('Redirecionando para:', dashboardUrl);
                 window.location.replace(dashboardUrl);
             } else {
                 console.error('Erro na resposta:', result);
                 alert(result.error || 'Erro ao selecionar workspace');
             }
         } catch (error) {
-            console.error('Erro ao selecionar workspace:', error);
             alert('Erro ao selecionar workspace: ' + error.message);
         }
     }
@@ -272,8 +264,6 @@
         const name = document.getElementById('wsName').value.trim();
         const description = document.getElementById('wsDesc').value.trim();
         const color = document.getElementById('wsColor').value;
-        
-        console.log('Criando workspace:', { name, description, color });
         
         if (!name) {
             alert('Nome do workspace é obrigatório');
@@ -287,19 +277,15 @@
                 body: JSON.stringify({ name, description, color })
             });
             
-            console.log('Response status:', response.status);
             const result = await response.json();
-            console.log('Workspace criado:', result);
             
             if (response.ok) {
                 // Fechar modal
                 bootstrap.Modal.getInstance(document.getElementById('createWorkspaceModal')).hide();
                 
                 // Selecionar o workspace recém-criado
-                console.log('Selecionando workspace criado com ID:', result.id);
                 await selectWorkspace(result.id);
             } else {
-                console.error('Erro ao criar:', result);
                 alert(result.error || 'Erro ao criar workspace');
             }
         } catch (error) {

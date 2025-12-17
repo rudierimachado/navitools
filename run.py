@@ -20,7 +20,6 @@ register_blueprints = None
 build_sidebar_menu = None
 db = migrate = get_current_db_url = init_database = None
 init_mail = None
-device_detection_middleware = device_helper = get_device_context = None
 ChoiceLoader = FileSystemLoader = None
 
 try:
@@ -70,12 +69,6 @@ try:
     except Exception as e:
         log_debug(f"❌ ERRO ao importar Jinja2: {e}")
         log_debug(f"Traceback jinja: {traceback.format_exc()}")
-    
-    try:
-        from device_detector import device_detection_middleware, device_helper
-    except Exception as e:
-        log_debug(f"❌ ERRO ao importar device_detector: {e}")
-        log_debug(f"Traceback device: {traceback.format_exc()}")
 
 except Exception as e:
     log_debug(f"🚨 ERRO CRÍTICO nos imports iniciais: {e}")
@@ -168,15 +161,6 @@ def create_app():
         else:
             log_debug("⚠️ register_blueprints não disponível")
         
-        if device_detection_middleware:
-            try:
-                app = device_detection_middleware(app)
-            except Exception as e:
-                log_debug(f"❌ ERRO ao aplicar device detection: {e}")
-
-        else:
-            log_debug("⚠️ device_detection_middleware não disponível")
-        
         @app.context_processor
         def inject_sidebar_menu():
             if build_sidebar_menu:
@@ -190,12 +174,14 @@ def create_app():
         
         @app.context_processor
         def inject_device_info():
-            try:
-                from device_detector import get_device_context
-                return get_device_context()
-            except Exception as e:
-                log_debug(f"❌ ERRO em get_device_context: {e}")
-                return {}
+            return {
+                'device_type': 'desktop',
+                'is_mobile': False,
+                'is_tablet': False,
+                'is_touch': False,
+                'is_desktop': True,
+                'device_classes': 'device-desktop'
+            }
 
         @app.after_request
         def add_no_cache_headers(response):

@@ -9,6 +9,7 @@ from flask import (
     jsonify,
     send_file,
     make_response,
+    current_app,
 )
 from io import BytesIO
 from sqlalchemy import func, extract, and_, or_, inspect, text, case, desc
@@ -17,7 +18,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
 import calendar
 import math
-import html
 import os
 import time
 import hashlib
@@ -53,6 +53,19 @@ gerenciamento_financeiro_bp = Blueprint(
     template_folder="templates",
 )
 
+
+@gerenciamento_financeiro_bp.after_request
+def _finance_no_cache_headers(resp):
+    try:
+        p = request.path or ""
+        if "/gerenciamento-financeiro/api/" in p:
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+    except Exception:
+        pass
+    return resp
+
 _AI_RECOMMENDATION_CACHE = {}
 _AI_TOKEN_USAGE = {}
 
@@ -60,6 +73,22 @@ _CATEGORIES_WORKSPACE_COLUMN_READY = False
 _TRANSACTIONS_CLOSE_COLUMNS_READY = False
 _TRANSACTIONS_SUBCATEGORY_TEXT_READY = False
 _RECURRING_SUBCATEGORY_TEXT_READY = False
+
+
+def _log_debug(msg: str) -> None:
+    try:
+        if current_app and getattr(current_app, "debug", False):
+            current_app.logger.info(msg)
+    except Exception:
+        pass
+
+
+def _log_exception(msg: str) -> None:
+    try:
+        if current_app:
+            current_app.logger.exception(msg)
+    except Exception:
+        pass
 
 
 def _ensure_categories_workspace_column() -> None:
@@ -87,7 +116,7 @@ def _ensure_categories_workspace_column() -> None:
             db.session.rollback()
         except Exception:
             pass
-        print(f"[CATEGORIES] Erro ao garantir coluna workspace_id: {e}")
+        _log_exception(f"[CATEGORIES] Erro ao garantir coluna workspace_id: {e}")
         # não marcar como ready para tentar novamente depois
 
 
@@ -132,7 +161,7 @@ def _ensure_transactions_close_columns() -> None:
             db.session.rollback()
         except Exception:
             pass
-        print(f"[TRANSACTIONS] Erro ao garantir colunas de fechamento: {e}")
+        _log_exception(f"[TRANSACTIONS] Erro ao garantir colunas de fechamento: {e}")
         # não marcar como ready para tentar novamente depois
 
 
@@ -153,7 +182,7 @@ def _ensure_transactions_subcategory_text_column() -> None:
             db.session.rollback()
         except Exception:
             pass
-        print(f"[TRANSACTIONS] Erro ao garantir coluna subcategory_text: {e}")
+        _log_exception(f"[TRANSACTIONS] Erro ao garantir coluna subcategory_text: {e}")
 
 
 def _ensure_recurring_subcategory_text_column() -> None:
@@ -173,7 +202,7 @@ def _ensure_recurring_subcategory_text_column() -> None:
             db.session.rollback()
         except Exception:
             pass
-        print(f"[RECURRING] Erro ao garantir coluna subcategory_text: {e}")
+        _log_exception(f"[RECURRING] Erro ao garantir coluna subcategory_text: {e}")
 
 
 _RECURRING_EXCLUSIONS_READY = False
@@ -219,7 +248,7 @@ def _ensure_recurring_exclusions_table() -> None:
             db.session.rollback()
         except Exception:
             pass
-        print(f"[RECURRING_EXCLUSIONS] Erro ao garantir tabela: {e}")
+        _log_exception(f"[RECURRING_EXCLUSIONS] Erro ao garantir tabela: {e}")
         # não marcar como ready para tentar novamente depois
 
 
@@ -272,7 +301,7 @@ def _ensure_default_subcategories(category_id: int) -> None:
             ))
         db.session.commit()
     except Exception as e:
-        print(f"[SUBCATEGORIES] Erro ao criar subcategorias padrão: {e}")
+        _log_exception(f"[SUBCATEGORIES] Erro ao criar subcategorias padrão: {e}")
         try:
             db.session.rollback()
         except Exception:
@@ -417,7 +446,7 @@ def _ensure_default_categories(user_id: int, workspace_id: int | None = None):
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        print(f"Erro ao criar categorias padrão: {e}")
+        _log_exception(f"Erro ao criar categorias padrão: {e}")
 
 # ============================================================================
 # ROTAS DE AUTENTICAÇÃO
@@ -700,7 +729,7 @@ def home():
     # Transações recentes (apenas do mês selecionado)
     recent_transactions = (
         Transaction.query
-        .options(joinedload(Transaction.subcategory))
+        .options(joinedload(Transaction.category), joinedload(Transaction.subcategory))
         .filter(
             Transaction.workspace_id == workspace_id,
             Transaction.transaction_date >= month_start,
@@ -715,7 +744,7 @@ def home():
     today = date.today()
     vencimentos = (
         Transaction.query
-        .options(joinedload(Transaction.subcategory))
+        .options(joinedload(Transaction.category), joinedload(Transaction.subcategory))
         .filter(
             Transaction.workspace_id == workspace_id,
             Transaction.type == "expense",
@@ -821,56 +850,97 @@ def api_summary_cards():
     month_start = date(selected_year, selected_month, 1)
     month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
 
-    total_income = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.workspace_id == workspace_id,
-            Transaction.type == "income",
-            Transaction.transaction_date <= month_end,
+    totals_row = (
+        db.session.query(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Transaction.type == "income",
+                                Transaction.transaction_date <= month_end,
+                            ),
+                            Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Transaction.type == "expense",
+                                Transaction.transaction_date <= month_end,
+                            ),
+                            Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("total_expense"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Transaction.type == "income",
+                                Transaction.transaction_date >= month_start,
+                                Transaction.transaction_date <= month_end,
+                            ),
+                            Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("monthly_income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Transaction.type == "expense",
+                                Transaction.transaction_date >= month_start,
+                                Transaction.transaction_date <= month_end,
+                            ),
+                            Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("monthly_expense"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                Transaction.type == "expense",
+                                Transaction.is_closed == True,
+                                Transaction.transaction_date >= month_start,
+                                Transaction.transaction_date <= month_end,
+                            ),
+                            Transaction.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("monthly_paid_expense"),
         )
-        .scalar()
-    )
-    total_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.workspace_id == workspace_id,
-            Transaction.type == "expense",
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
+        .filter(Transaction.workspace_id == workspace_id)
+        .one()
     )
 
-    monthly_income = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.workspace_id == workspace_id,
-            Transaction.type == "income",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
-    )
-    monthly_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.workspace_id == workspace_id,
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
-    )
-    monthly_paid_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.workspace_id == workspace_id,
-            Transaction.type == "expense",
-            Transaction.is_closed == True,
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
-    )
+    total_income = float(getattr(totals_row, "total_income", 0) or 0)
+    total_expense = float(getattr(totals_row, "total_expense", 0) or 0)
+    monthly_income = float(getattr(totals_row, "monthly_income", 0) or 0)
+    monthly_expense = float(getattr(totals_row, "monthly_expense", 0) or 0)
+    monthly_paid_expense = float(getattr(totals_row, "monthly_paid_expense", 0) or 0)
 
     balance = (total_income or 0) - (total_expense or 0)
 
@@ -883,841 +953,6 @@ def api_summary_cards():
         "month": selected_month,
     })
 
-
-@gerenciamento_financeiro_bp.route("/api/charts/monthly-series", methods=["GET", "OPTIONS"])
-def api_charts_monthly_series():
-    origin = request.headers.get("Origin", "*")
-
-    def _json(payload, status=200):
-        resp = jsonify(payload)
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return (resp, status) if status != 200 else resp
-
-    if request.method == "OPTIONS":
-        return _json({"ok": True}, 200)
-
-    if "finance_user_id" not in session:
-        return _json({"error": "Não autorizado"}, 401)
-
-    user_id = session["finance_user_id"]
-    workspace_id = session.get("active_workspace_id")
-    if not workspace_id:
-        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
-        if not default_workspace:
-            default_workspace = Workspace(
-                owner_id=user_id,
-                name="Meu Workspace",
-                description="Workspace padrão",
-                color="#3b82f6",
-            )
-            db.session.add(default_workspace)
-            db.session.commit()
-
-        session["active_workspace_id"] = default_workspace.id
-        workspace_id = default_workspace.id
-
-    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
-    if not workspace_role:
-        return _json({"error": "Sem permissão"}, 403)
-
-    ws = Workspace.query.get(workspace_id) if workspace_id else None
-    include_legacy = bool(ws and ws.owner_id == user_id)
-
-    today = datetime.utcnow().date()
-    try:
-        selected_month = int(request.args.get("month", today.month))
-        selected_year = int(request.args.get("year", today.year))
-        if selected_month < 1 or selected_month > 12:
-            selected_month = today.month
-        if selected_year < 2000 or selected_year > 2100:
-            selected_year = today.year
-    except Exception:
-        selected_month = today.month
-        selected_year = today.year
-
-    months_back = request.args.get("months_back", type=int) or 12
-    months_back = max(1, min(36, months_back))
-
-    anchor = date(selected_year, selected_month, 1)
-    start_month_index = (anchor.year * 12 + (anchor.month - 1)) - (months_back - 1)
-    start_year = start_month_index // 12
-    start_month = (start_month_index % 12) + 1
-    start_date = date(start_year, start_month, 1)
-
-    from calendar import monthrange
-    end_date = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-
-    try:
-        for i in range(months_back):
-            ym = start_month_index + i
-            y = ym // 12
-            m = (ym % 12) + 1
-            try:
-                _ensure_recurring_transactions_for_month(workspace_id=workspace_id, year=y, month=m)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    rows = (
-        db.session.query(
-            extract("year", Transaction.transaction_date).label("y"),
-            extract("month", Transaction.transaction_date).label("m"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "income", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "expense", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
-        )
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.transaction_date >= start_date,
-            Transaction.transaction_date <= end_date,
-            Transaction.type.in_(["income", "expense"]),
-        )
-        .group_by("y", "m")
-        .order_by("y", "m")
-        .all()
-    )
-
-    by_key = {}
-    for r in rows:
-        y = int(r.y)
-        m = int(r.m)
-        key = f"{y:04d}-{m:02d}"
-        income = float(r.income or 0)
-        expense = float(r.expense or 0)
-        by_key[key] = {
-            "year": y,
-            "month": m,
-            "income": income,
-            "expense": expense,
-            "balance": income - expense,
-        }
-
-    series = []
-    for i in range(months_back):
-        ym = start_month_index + i
-        y = ym // 12
-        m = (ym % 12) + 1
-        key = f"{y:04d}-{m:02d}"
-        series.append(by_key.get(key) or {
-            "year": y,
-            "month": m,
-            "income": 0.0,
-            "expense": 0.0,
-            "balance": 0.0,
-        })
-
-    return _json({
-        "year": selected_year,
-        "month": selected_month,
-        "months_back": months_back,
-        "series": series,
-    })
-
-
-@gerenciamento_financeiro_bp.route("/api/charts/expenses-by-category", methods=["GET", "OPTIONS"])
-def api_charts_expenses_by_category():
-    origin = request.headers.get("Origin", "*")
-
-    def _json(payload, status=200):
-        resp = jsonify(payload)
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return (resp, status) if status != 200 else resp
-
-    if request.method == "OPTIONS":
-        return _json({"ok": True}, 200)
-
-    if "finance_user_id" not in session:
-        return _json({"error": "Não autorizado"}, 401)
-
-    user_id = session["finance_user_id"]
-    workspace_id = session.get("active_workspace_id")
-    if not workspace_id:
-        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
-        if not default_workspace:
-            default_workspace = Workspace(
-                owner_id=user_id,
-                name="Meu Workspace",
-                description="Workspace padrão",
-                color="#3b82f6",
-            )
-            db.session.add(default_workspace)
-            db.session.commit()
-
-        session["active_workspace_id"] = default_workspace.id
-        workspace_id = default_workspace.id
-
-    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
-    if not workspace_role:
-        return _json({"error": "Sem permissão"}, 403)
-
-    ws = Workspace.query.get(workspace_id) if workspace_id else None
-    include_legacy = bool(ws and ws.owner_id == user_id)
-
-    today = datetime.utcnow().date()
-    try:
-        selected_month = int(request.args.get("month", today.month))
-        selected_year = int(request.args.get("year", today.year))
-        if selected_month < 1 or selected_month > 12:
-            selected_month = today.month
-        if selected_year < 2000 or selected_year > 2100:
-            selected_year = today.year
-    except Exception:
-        selected_month = today.month
-        selected_year = today.year
-
-    from calendar import monthrange
-    month_start = date(selected_year, selected_month, 1)
-    month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-
-    limit = request.args.get("limit", type=int) or 10
-    limit = max(3, min(25, limit))
-
-    rows = (
-        db.session.query(
-            Category.id.label("category_id"),
-            Category.name.label("name"),
-            Category.icon.label("icon"),
-            Category.color.label("color"),
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .join(Category, Category.id == Transaction.category_id)
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .group_by(Category.id, Category.name, Category.icon, Category.color)
-        .order_by(desc("total"))
-        .all()
-    )
-
-    uncategorized_total = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.type == "expense",
-            Transaction.category_id.is_(None),
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
-    )
-
-    items = [
-        {
-            "category_id": int(r.category_id),
-            "name": r.name,
-            "icon": r.icon,
-            "color": r.color,
-            "total": float(r.total or 0),
-        }
-        for r in rows
-        if float(r.total or 0) > 0
-    ]
-
-    if uncategorized_total and float(uncategorized_total) > 0:
-        items.append({
-            "category_id": None,
-            "name": "Sem categoria",
-            "icon": "❓",
-            "color": "#94a3b8",
-            "total": float(uncategorized_total),
-        })
-
-    items.sort(key=lambda x: float(x.get("total") or 0), reverse=True)
-
-    top = items[:limit]
-    rest = items[limit:]
-    rest_total = sum(float(x.get("total") or 0) for x in rest)
-    if rest_total > 0:
-        top.append({
-            "category_id": "others",
-            "name": "Outros",
-            "icon": "📦",
-            "color": "#64748b",
-            "total": float(rest_total),
-        })
-
-    return _json({
-        "year": selected_year,
-        "month": selected_month,
-        "items": top,
-    })
-
-
-def _svg_message(title: str, subtitle: str = "", width: int = 640, height: int = 320) -> str:
-    title = html.escape(title or "")
-    subtitle = html.escape(subtitle or "")
-    sub = f'<text x="50%" y="56%" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="14" fill="#64748b">{subtitle}</text>' if subtitle else ""
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
-        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff" />'
-        f'<text x="50%" y="48%" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="16" font-weight="600" fill="#0f172a">{title}</text>'
-        f'{sub}'
-        f'</svg>'
-    )
-
-
-def _svg_response(svg_text: str, origin: str, status: int = 200):
-    resp = make_response(svg_text, status)
-    resp.headers["Content-Type"] = "image/svg+xml; charset=utf-8"
-    resp.headers["Cache-Control"] = "no-store"
-    resp.headers["Access-Control-Allow-Origin"] = origin
-    resp.headers["Vary"] = "Origin"
-    resp.headers["Access-Control-Allow-Credentials"] = "true"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    return resp
-
-
-def _get_charts_context(origin: str):
-    if "finance_user_id" not in session:
-        return None, None, None, _svg_response(_svg_message("Não autorizado"), origin, 200)
-
-    user_id = session["finance_user_id"]
-    workspace_id = session.get("active_workspace_id")
-    if not workspace_id:
-        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
-        if not default_workspace:
-            default_workspace = Workspace(
-                owner_id=user_id,
-                name="Meu Workspace",
-                description="Workspace padrão",
-                color="#3b82f6",
-            )
-            db.session.add(default_workspace)
-            db.session.commit()
-
-        session["active_workspace_id"] = default_workspace.id
-        workspace_id = default_workspace.id
-
-    workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
-    if not workspace_role:
-        return None, None, None, _svg_response(_svg_message("Sem permissão"), origin, 200)
-
-    ws = Workspace.query.get(workspace_id) if workspace_id else None
-    include_legacy = bool(ws and ws.owner_id == user_id)
-    return user_id, workspace_id, include_legacy, None
-
-
-@gerenciamento_financeiro_bp.route("/api/charts/svg/monthly-balance", methods=["GET", "OPTIONS"])
-def api_charts_svg_monthly_balance():
-    origin = request.headers.get("Origin", "*")
-    if request.method == "OPTIONS":
-        return _svg_response(_svg_message("ok"), origin, 200)
-
-    user_id, workspace_id, include_legacy, early = _get_charts_context(origin)
-    if early is not None:
-        return early
-
-    today = datetime.utcnow().date()
-    try:
-        selected_month = int(request.args.get("month", today.month))
-        selected_year = int(request.args.get("year", today.year))
-        if selected_month < 1 or selected_month > 12:
-            selected_month = today.month
-        if selected_year < 2000 or selected_year > 2100:
-            selected_year = today.year
-    except Exception:
-        selected_month = today.month
-        selected_year = today.year
-
-    months_back = request.args.get("months_back", type=int) or 12
-    months_back = max(1, min(36, months_back))
-
-    width = request.args.get("width", type=int) or 760
-    height = request.args.get("height", type=int) or 320
-    width = max(360, min(1400, width))
-    height = max(220, min(900, height))
-
-    anchor = date(selected_year, selected_month, 1)
-    start_month_index = (anchor.year * 12 + (anchor.month - 1)) - (months_back - 1)
-    start_year = start_month_index // 12
-    start_month = (start_month_index % 12) + 1
-    start_date = date(start_year, start_month, 1)
-    from calendar import monthrange
-    end_date = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-
-    rows = (
-        db.session.query(
-            extract("year", Transaction.transaction_date).label("y"),
-            extract("month", Transaction.transaction_date).label("m"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "income", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "expense", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
-        )
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.transaction_date >= start_date,
-            Transaction.transaction_date <= end_date,
-            Transaction.type.in_(["income", "expense"]),
-        )
-        .group_by("y", "m")
-        .order_by("y", "m")
-        .all()
-    )
-
-    by_key = {}
-    for r in rows:
-        y = int(r.y)
-        m = int(r.m)
-        key = f"{y:04d}-{m:02d}"
-        income = float(r.income or 0)
-        expense = float(r.expense or 0)
-        by_key[key] = income - expense
-
-    labels = []
-    values = []
-    for i in range(months_back):
-        ym = start_month_index + i
-        y = ym // 12
-        m = (ym % 12) + 1
-        key = f"{y:04d}-{m:02d}"
-        labels.append(f"{m:02d}/{str(y)[-2:]}")
-        values.append(float(by_key.get(key) or 0.0))
-
-    if not any(abs(v) > 0 for v in values):
-        return _svg_response(_svg_message("Sem dados", "Período selecionado sem movimentações", width=width, height=height), origin, 200)
-
-    pad = 36
-    left = 54
-    right = 20
-    top = 18
-    bottom = 44
-    plot_w = max(1, width - left - right)
-    plot_h = max(1, height - top - bottom)
-
-    vmin = min(values)
-    vmax = max(values)
-    if abs(vmax - vmin) < 1e-9:
-        vmax = vmax + 1
-        vmin = vmin - 1
-    span = vmax - vmin
-
-    def y_of(v):
-        return top + (vmax - v) / span * plot_h
-
-    def x_of(i):
-        if months_back == 1:
-            return left + plot_w / 2
-        return left + (i / (months_back - 1)) * plot_w
-
-    pts = [(x_of(i), y_of(v)) for i, v in enumerate(values)]
-    path_d = "M " + " L ".join(f"{x:.2f} {y:.2f}" for x, y in pts)
-
-    grid_lines = []
-    for t in range(5):
-        y = top + (t / 4) * plot_h
-        grid_lines.append(f'<line x1="{left}" y1="{y:.2f}" x2="{left + plot_w}" y2="{y:.2f}" stroke="#e2e8f0" stroke-width="1" />')
-    xlabels = []
-    for i, lab in enumerate(labels):
-        if months_back > 12 and i % 2 == 1:
-            continue
-        x = x_of(i)
-        xlabels.append(f'<text x="{x:.2f}" y="{height - 18}" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="11" fill="#64748b">{html.escape(lab)}</text>')
-
-    dots = []
-    for i, (x, y) in enumerate(pts):
-        val = values[i]
-        dots.append(
-            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3" fill="#3b82f6">'
-            f'<title>{html.escape(labels[i])}: R$ {val:,.2f}</title>'
-            f'</circle>'
-        )
-
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">' 
-        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff" />'
-        f'{"".join(grid_lines)}'
-        f'<path d="{path_d}" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />'
-        f'<path d="{path_d} L {left + plot_w:.2f} {top + plot_h:.2f} L {left:.2f} {top + plot_h:.2f} Z" fill="rgba(59,130,246,0.14)" />'
-        f'{"".join(dots)}'
-        f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="#94a3b8" stroke-width="1" />'
-        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="#94a3b8" stroke-width="1" />'
-        f'{"".join(xlabels)}'
-        f'</svg>'
-    )
-    return _svg_response(svg, origin, 200)
-
-
-@gerenciamento_financeiro_bp.route("/api/charts/svg/income-vs-expense", methods=["GET", "OPTIONS"])
-def api_charts_svg_income_vs_expense():
-    origin = request.headers.get("Origin", "*")
-    if request.method == "OPTIONS":
-        return _svg_response(_svg_message("ok"), origin, 200)
-
-    user_id, workspace_id, include_legacy, early = _get_charts_context(origin)
-    if early is not None:
-        return early
-
-    today = datetime.utcnow().date()
-    try:
-        selected_month = int(request.args.get("month", today.month))
-        selected_year = int(request.args.get("year", today.year))
-        if selected_month < 1 or selected_month > 12:
-            selected_month = today.month
-        if selected_year < 2000 or selected_year > 2100:
-            selected_year = today.year
-    except Exception:
-        selected_month = today.month
-        selected_year = today.year
-
-    months_back = request.args.get("months_back", type=int) or 12
-    months_back = max(1, min(36, months_back))
-
-    width = request.args.get("width", type=int) or 760
-    height = request.args.get("height", type=int) or 300
-    width = max(360, min(1400, width))
-    height = max(220, min(900, height))
-
-    anchor = date(selected_year, selected_month, 1)
-    start_month_index = (anchor.year * 12 + (anchor.month - 1)) - (months_back - 1)
-    start_year = start_month_index // 12
-    start_month = (start_month_index % 12) + 1
-    start_date = date(start_year, start_month, 1)
-    from calendar import monthrange
-    end_date = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-
-    rows = (
-        db.session.query(
-            extract("year", Transaction.transaction_date).label("y"),
-            extract("month", Transaction.transaction_date).label("m"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "income", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("income"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.type == "expense", Transaction.amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("expense"),
-        )
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.transaction_date >= start_date,
-            Transaction.transaction_date <= end_date,
-            Transaction.type.in_(["income", "expense"]),
-        )
-        .group_by("y", "m")
-        .order_by("y", "m")
-        .all()
-    )
-
-    by_key = {}
-    for r in rows:
-        y = int(r.y)
-        m = int(r.m)
-        key = f"{y:04d}-{m:02d}"
-        by_key[key] = {
-            "income": float(r.income or 0),
-            "expense": float(r.expense or 0),
-        }
-
-    labels = []
-    incomes = []
-    expenses = []
-    for i in range(months_back):
-        ym = start_month_index + i
-        y = ym // 12
-        m = (ym % 12) + 1
-        key = f"{y:04d}-{m:02d}"
-        labels.append(f"{m:02d}/{str(y)[-2:]}")
-        rec = by_key.get(key) or {}
-        incomes.append(float(rec.get("income") or 0.0))
-        expenses.append(float(rec.get("expense") or 0.0))
-
-    if not any((abs(a) > 0 or abs(b) > 0) for a, b in zip(incomes, expenses)):
-        return _svg_response(_svg_message("Sem dados", "Período selecionado sem movimentações", width=width, height=height), origin, 200)
-
-    left = 54
-    right = 20
-    top = 18
-    bottom = 44
-    plot_w = max(1, width - left - right)
-    plot_h = max(1, height - top - bottom)
-
-    vmax = max(max(incomes), max(expenses), 1.0)
-
-    def h_of(v):
-        return (v / vmax) * plot_h
-
-    group_w = plot_w / max(1, months_back)
-    bar_w = max(6, min(22, group_w * 0.28))
-    gap = max(2, bar_w * 0.30)
-
-    bars = []
-    xlabels = []
-    for i in range(months_back):
-        gx = left + i * group_w + group_w / 2
-        inc_h = h_of(incomes[i])
-        exp_h = h_of(expenses[i])
-        x_inc = gx - gap / 2 - bar_w
-        x_exp = gx + gap / 2
-        y0 = top + plot_h
-        bars.append(
-            f'<rect x="{x_inc:.2f}" y="{(y0 - inc_h):.2f}" width="{bar_w:.2f}" height="{inc_h:.2f}" fill="#11998e">'
-            f'<title>{html.escape(labels[i])}: Entradas R$ {incomes[i]:,.2f}</title>'
-            f'</rect>'
-        )
-        bars.append(
-            f'<rect x="{x_exp:.2f}" y="{(y0 - exp_h):.2f}" width="{bar_w:.2f}" height="{exp_h:.2f}" fill="#ee0979">'
-            f'<title>{html.escape(labels[i])}: Despesas R$ {expenses[i]:,.2f}</title>'
-            f'</rect>'
-        )
-        if months_back <= 12 or i % 2 == 0:
-            xlabels.append(f'<text x="{gx:.2f}" y="{height - 18}" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="11" fill="#64748b">{html.escape(labels[i])}</text>')
-
-    grid_lines = []
-    for t in range(5):
-        y = top + (t / 4) * plot_h
-        grid_lines.append(f'<line x1="{left}" y1="{y:.2f}" x2="{left + plot_w}" y2="{y:.2f}" stroke="#e2e8f0" stroke-width="1" />')
-
-    legend = (
-        f'<rect x="{left}" y="{top}" width="10" height="10" fill="#11998e" />'
-        f'<text x="{left + 14}" y="{top + 9}" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="12" fill="#0f172a">Entradas</text>'
-        f'<rect x="{left + 90}" y="{top}" width="10" height="10" fill="#ee0979" />'
-        f'<text x="{left + 104}" y="{top + 9}" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="12" fill="#0f172a">Despesas</text>'
-    )
-
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
-        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff" />'
-        f'{"".join(grid_lines)}'
-        f'{legend}'
-        f'{"".join(bars)}'
-        f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="#94a3b8" stroke-width="1" />'
-        f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="#94a3b8" stroke-width="1" />'
-        f'{"".join(xlabels)}'
-        f'</svg>'
-    )
-    return _svg_response(svg, origin, 200)
-
-
-@gerenciamento_financeiro_bp.route("/api/charts/svg/expenses-by-category", methods=["GET", "OPTIONS"])
-def api_charts_svg_expenses_by_category():
-    origin = request.headers.get("Origin", "*")
-    if request.method == "OPTIONS":
-        return _svg_response(_svg_message("ok"), origin, 200)
-
-    user_id, workspace_id, include_legacy, early = _get_charts_context(origin)
-    if early is not None:
-        return early
-
-    today = datetime.utcnow().date()
-    try:
-        selected_month = int(request.args.get("month", today.month))
-        selected_year = int(request.args.get("year", today.year))
-        if selected_month < 1 or selected_month > 12:
-            selected_month = today.month
-        if selected_year < 2000 or selected_year > 2100:
-            selected_year = today.year
-    except Exception:
-        selected_month = today.month
-        selected_year = today.year
-
-    width = request.args.get("width", type=int) or 760
-    height = request.args.get("height", type=int) or 320
-    width = max(360, min(1400, width))
-    height = max(220, min(900, height))
-
-    from calendar import monthrange
-    month_start = date(selected_year, selected_month, 1)
-    month_end = date(selected_year, selected_month, monthrange(selected_year, selected_month)[1])
-
-    limit = request.args.get("limit", type=int) or 10
-    limit = max(3, min(25, limit))
-
-    rows = (
-        db.session.query(
-            Category.id.label("category_id"),
-            Category.name.label("name"),
-            Category.icon.label("icon"),
-            Category.color.label("color"),
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .join(Category, Category.id == Transaction.category_id)
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.type == "expense",
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .group_by(Category.id, Category.name, Category.icon, Category.color)
-        .order_by(desc("total"))
-        .all()
-    )
-
-    uncategorized_total = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            or_(
-                Transaction.workspace_id == workspace_id,
-                and_(include_legacy, Transaction.workspace_id.is_(None), Transaction.user_id == user_id),
-            ),
-            Transaction.type == "expense",
-            Transaction.category_id.is_(None),
-            Transaction.transaction_date >= month_start,
-            Transaction.transaction_date <= month_end,
-        )
-        .scalar()
-    )
-
-    items = [
-        {
-            "name": (r.name or "Sem categoria"),
-            "icon": (r.icon or "💸"),
-            "color": (r.color or "#6366f1"),
-            "total": float(r.total or 0),
-        }
-        for r in rows
-        if float(r.total or 0) > 0
-    ]
-    if uncategorized_total and float(uncategorized_total) > 0:
-        items.append({
-            "name": "Sem categoria",
-            "icon": "❓",
-            "color": "#94a3b8",
-            "total": float(uncategorized_total),
-        })
-
-    items.sort(key=lambda x: float(x.get("total") or 0), reverse=True)
-    top = items[:limit]
-    rest_total = sum(float(x.get("total") or 0) for x in items[limit:])
-    if rest_total > 0:
-        top.append({
-            "name": "Outros",
-            "icon": "📦",
-            "color": "#64748b",
-            "total": float(rest_total),
-        })
-
-    total_sum = sum(float(x.get("total") or 0) for x in top)
-    if total_sum <= 0:
-        return _svg_response(_svg_message("Sem dados", "Nenhuma despesa no mês selecionado", width=width, height=height), origin, 200)
-
-    cx = 150
-    cy = height / 2
-    r = min(110, (height - 40) / 2)
-    inner_r = r * 0.62
-    legend_x = 320
-    legend_y = 46
-    legend_line_h = 18
-
-    def polar(angle_deg, radius):
-        ang = math.radians(angle_deg)
-        return cx + radius * math.cos(ang), cy + radius * math.sin(ang)
-
-    def slice_path(start_deg, end_deg):
-        x1, y1 = polar(start_deg, r)
-        x2, y2 = polar(end_deg, r)
-        xi1, yi1 = polar(end_deg, inner_r)
-        xi2, yi2 = polar(start_deg, inner_r)
-        large = 1 if (end_deg - start_deg) % 360 > 180 else 0
-        return (
-            f"M {x1:.2f} {y1:.2f} "
-            f"A {r:.2f} {r:.2f} 0 {large} 1 {x2:.2f} {y2:.2f} "
-            f"L {xi1:.2f} {yi1:.2f} "
-            f"A {inner_r:.2f} {inner_r:.2f} 0 {large} 0 {xi2:.2f} {yi2:.2f} Z"
-        )
-
-    slices = []
-    legends = []
-    start = -90.0
-    for idx, it in enumerate(top):
-        frac = float(it.get("total") or 0) / total_sum
-        end = start + frac * 360.0
-        color = html.escape(str(it.get("color") or "#6366f1"))
-        name = f"{it.get('icon') or ''} {it.get('name') or ''}".strip()
-        name_esc = html.escape(name)
-        slices.append(
-            f'<path d="{slice_path(start, end)}" fill="{color}">'
-            f'<title>{name_esc}: R$ {float(it.get("total") or 0):,.2f}</title>'
-            f'</path>'
-        )
-        if legend_x + 10 < width:
-            ly = legend_y + idx * legend_line_h
-            if ly + 10 < height - 10:
-                legends.append(f'<rect x="{legend_x}" y="{ly - 9}" width="10" height="10" fill="{color}" />')
-                legends.append(f'<text x="{legend_x + 14}" y="{ly}" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="12" fill="#0f172a">{name_esc}</text>')
-        start = end
-
-    title = f"Despesas {selected_month:02d}/{selected_year}" 
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
-        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff" />'
-        f'<text x="18" y="26" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="13" font-weight="600" fill="#0f172a">{html.escape(title)}</text>'
-        f'{"".join(slices)}'
-        f'{"".join(legends)}'
-        f'</svg>'
-    )
-    return _svg_response(svg, origin, 200)
 
 @gerenciamento_financeiro_bp.route("/select-workspace", methods=["GET"])
 def select_workspace():
@@ -1739,11 +974,8 @@ def select_workspace():
         if member.workspace and member.workspace.id not in owned_ids
     ]
     
-    # Debug
-    print(f"[SELECT_WORKSPACE] user_id={user_id} owned_count={len(owned_workspaces)} shared_count={len(shared_workspaces)}")
-    print(f"[SELECT_WORKSPACE] owned_ids={owned_ids}")
-    for m in shared_workspace_members:
-        print(f"[SELECT_WORKSPACE] member: workspace_id={m.workspace_id} user_id={m.user_id} role={m.role}")
+    _log_debug(f"[SELECT_WORKSPACE] user_id={user_id} owned_count={len(owned_workspaces)} shared_count={len(shared_workspaces)}")
+    _log_debug(f"[SELECT_WORKSPACE] owned_ids={owned_ids}")
     
     return render_template(
         "workspace_selection_standalone.html",
@@ -1812,10 +1044,10 @@ def login():
                             app=current_app,
                         )
                     except Exception as e:  # pragma: no cover
-                        print(f"Erro ao enviar email de confirmação de compartilhamento: {e}")
+                        _log_exception(f"Erro ao enviar email de confirmação de compartilhamento: {e}")
             except Exception as e:
                 db.session.rollback()
-                print(f"Erro ao aceitar convite de compartilhamento no login: {e}")
+                _log_exception(f"Erro ao aceitar convite de compartilhamento no login: {e}")
 
         # Verificar se há convite de WORKSPACE (WorkspaceInvite) a aceitar via token
         accept_invite_token = request.args.get("accept_invite_token")
@@ -1844,7 +1076,7 @@ def login():
                         flash("Convite de workspace aceito com sucesso!", "success")
             except Exception as e:
                 db.session.rollback()
-                print(f"Erro ao aceitar convite de workspace no login: {e}")
+                _log_exception(f"Erro ao aceitar convite de workspace no login: {e}")
 
         response = make_response(redirect(url_for("gerenciamento_financeiro.select_workspace")))
         if remember_me:
@@ -1865,32 +1097,32 @@ def login():
 @gerenciamento_financeiro_bp.route("/invites/<string:token>", methods=["GET"])
 def open_workspace_invite(token):
     """Link simples de convite. Se estiver logado, aceita; se não, redireciona para login."""
-    print(f"[OPEN_INVITE] Token recebido: {token[:20]}...")
+    _log_debug(f"[OPEN_INVITE] Token recebido: {token[:20]}...")
     
     if "finance_user_id" not in session:
-        print(f"[OPEN_INVITE] Usuário não logado, redirecionando para login")
+        _log_debug("[OPEN_INVITE] Usuário não logado, redirecionando para login")
         return redirect(url_for("gerenciamento_financeiro.login", accept_invite_token=token))
 
     user_id = session["finance_user_id"]
     user = User.query.get(user_id)
-    print(f"[OPEN_INVITE] Usuário logado: id={user_id} email={user.email}")
+    _log_debug(f"[OPEN_INVITE] Usuário logado: id={user_id} email={user.email}")
 
     try:
         invite = WorkspaceInvite.query.filter_by(token=token).first()
         if not invite:
-            print(f"[OPEN_INVITE] Convite não encontrado para token")
+            _log_debug("[OPEN_INVITE] Convite não encontrado para token")
             flash("Convite inválido.", "danger")
             return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
-        print(f"[OPEN_INVITE] Convite encontrado: id={invite.id} status={invite.status} workspace_id={invite.workspace_id} invited_email={invite.invited_email}")
+        _log_debug(f"[OPEN_INVITE] Convite encontrado: id={invite.id} status={invite.status} workspace_id={invite.workspace_id} invited_email={invite.invited_email}")
 
         if invite.status != "pending" or invite.expires_at < datetime.utcnow():
-            print(f"[OPEN_INVITE] Convite expirado ou já usado: status={invite.status} expires={invite.expires_at}")
+            _log_debug(f"[OPEN_INVITE] Convite expirado ou já usado: status={invite.status} expires={invite.expires_at}")
             flash("Convite expirado ou já utilizado.", "warning")
             return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
         if invite.invited_email.lower() != user.email.lower() and invite.invited_user_id not in (None, user.id):
-            print(f"[OPEN_INVITE] Convite não é para este usuário: invited_email={invite.invited_email} user_email={user.email}")
+            _log_debug(f"[OPEN_INVITE] Convite não é para este usuário: invited_email={invite.invited_email} user_email={user.email}")
             flash("Este convite não é para o seu usuário.", "danger")
             return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
@@ -1898,22 +1130,22 @@ def open_workspace_invite(token):
         if not existing:
             member = WorkspaceMember(workspace_id=invite.workspace_id, user_id=user.id, role=invite.role)
             db.session.add(member)
-            print(f"[OPEN_INVITE] Novo membro criado: workspace_id={invite.workspace_id} user_id={user.id} role={invite.role}")
+            _log_debug(f"[OPEN_INVITE] Novo membro criado: workspace_id={invite.workspace_id} user_id={user.id} role={invite.role}")
         else:
-            print(f"[OPEN_INVITE] Usuário já é membro do workspace")
+            _log_debug("[OPEN_INVITE] Usuário já é membro do workspace")
 
         invite.status = "accepted"
         invite.responded_at = datetime.utcnow()
         invite.invited_user_id = user.id
         db.session.commit()
-        print(f"[OPEN_INVITE] Convite aceito com sucesso!")
+        _log_debug("[OPEN_INVITE] Convite aceito com sucesso!")
 
         flash("Convite aceito! Agora você tem acesso ao workspace.", "success")
         return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
     except Exception as e:
         db.session.rollback()
-        print(f"Erro ao aceitar convite por token: {e}")
+        _log_exception(f"Erro ao aceitar convite por token: {e}")
         flash("Erro ao aceitar convite.", "danger")
         return redirect(url_for("gerenciamento_financeiro.select_workspace"))
 
@@ -1944,15 +1176,14 @@ def api_login():
     password = str(data.get("password", ""))
     remember_me = data.get("remember_me") or data.get("auto_login")
 
-    # Logs de depuração
-    print("[API LOGIN] Requisição recebida do APP_FIN")
-    print(f"[API LOGIN] IP: {request.remote_addr}")
-    print(f"[API LOGIN] User-Agent: {request.headers.get('User-Agent')}")
-    print(f"[API LOGIN] Payload bruto: {data}")
-    print(f"[API LOGIN] Email normalizado: {email!r}")
+    _log_debug("[API LOGIN] Requisição recebida do APP_FIN")
+    _log_debug(f"[API LOGIN] IP: {request.remote_addr}")
+    _log_debug(f"[API LOGIN] User-Agent: {request.headers.get('User-Agent')}")
+    _log_debug(f"[API LOGIN] Payload bruto: {data}")
+    _log_debug(f"[API LOGIN] Email normalizado: {email!r}")
 
     if not email or not password:
-        print("[API LOGIN] Falha: email ou senha vazios")
+        _log_debug("[API LOGIN] Falha: email ou senha vazios")
         resp = jsonify({
             "success": False,
             "message": "Informe e-mail e senha.",
@@ -1965,11 +1196,10 @@ def api_login():
     user = User.query.filter(func.lower(User.email) == email).first()
 
     if not user:
-        print(f"[API LOGIN] Usuário não encontrado no banco local para email={email!r}")
         _log_attempt(email, False, "Credenciais inválidas")
         resp = jsonify({
             "success": False,
-            "message": "E-mail ou senha inválidos.",
+            "message": "Credenciais inválidas.",
         })
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Vary"] = "Origin"
@@ -1977,11 +1207,10 @@ def api_login():
         return resp, 401
 
     if not check_password_hash(user.password_hash, password):
-        print(f"[API LOGIN] Senha inválida para email={email!r} (usuário id={user.id})")
         _log_attempt(email, False, "Credenciais inválidas")
         resp = jsonify({
             "success": False,
-            "message": "E-mail ou senha inválidos.",
+            "message": "Credenciais inválidas.",
         })
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Vary"] = "Origin"
@@ -2007,7 +1236,7 @@ def api_login():
 
     _log_attempt(email, True, user_id=user.id)
 
-    print(f"[API LOGIN] Login bem-sucedido para email={email!r}, user_id={user.id}")
+    _log_debug(f"[API LOGIN] Login bem-sucedido para email={email!r}, user_id={user.id}")
 
     resp = jsonify({
         "success": True,
@@ -2098,7 +1327,7 @@ def register():
 
         except Exception as e:
             db.session.rollback()
-            print(f"Erro no cadastro/verificação de email: {e}")
+            _log_exception(f"Erro no cadastro/verificação de email: {e}")
             flash("Erro ao criar conta. Tente novamente.", "danger")
             return render_template("finance_register.html", user=None)
 
@@ -2150,7 +1379,7 @@ def verify_email():
                     send_share_accepted(share.owner.email, user.email, current_app)
                     flash("Convite de compartilhamento aceito automaticamente!", "success")
             except Exception as e:
-                print(f"Erro ao aceitar convite: {e}")
+                _log_exception(f"Erro ao aceitar convite: {e}")
         
         # Limpar sessão
         session.pop('pending_verification_email', None)
@@ -2210,7 +1439,7 @@ def forgot_password():
 
         except Exception as e:
             db.session.rollback()
-            print(f"Erro ao solicitar recuperação de senha: {e}")
+            _log_exception(f"Erro ao solicitar recuperação de senha: {e}")
             flash("Não foi possível processar sua solicitação agora. Tente novamente.", "danger")
             return render_template("finance_forgot_password.html")
     
@@ -2362,9 +1591,6 @@ def api_transactions():
 
     _ensure_default_categories(owner_id, workspace_id)
     owner_config = FinanceConfig.query.filter_by(user_id=owner_id).first()
-
-    _ensure_transactions_subcategory_text_column()
-    _ensure_recurring_subcategory_text_column()
 
     _ensure_transactions_subcategory_text_column()
     _ensure_recurring_subcategory_text_column()
@@ -2664,10 +1890,7 @@ def api_transactions():
             return _json({"error": f"Erro de validação: {str(ve)}"}, 400)
         except Exception as e:
             db.session.rollback()
-            import traceback
-            error_details = traceback.format_exc()
-            print(f"Erro ao criar transação: {e}")
-            print(f"Detalhes do erro:\n{error_details}")
+            _log_exception(f"Erro ao criar transação: {e}")
             return _json({"error": f"Erro interno do servidor: {str(e)}"}, 500)
     
     else:  # GET
@@ -2799,7 +2022,7 @@ def api_transactions():
             return resp
             
         except Exception as e:
-            print(f"Erro ao buscar transações: {e}")
+            _log_exception(f"Erro ao buscar transações: {e}")
             resp = jsonify({"error": "Erro ao buscar transações"})
             resp.headers["Access-Control-Allow-Origin"] = origin
             resp.headers["Vary"] = "Origin"
@@ -4128,14 +3351,10 @@ def api_share_system():
         resp.headers["Access-Control-Allow-Credentials"] = "true"
         return resp
 
-    try:
-        payload_preview = request.get_json(silent=True)
-    except Exception:
-        payload_preview = None
-    print(f"[SYSTEM SHARE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')} payload={payload_preview}", flush=True)
+    _log_debug(f"[SYSTEM SHARE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')}")
 
     if "finance_user_id" not in session:
-        print("[SYSTEM SHARE] 401 - finance_user_id ausente na sessão", flush=True)
+        _log_debug("[SYSTEM SHARE] 401 - finance_user_id ausente na sessão")
         resp = jsonify({"error": "Não autorizado"})
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Vary"] = "Origin"
@@ -4146,7 +3365,7 @@ def api_share_system():
     data = request.get_json()
     
     if not data or not data.get("email"):
-        print(f"[SYSTEM SHARE] 400 - payload inválido: {data}", flush=True)
+        _log_debug("[SYSTEM SHARE] 400 - payload inválido")
         resp = jsonify({"error": "Email é obrigatório"})
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Vary"] = "Origin"
@@ -4799,7 +4018,7 @@ def api_workspaces():
             }), 200
             
         except Exception as e:
-            print(f"Erro ao listar workspaces: {e}")
+            _log_exception(f"Erro ao listar workspaces: {e}")
             return jsonify({"error": str(e)}), 500
 
 @gerenciamento_financeiro_bp.route("/api/workspaces/<int:workspace_id>/members", methods=["GET"])
@@ -5030,11 +4249,7 @@ def api_invite_to_workspace(workspace_id):
         resp.headers["Access-Control-Allow-Credentials"] = "true"
         return resp
 
-    try:
-        payload_preview = request.get_json(silent=True)
-    except Exception:
-        payload_preview = None
-    print(f"[WORKSPACE INVITE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')} workspace_id={workspace_id} payload={payload_preview}", flush=True)
+    _log_debug(f"[WORKSPACE INVITE] HIT path={request.path} method={request.method} user_id={session.get('finance_user_id')} workspace_id={workspace_id}")
 
     if "finance_user_id" not in session:
         resp = jsonify({"error": "Não autorizado"})
@@ -5152,9 +4367,9 @@ def api_invite_to_workspace(workspace_id):
                 role=role,
                 app=current_app._get_current_object()
             )
-            print(f"[INVITE] send_workspace_invitation retornou={email_ok}")
+            _log_debug(f"[INVITE] send_workspace_invitation retornou={email_ok}")
         except Exception as e:
-            print(f"Erro ao enviar email de convite: {e}")
+            _log_exception(f"Erro ao enviar email de convite: {e}")
         
         invite_url = url_for("gerenciamento_financeiro.open_workspace_invite", token=invite.token, _external=True)
 
@@ -5173,7 +4388,7 @@ def api_invite_to_workspace(workspace_id):
         
     except Exception as e:
         db.session.rollback()
-        print(f"[WORKSPACE INVITE] 500 - {e}", flush=True)
+        _log_exception(f"[WORKSPACE INVITE] 500 - {e}")
         resp = jsonify({"error": str(e)})
         resp.headers["Access-Control-Allow-Origin"] = origin
         resp.headers["Vary"] = "Origin"
@@ -5262,9 +4477,9 @@ def api_accept_invite(invite_id):
                 role=invite.role
             )
             db.session.add(member)
-            print(f"[ACCEPT_INVITE] Novo membro adicionado: user_id={user_id} workspace_id={invite.workspace_id}")
+            _log_debug(f"[ACCEPT_INVITE] Novo membro adicionado: user_id={user_id} workspace_id={invite.workspace_id}")
         else:
-            print(f"[ACCEPT_INVITE] Usuário já é membro: user_id={user_id} workspace_id={invite.workspace_id}")
+            _log_debug(f"[ACCEPT_INVITE] Usuário já é membro: user_id={user_id} workspace_id={invite.workspace_id}")
         
         invite.status = "accepted"
         invite.responded_at = datetime.utcnow()
@@ -5279,7 +4494,7 @@ def api_accept_invite(invite_id):
                 app=current_app
             )
         except Exception as e:
-            print(f"Erro ao enviar email de aceitação: {e}")
+            _log_exception(f"Erro ao enviar email de aceitação: {e}")
         
         return jsonify({
             "message": "Convite aceito! Você agora faz parte do workspace.",

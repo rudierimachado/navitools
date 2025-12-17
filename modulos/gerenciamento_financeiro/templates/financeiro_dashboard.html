@@ -74,9 +74,6 @@
                 <button class="btn btn-warning" onclick="showMonthlyHistory()">
                     <i class="bi bi-calendar-check me-1"></i> Histórico
                 </button>
-                <button class="btn btn-primary" id="chartsBtn" onclick="showChartsModal()">
-                    <i class="bi bi-bar-chart-line me-1"></i> Gráficos
-                </button>
                 <button class="btn btn-dark" onclick="showAiRecommendationsModal()">
                     <i class="bi bi-stars me-1"></i> Recomendação de IA
                 </button>
@@ -271,8 +268,8 @@
             
             <div class="card-body p-3">
                 
-                {% if recent_transactions %}
-                    <div id="recentTransactionsTbody" class="transactions-list">
+                <div id="recentTransactionsTbody" class="transactions-list">
+                    {% if recent_transactions %}
                         {% for t in recent_transactions %}
                         <div data-transaction-id="{{ t.id }}" 
                              data-type="{{ t.type }}"
@@ -349,21 +346,21 @@
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="card" style="border-radius: 16px; border: 2px dashed var(--border-color);">
-                        <div class="card-body text-center py-5">
-                            <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
-                                <i class="bi bi-inbox"></i>
+                    {% else %}
+                        <div class="card" style="border-radius: 16px; border: 2px dashed var(--border-color);">
+                            <div class="card-body text-center py-5">
+                                <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
+                                    <i class="bi bi-inbox"></i>
+                                </div>
+                                <h5 class="mb-2">Nenhuma transação registrada</h5>
+                                <p class="text-muted mb-4">Comece adicionando sua primeira transação e acompanhe suas finanças</p>
+                                <button class="btn btn-primary" onclick="showAddTransaction('income')" style="border-radius: 10px; padding: 0.6rem 1.5rem;">
+                                    <i class="bi bi-plus-circle me-2"></i>Primeira Transação
+                                </button>
                             </div>
-                            <h5 class="mb-2">Nenhuma transação registrada</h5>
-                            <p class="text-muted mb-4">Comece adicionando sua primeira transação e acompanhe suas finanças</p>
-                            <button class="btn btn-primary" onclick="showAddTransaction('income')" style="border-radius: 10px; padding: 0.6rem 1.5rem;">
-                                <i class="bi bi-plus-circle me-2"></i>Primeira Transação
-                            </button>
                         </div>
-                    </div>
-                {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -385,9 +382,6 @@
             <div class="mobile-menu-dropdown" id="mobileMenuDropdown" style="display: none;">
                 <button class="mobile-menu-item" onclick="showMonthlyHistory(); closeMobileMenu();">
                     <i class="bi bi-calendar-check me-2"></i>Histórico
-                </button>
-                <button class="mobile-menu-item" onclick="showChartsModal(); closeMobileMenu();">
-                    <i class="bi bi-bar-chart-line me-2"></i>Gráficos
                 </button>
                 <button class="mobile-menu-item" onclick="showAiRecommendationsModal(); closeMobileMenu();">
                     <i class="bi bi-stars me-2"></i>IA
@@ -629,55 +623,6 @@
         </div>
     </div>
 </div>
-
-<!-- Modal Gráficos -->
-<div class="modal fade" id="chartsModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
-                <h5 class="modal-title">
-                    <i class="bi bi-bar-chart-line me-2"></i>Gráficos Financeiros
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="card" style="border-radius: 12px;">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Despesas por Categoria</h6>
-                            </div>
-                            <div class="card-body">
-                                <img id="categoryChartModal" alt="Despesas por Categoria" style="width: 100%; height: 300px;" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card" style="border-radius: 12px;">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal</h6>
-                            </div>
-                            <div class="card-body">
-                                <img id="monthlyChartModal" alt="Evolução Mensal" style="width: 100%; height: 300px;" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="card" style="border-radius: 12px;">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparativo Entradas vs Despesas</h6>
-                            </div>
-                            <div class="card-body">
-                                <img id="comparisonChartModal" alt="Comparativo Entradas vs Despesas" style="width: 100%; height: 220px;" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 
 <!-- Modal Boas-vindas (Primeiro Acesso) -->
 <div class="modal fade" id="welcomeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -1664,7 +1609,7 @@ window._aiLoadCategories = async function() {
     try {
         const all = [];
         for (const t of ['expense', 'income']) {
-            const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${t}`);
+            const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${t}&_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
             const d = await r.json().catch(() => ({}));
             if (d && d.categories && Array.isArray(d.categories)) {
                 d.categories.forEach(c => {
@@ -1748,11 +1693,13 @@ window.requestAiRecommendations = async function() {
         if (btn) btn.disabled = true;
         if (spinner) spinner.style.display = 'inline-block';
 
-        const resp = await fetch('{{ url_for("gerenciamento_financeiro.api_ai_recommendations") }}', {
+        const resp = await fetch(`{{ url_for("gerenciamento_financeiro.api_ai_recommendations") }}?_ts=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            credentials: 'include',
             body: JSON.stringify({
-                workspace_id: {{ active_workspace.id if active_workspace else 'null' }},
+                workspace_id: {{ (active_workspace.id if active_workspace else None) | tojson }},
                 period_days: Number(periodDays),
                 focus: focus,
                 category_id: (focus === 'category' && categoryEl && categoryEl.value) ? Number(categoryEl.value) : null,
@@ -1810,6 +1757,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Variáveis para controle das abas de transações
 let currentTransactionsTab = 'mesAtual';
 let allTransactionsCache = null;
+
+// Tipo de transação selecionado na UI (para reaplicar ao trocar mês/ano)
+let currentTransactionTypeFilter = 'income';
 
 // Variáveis para filtro global de mês/ano
 let globalFilterMonth = ({{ selected_month|default(None)|tojson }}) || (new Date().getMonth() + 1);
@@ -1983,11 +1933,8 @@ async function applyGlobalFilter() {
         loadSummaryCards()
     ]);
 
-    try { loadCharts(); } catch (_) {}
-    
-    // Reaplicar filtro de tipo atual
-    const activeTab = document.querySelector('#tabEntradas[style*="color: #10b981"], #tabEntradas.active');
-    filterTransactionsByType(activeTab ? 'income' : 'expense');
+    // Reaplicar filtro de tipo atual (mantém a aba selecionada)
+    filterTransactionsByType(currentTransactionTypeFilter);
 }
 
 // Inicializar mobile menu ao carregar página
@@ -2002,10 +1949,21 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Carregar cards de resumo (saldo, entradas, despesas) - API otimizada
+let _loadingSummaryCards = false;
+let _summaryCardsSeq = 0;
+let _summaryCardsAbortController = null;
 async function loadSummaryCards() {
+    const seq = ++_summaryCardsSeq;
+    if (_summaryCardsAbortController) {
+        try { _summaryCardsAbortController.abort(); } catch (e) {}
+    }
+    const hasAbort = (typeof AbortController !== 'undefined');
+    _summaryCardsAbortController = hasAbort ? new AbortController() : null;
+    const signal = _summaryCardsAbortController ? _summaryCardsAbortController.signal : undefined;
+    _loadingSummaryCards = true;
     try {
-        const url = `/gerenciamento-financeiro/api/summary-cards?year=${globalFilterYear}&month=${globalFilterMonth}`;
-        const response = await fetch(url);
+        const url = `/gerenciamento-financeiro/api/summary-cards?year=${globalFilterYear}&month=${globalFilterMonth}&_ts=${Date.now()}`;
+        const response = await fetch(url, { cache: 'no-store', credentials: 'include', ...(signal ? { signal } : {}) });
         const data = await response.json();
         
         if (!response.ok) {
@@ -2013,11 +1971,18 @@ async function loadSummaryCards() {
             return;
         }
         
+        if (seq !== _summaryCardsSeq) return;
+
         // Atualizar cards com os dados recebidos
         updateCardsDisplay(data);
         
     } catch (error) {
+        if (error && error.name === 'AbortError') return;
         console.error('Erro ao carregar resumo:', error);
+    } finally {
+        if (seq === _summaryCardsSeq) {
+            _loadingSummaryCards = false;
+        }
     }
 }
 
@@ -2059,6 +2024,8 @@ function updateCardsDisplay(data) {
 // Debounce para evitar chamadas duplicadas
 let _loadTransactionsTimer = null;
 let _loadingTransactions = false;
+let _transactionsSeq = 0;
+let _transactionsAbortController = null;
 
 // Carregar transações recentes via API (sem reload)
 async function loadRecentTransactions() {
@@ -2074,7 +2041,13 @@ async function loadRecentTransactions() {
 }
 
 async function _doLoadRecentTransactions() {
-    if (_loadingTransactions) return;
+    const seq = ++_transactionsSeq;
+    if (_transactionsAbortController) {
+        try { _transactionsAbortController.abort(); } catch (e) {}
+    }
+    const hasAbort = (typeof AbortController !== 'undefined');
+    _transactionsAbortController = hasAbort ? new AbortController() : null;
+    const signal = _transactionsAbortController ? _transactionsAbortController.signal : undefined;
     _loadingTransactions = true;
     
     const container = document.getElementById('recentTransactionsTbody');
@@ -2082,24 +2055,45 @@ async function _doLoadRecentTransactions() {
         _loadingTransactions = false;
         return;
     }
+
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    `;
     
     try {
-        const url = `/gerenciamento-financeiro/api/transactions?year=${globalFilterYear}&month=${globalFilterMonth}&limit=50`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const url = `/gerenciamento-financeiro/api/transactions?year=${globalFilterYear}&month=${globalFilterMonth}&limit=50&_ts=${Date.now()}`;
+        const response = await fetch(url, { cache: 'no-store', credentials: 'include', ...(signal ? { signal } : {}) });
+        const data = await response.json().catch(() => ({}));
         
         if (!response.ok) {
-            console.error('Erro ao carregar transações:', data.error);
+            console.error('Erro ao carregar transações:', data?.error, response.status);
+            container.innerHTML = `
+                <div class="alert alert-danger" role="alert" style="border-radius: 12px;">
+                    Erro ao carregar transações do período selecionado.
+                </div>
+            `;
             return;
         }
         
         const transactions = Array.isArray(data) ? data : (data.transactions || []);
+
+        if (seq !== _transactionsSeq) return;
         
         if (transactions.length === 0) {
             container.innerHTML = `
-                <div class="empty-state">
-                    <i class="bi bi-inbox"></i>
-                    <p>Nenhuma transação registrada</p>
+                <div class="card" style="border-radius: 16px; border: 2px dashed var(--border-color);">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-3" style="font-size: 4rem; opacity: 0.3;">
+                            <i class="bi bi-inbox"></i>
+                        </div>
+                        <h5 class="mb-2">Nenhuma transação registrada</h5>
+                        <p class="text-muted mb-4">Comece adicionando sua primeira transação e acompanhe suas finanças</p>
+                        <button class="btn btn-primary" onclick="showAddTransaction('income')" style="border-radius: 10px; padding: 0.6rem 1.5rem;">
+                            <i class="bi bi-plus-circle me-2"></i>Primeira Transação
+                        </button>
+                    </div>
                 </div>`;
             return;
         }
@@ -2122,9 +2116,17 @@ async function _doLoadRecentTransactions() {
         updateTransactionTabs(transactions);
         
     } catch (error) {
+        if (error && error.name === 'AbortError') return;
         console.error('Erro ao carregar transações:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger" role="alert" style="border-radius: 12px;">
+                Falha ao carregar transações do período selecionado.
+            </div>
+        `;
     } finally {
-        _loadingTransactions = false;
+        if (seq === _transactionsSeq) {
+            _loadingTransactions = false;
+        }
     }
 }
 
@@ -2172,15 +2174,21 @@ function filterTransactionsByType(type) {
     const items = document.querySelectorAll('#recentTransactionsTbody .transaction-item');
     const tabEntradas = document.getElementById('tabEntradas');
     const tabSaidas = document.getElementById('tabSaidas');
+
+    currentTransactionTypeFilter = (type === 'expense') ? 'expense' : 'income';
     
     // Atualizar estilos das abas
     if (tabEntradas && tabSaidas) {
         if (type === 'income') {
+            tabEntradas.classList.add('active');
+            tabSaidas.classList.remove('active');
             tabEntradas.style.borderBottomColor = '#10b981';
             tabEntradas.style.color = '#10b981';
             tabSaidas.style.borderBottomColor = 'transparent';
             tabSaidas.style.color = 'var(--text-secondary)';
         } else if (type === 'expense') {
+            tabSaidas.classList.add('active');
+            tabEntradas.classList.remove('active');
             tabSaidas.style.borderBottomColor = '#ef4444';
             tabSaidas.style.color = '#ef4444';
             tabEntradas.style.borderBottomColor = 'transparent';
@@ -2500,8 +2508,8 @@ let _categoriesReqSeq = 0;
 let _activeCategoriesType = null;
 
 async function fetchCategories(type, force = false) {
-    const ttlMs = 5 * 60 * 1000;
-    if (!force && _categoriesCache[type] && (Date.now() - (_categoriesFetchedAt[type] || 0)) < ttlMs) {
+    const ttlMs = 0;
+    if (!force && _categoriesCache[type] && ttlMs > 0 && (Date.now() - (_categoriesFetchedAt[type] || 0)) < ttlMs) {
         return _categoriesCache[type];
     }
     if (!force && _categoriesInFlight[type]) {
@@ -2509,7 +2517,7 @@ async function fetchCategories(type, force = false) {
     }
 
     _categoriesInFlight[type] = (async () => {
-        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}`);
+        const r = await fetch(`{{ url_for('gerenciamento_financeiro.api_categories') }}?type=${type}&_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const d = await r.json();
         if (!r.ok) throw new Error(d?.error || 'Erro ao carregar categorias');
         const cats = Array.isArray(d.categories) ? d.categories : [];
@@ -2596,9 +2604,11 @@ async function saveTransaction(e) {
         const editingId = currentEditingId;
         if (editingId) url += `/${editingId}`;
         
-        const r = await fetch(url, {
+        const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}_ts=${Date.now()}`, {
             method: editingId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            credentials: 'include',
             body: JSON.stringify(fd)
         });
         
@@ -2757,7 +2767,7 @@ function addTransactionToTable(t) {
 async function editTransaction(id) {
     try {
         showLoading('Carregando transação...');
-        const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`);
+        const r = await fetch(`/gerenciamento-financeiro/api/transactions/${id}?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const d = await r.json();
         const t = d.transaction;
         if (!t) {
@@ -2832,7 +2842,7 @@ async function deleteTransaction(id) {
     try {
         let tx = null;
         try {
-            const r0 = await fetch(`/gerenciamento-financeiro/api/transactions/${id}`);
+            const r0 = await fetch(`/gerenciamento-financeiro/api/transactions/${id}?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
             const d0 = await r0.json();
             if (r0.ok && d0 && d0.transaction) tx = d0.transaction;
         } catch (e) {
@@ -2864,7 +2874,7 @@ async function deleteTransaction(id) {
         const url = (applyScope === 'series')
             ? `/gerenciamento-financeiro/api/transactions/${id}?apply_scope=series`
             : `/gerenciamento-financeiro/api/transactions/${id}`;
-        const r = await fetch(url, { method: 'DELETE' });
+        const r = await fetch(`${url}${url.includes('?') ? '&' : '?'}_ts=${Date.now()}`, { method: 'DELETE', cache: 'no-store', credentials: 'include' });
         const d = await r.json().catch(() => ({}));
         hideLoading();
         if (r.ok) {
@@ -2905,7 +2915,7 @@ async function loadMonthlyHistory() {
     containerExpense.innerHTML = loadingHtml;
     
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/transactions?limit=5000');
+        const response = await fetch(`/gerenciamento-financeiro/api/transactions?limit=5000&_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const data = await response.json();
 
         if (!response.ok) {
@@ -3043,64 +3053,6 @@ function filterHistoryByType(type) {
 }
 
 
-// Abrir modal de gráficos
-async function showChartsModal() {
-    const el = document.getElementById('chartsModal');
-    const modal = new bootstrap.Modal(el);
-    modal.show();
-    await new Promise((resolve) => {
-        const onShown = () => {
-            el.removeEventListener('shown.bs.modal', onShown);
-            resolve();
-        };
-        el.addEventListener('shown.bs.modal', onShown);
-    });
-    await loadCharts();
-}
-
-async function loadCharts() {
-    try {
-        const chartsMonth = globalFilterMonth;
-        const chartsYear = globalFilterYear;
-        const monthsBack = 12;
-
-        const setSvg = (imgId, path, heightFallback) => {
-            const el = document.getElementById(imgId);
-            if (!el) return;
-            const w = Math.max(360, (el.clientWidth || 0) || 760);
-            const h = Math.max(220, (el.clientHeight || 0) || (heightFallback || 320));
-            const u = `${path}?year=${encodeURIComponent(chartsYear)}&month=${encodeURIComponent(chartsMonth)}&months_back=${encodeURIComponent(monthsBack)}&limit=10&width=${encodeURIComponent(w)}&height=${encodeURIComponent(h)}&_ts=${Date.now()}`;
-            el.src = u;
-        };
-
-        setSvg('categoryChart', '/gerenciamento-financeiro/api/charts/svg/expenses-by-category', 300);
-        setSvg('categoryChartModal', '/gerenciamento-financeiro/api/charts/svg/expenses-by-category', 300);
-        setSvg('monthlyChart', '/gerenciamento-financeiro/api/charts/svg/monthly-balance', 300);
-        setSvg('monthlyChartModal', '/gerenciamento-financeiro/api/charts/svg/monthly-balance', 300);
-        setSvg('comparisonChart', '/gerenciamento-financeiro/api/charts/svg/income-vs-expense', 220);
-        setSvg('comparisonChartModal', '/gerenciamento-financeiro/api/charts/svg/income-vs-expense', 220);
-
-    } catch (error) {
-        console.error('Erro ao carregar gráficos:', error);
-        showToast('Erro ao carregar gráficos', 'error');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const chartsTab = document.getElementById('charts-tab');
-    if (chartsTab) {
-        chartsTab.addEventListener('shown.bs.tab', () => {
-            setTimeout(() => { try { loadCharts(); } catch (_) {} }, 50);
-        });
-    }
-    const chartsModal = document.getElementById('chartsModal');
-    if (chartsModal) {
-        chartsModal.addEventListener('shown.bs.modal', () => {
-            setTimeout(() => { try { loadCharts(); } catch (_) {} }, 50);
-        });
-    }
-});
-
 // Verificar convites pendentes ao carregar página
 document.addEventListener('DOMContentLoaded', async function() {
     checkPendingInvites();
@@ -3149,7 +3101,7 @@ async function clearCurrentWorkspace() {
 
 async function checkPendingInvites() {
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/invites/pending');
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/pending?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         if (!response.ok) {
             console.warn('Failed to check pending invites:', response.status);
             return;
@@ -3208,7 +3160,7 @@ async function loadPendingInvitesForSharedTab() {
     const container = document.getElementById('sharedContent');
     
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/invites/pending');
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/pending?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const data = await response.json();
         
         if (!response.ok) {
@@ -3271,7 +3223,7 @@ async function showShareModal() {
     select.innerHTML = '<option value="">Carregando...</option>';
     
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/workspaces');
+        const response = await fetch(`/gerenciamento-financeiro/api/workspaces?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const data = await response.json();
         
         let options = '<option value="">Selecione um workspace</option>';
@@ -3309,9 +3261,11 @@ async function sendInvite() {
     }
     
     try {
-        const response = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/invite`, {
+        const response = await fetch(`/gerenciamento-financeiro/api/workspaces/${workspaceId}/invite?_ts=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            credentials: 'include',
             body: JSON.stringify({ email, role })
         });
         
@@ -3340,7 +3294,7 @@ async function loadPendingInvitesList() {
     const container = document.getElementById('pendingInvitesList');
     
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/invites/pending');
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/pending?_ts=${Date.now()}`, { cache: 'no-store', credentials: 'include' });
         const data = await response.json();
         
         if (!response.ok) {
@@ -3395,9 +3349,7 @@ async function loadPendingInvitesList() {
 
 async function acceptInvite(inviteId) {
     try {
-        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/accept`, {
-            method: 'POST'
-        });
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/accept?_ts=${Date.now()}`, { method: 'POST', cache: 'no-store', credentials: 'include' });
         
         const result = await response.json();
         
@@ -3426,9 +3378,7 @@ async function rejectInvite(inviteId) {
     if (!ok) return;
     
     try {
-        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/reject`, {
-            method: 'POST'
-        });
+        const response = await fetch(`/gerenciamento-financeiro/api/invites/${inviteId}/reject?_ts=${Date.now()}`, { method: 'POST', cache: 'no-store', credentials: 'include' });
         
         const result = await response.json();
         
@@ -3467,9 +3417,11 @@ async function reopenExpense(transactionId) {
     if (!ok) return;
 
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/expenses/reopen', {
+        const response = await fetch(`/gerenciamento-financeiro/api/expenses/reopen?_ts=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            credentials: 'include',
             body: JSON.stringify({ transaction_id: transactionId })
         });
         const result = await response.json();
@@ -3513,8 +3465,10 @@ async function confirmUpdateProof() {
     formData.append('proof_document', file);
 
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/expenses/proof', {
+        const response = await fetch(`/gerenciamento-financeiro/api/expenses/proof?_ts=${Date.now()}`, {
             method: 'POST',
+            cache: 'no-store',
+            credentials: 'include',
             body: formData
         });
         const result = await response.json();
@@ -3556,8 +3510,10 @@ async function confirmCloseExpense() {
     }
     
     try {
-        const response = await fetch('/gerenciamento-financeiro/api/expenses/close', {
+        const response = await fetch(`/gerenciamento-financeiro/api/expenses/close?_ts=${Date.now()}`, {
             method: 'POST',
+            cache: 'no-store',
+            credentials: 'include',
             body: formData
         });
         
