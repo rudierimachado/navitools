@@ -58,16 +58,11 @@ gerenciamento_financeiro_bp = Blueprint(
 @gerenciamento_financeiro_bp.after_request
 def _finance_no_cache_headers(resp):
     try:
-        p = (request.path or "").lower()
-        if p.startswith("/gerenciamento-financeiro"):
+        p = request.path or ""
+        if "/gerenciamento-financeiro/api/" in p:
             resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             resp.headers["Pragma"] = "no-cache"
             resp.headers["Expires"] = "0"
-            if resp.status_code in (401, 403) and request.path != url_for("gerenciamento_financeiro.login"):
-                if request.accept_mimetypes.accept_json:
-                    resp = jsonify({"error": "Sessão expirada. Faça login novamente."}), 401
-                else:
-                    resp = redirect(url_for("gerenciamento_financeiro.login"))
     except Exception:
         pass
     return resp
