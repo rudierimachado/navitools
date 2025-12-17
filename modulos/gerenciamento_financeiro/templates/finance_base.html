@@ -698,6 +698,10 @@
                 <i class="bi bi-moon text-warning"></i>
                 <span>Alternar Tema</span>
             </button>
+            <button class="dropdown-item d-flex align-items-center gap-2" type="button" onclick="financeMobileAction('categories')">
+                <i class="bi bi-tags text-secondary"></i>
+                <span>Categorias</span>
+            </button>
             <div class="dropdown-divider"></div>
             <button class="dropdown-item d-flex align-items-center gap-2 text-danger" type="button" onclick="financeMobileAction('logout')">
                 <i class="bi bi-box-arrow-right"></i>
@@ -1903,6 +1907,10 @@
 
             if (action === 'share' && typeof window.showShareModal === 'function') {
                 return window.showShareModal();
+            }
+
+            if (action === 'categories' && typeof window.openCategoriesManager === 'function') {
+                return window.openCategoriesManager();
             }
 
             if (action === 'toggle_theme' && typeof window.toggleTheme === 'function') {

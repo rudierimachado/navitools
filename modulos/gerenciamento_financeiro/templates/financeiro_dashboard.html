@@ -80,6 +80,9 @@
                 <button class="btn btn-dark" onclick="showAiRecommendationsModal()">
                     <i class="bi bi-stars me-1"></i> Recomendação de IA
                 </button>
+                <button class="btn btn-secondary" onclick="openCategoriesManager()">
+                    <i class="bi bi-tags me-1"></i> Categorias
+                </button>
                 </div>
             </div>
         </div>
@@ -408,28 +411,16 @@
                     
                     <div class="mb-3">
                         <label for="category" class="form-label">Categoria *</label>
-                        <div class="input-group">
-                            <select class="form-select" id="category" required>
-                                <option value="">Selecione uma categoria</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" onclick="openCategoriesManager({ typeElId: 'transactionType', selectElId: 'category' });">
-                                <i class="bi bi-plus"></i>
-                                Nova categoria
-                            </button>
-                        </div>
+                        <select class="form-select" id="category" required>
+                            <option value="">Selecione uma categoria</option>
+                        </select>
                     </div>
 
                     <div class="mb-3" id="subcategoryField" style="display: none;">
                         <label for="subcategory" class="form-label">Subcategoria</label>
-                        <div class="input-group">
-                            <select class="form-select" id="subcategory">
-                                <option value="">Selecione uma subcategoria</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" onclick="openSubcategoriesManager({ categorySelectId: 'category', subcategorySelectId: 'subcategory' });">
-                                <i class="bi bi-plus"></i>
-                                Nova subcategoria
-                            </button>
-                        </div>
+                        <select class="form-select" id="subcategory">
+                            <option value="">Selecione uma subcategoria</option>
+                        </select>
                     </div>
                     
                     <div class="mb-3" id="descriptionField" style="display: none;">
