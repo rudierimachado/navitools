@@ -303,20 +303,70 @@
 
 <script>
     (function () {
+        const STORAGE_KEYS = {
+            auto: 'finance_auto_login',
+            email: 'finance_saved_email',
+        };
+
         const ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
         const isAndroidWebView = /;\s*wv\)/.test(ua) || /\bwv\b/.test(ua);
         const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (navigator.standalone === true);
         const isInApk = Boolean(isAndroidWebView || isStandalone);
 
+        const form = document.querySelector('form.finance-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const rememberCb = document.getElementById('remember_me');
         const autoRow = document.getElementById('autoLoginRow');
         const autoCb = document.getElementById('auto_login');
-        const rememberCb = document.getElementById('remember_me');
-        const form = document.querySelector('form.finance-form');
+
+        const hasStorage = (() => {
+            try {
+                const testKey = '__finance_login_test__';
+                localStorage.setItem(testKey, '1');
+                localStorage.removeItem(testKey);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        })();
+
+        const syncEmailStorage = () => {
+            if (!hasStorage || !emailInput || !rememberCb) return;
+            try {
+                if (rememberCb.checked) {
+                    const value = (emailInput.value || '').trim();
+                    if (value) {
+                        localStorage.setItem(STORAGE_KEYS.email, value);
+                    }
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.email);
+                }
+            } catch (_) {}
+        };
+
+        if (hasStorage && emailInput && rememberCb) {
+            const savedEmail = localStorage.getItem(STORAGE_KEYS.email);
+            if (savedEmail && !emailInput.value) {
+                emailInput.value = savedEmail;
+                rememberCb.checked = true;
+            }
+
+            emailInput.addEventListener('change', syncEmailStorage);
+            emailInput.addEventListener('blur', syncEmailStorage);
+            rememberCb.addEventListener('change', () => {
+                if (!rememberCb.checked) {
+                    localStorage.removeItem(STORAGE_KEYS.email);
+                } else {
+                    syncEmailStorage();
+                }
+            });
+        }
 
         if (isInApk && autoRow && autoCb && rememberCb) {
             autoRow.style.display = '';
-            const saved = window.localStorage ? localStorage.getItem('finance_auto_login') : null;
-            if (saved === '1') {
+            const savedAuto = hasStorage ? localStorage.getItem(STORAGE_KEYS.auto) : null;
+            if (savedAuto === '1') {
                 autoCb.checked = true;
                 rememberCb.checked = true;
             }
@@ -324,18 +374,32 @@
             autoCb.addEventListener('change', function () {
                 if (autoCb.checked) {
                     rememberCb.checked = true;
+                } else if (hasStorage) {
+                    localStorage.removeItem(STORAGE_KEYS.auto);
                 }
             });
         }
 
-        if (form && autoCb) {
+        if (form) {
             form.addEventListener('submit', function () {
                 try {
-                    if (window.localStorage) {
-                        localStorage.setItem('finance_auto_login', autoCb.checked ? '1' : '0');
+                    if (hasStorage && autoCb) {
+                        localStorage.setItem(STORAGE_KEYS.auto, autoCb.checked ? '1' : '0');
                     }
-                } catch (e) {}
+                    if (hasStorage && rememberCb && rememberCb.checked) {
+                        syncEmailStorage();
+                    } else if (hasStorage && !rememberCb.checked) {
+                        localStorage.removeItem(STORAGE_KEYS.email);
+                    }
+                } catch (_) {}
             });
+        }
+
+        if (isInApk && hasStorage && form && autoCb && passwordInput) {
+            const savedAuto = localStorage.getItem(STORAGE_KEYS.auto);
+            if (savedAuto === '1') {
+                form.classList.add('finance-autologin-enabled');
+            }
         }
     })();
 </script>
