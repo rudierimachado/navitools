@@ -737,7 +737,20 @@ def api_summary_cards():
     user_id = session["finance_user_id"]
     workspace_id = session.get("active_workspace_id")
     if not workspace_id:
-        return _json({"error": "Workspace não selecionado"}, 400)
+        # Tentar obter ou criar workspace padrão automaticamente
+        default_workspace = Workspace.query.filter_by(owner_id=user_id).first()
+        if not default_workspace:
+            default_workspace = Workspace(
+                owner_id=user_id,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6",
+            )
+            db.session.add(default_workspace)
+            db.session.commit()
+
+        session["active_workspace_id"] = default_workspace.id
+        workspace_id = default_workspace.id
 
     workspace_role = _get_user_workspace_role(user_id=user_id, workspace_id=workspace_id)
     if not workspace_role:

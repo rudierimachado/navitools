@@ -2,182 +2,286 @@
 
 {% block title %}Transações · NEXUSRDR{% endblock %}
 
+{% block extra_styles %}
+<style>
+/* ===== NOVO LAYOUT MODERNO ===== */
+
+/* Segmented control (abas) */
+.segment-control {
+    display: inline-flex;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.segment-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.segment-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.segment-btn:not(.active):hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--text-primary);
+}
+
+/* Transaction item (lista estilo app) */
+.tx-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    margin-bottom: 12px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.tx-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.tx-item:active {
+    transform: scale(0.98);
+}
+
+.tx-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-right: 14px;
+    flex-shrink: 0;
+}
+
+.tx-icon.income { background: rgba(16, 185, 129, 0.15); }
+.tx-icon.expense { background: rgba(239, 68, 68, 0.15); }
+
+.tx-info { flex: 1; min-width: 0; }
+.tx-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+.tx-subtitle { font-size: 0.8rem; color: var(--text-secondary); }
+
+.tx-amount { text-align: right; margin-left: 12px; }
+.tx-amount-value { font-weight: 700; font-size: 1rem; }
+.tx-amount-value.income { color: #10b981; }
+.tx-amount-value.expense { color: #ef4444; }
+.tx-amount-date { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* Lista scrollável */
+.tx-list {
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Botões de ação mobile */
+.tx-actions {
+    display: none;
+    gap: 6px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.tx-action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.tx-action-btn.edit {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.tx-action-btn.delete {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.tx-action-btn:active {
+    transform: scale(0.9);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    #transactionsViewToggle { display: none !important; }
+    .tx-item { 
+        padding: 12px; 
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+    .tx-icon { width: 40px; height: 40px; font-size: 1.1rem; }
+    .tx-title { font-size: 0.9rem; }
+    .tx-amount-value { font-size: 0.9rem; }
+    .tx-list { 
+        max-height: none;
+        padding-bottom: calc(160px + env(safe-area-inset-bottom));
+    }
+    .tx-actions {
+        display: flex;
+    }
+    .tx-item:hover {
+        transform: none;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row g-4">
+<div class="container-fluid" id="transactionsPageRoot">
     <!-- Header -->
-    <div class="col-12">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
-            <div>
-                <h1 class="h2 mb-1">Transações</h1>
-                <p class="text-muted mb-0">Gerencie seu histórico financeiro completo</p>
-            </div>
-            <div class="d-flex gap-2 mt-3 mt-md-0">
-                <button class="btn btn-success" onclick="window.transactionsPage.showAddTransaction('income')">
-                    <i class="bi bi-plus-circle me-1"></i> Nova Entrada
-                </button>
-                <button class="btn btn-danger" onclick="window.transactionsPage.showAddTransaction('expense')">
-                    <i class="bi bi-dash-circle me-1"></i> Nova Despesa
-                </button>
-            </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Transações</h1>
+            <small class="text-muted" id="transactionCount">Carregando...</small>
         </div>
-        
-        <!-- Abas: Entradas e Saídas -->
-        <div class="d-flex align-items-center gap-2 mb-3" style="border-bottom: 2px solid var(--border-color); padding-bottom: 0;">
-            <button class="btn px-4 py-2 fw-semibold transactions-tab active" 
-                    id="tabIncomeTransactions" 
-                    onclick="filterTransactionsByType('income')"
-                    style="border: none; border-bottom: 3px solid #10b981; border-radius: 0; background: transparent; color: #10b981; margin-bottom: -2px;">
-                <i class="bi bi-arrow-up-circle me-1"></i>Entradas
+        <div class="d-none d-md-flex gap-2">
+            <button class="btn btn-success btn-sm" onclick="window.transactionsPage.showAddTransaction('income')">
+                <i class="bi bi-plus-circle me-1"></i>Entrada
             </button>
-            <button class="btn px-4 py-2 fw-semibold transactions-tab" 
-                    id="tabExpenseTransactions" 
-                    onclick="filterTransactionsByType('expense')"
-                    style="border: none; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; color: var(--text-secondary); margin-bottom: -2px;">
-                <i class="bi bi-arrow-down-circle me-1"></i>Saídas
+            <button class="btn btn-danger btn-sm" onclick="window.transactionsPage.showAddTransaction('expense')">
+                <i class="bi bi-dash-circle me-1"></i>Despesa
             </button>
         </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="segment-control mb-4">
+        <button class="segment-btn active" id="tabIncomeTransactions" onclick="filterTransactionsByType('income')">
+            <i class="bi bi-arrow-up-circle me-1"></i>Entradas
+        </button>
+        <button class="segment-btn" id="tabExpenseTransactions" onclick="filterTransactionsByType('expense')">
+            <i class="bi bi-arrow-down-circle me-1"></i>Saídas
+        </button>
     </div>
 
     <!-- Filtros -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <form id="filtersForm" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="filterType" class="form-label">Tipo</label>
-                        <select class="form-select" id="filterType" onchange="applyFilters()">
-                            <option value="">Todos</option>
-                            <option value="income">Entradas</option>
-                            <option value="expense">Despesas</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="filterCategory" class="form-label">Categoria</label>
-                        <select class="form-select" id="filterCategory" onchange="applyFilters()">
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="filterStartDate" class="form-label">Data Início</label>
-                        <input type="date" class="form-control" id="filterStartDate" onchange="applyFilters()">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="filterEndDate" class="form-label">Data Fim</label>
-                        <input type="date" class="form-control" id="filterEndDate" onchange="applyFilters()">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-secondary w-100" onclick="clearFilters()">
-                            <i class="bi bi-x-circle"></i> Limpar
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lista de Transações -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="card-title mb-1">Histórico de Transações</h6>
-                    <small class="text-muted" id="transactionCount">Carregando...</small>
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-6 col-md-3">
+                    <select class="form-select form-select-sm" id="filterType" onchange="applyFilters()">
+                        <option value="">Todos tipos</option>
+                        <option value="income">Entradas</option>
+                        <option value="expense">Despesas</option>
+                    </select>
                 </div>
-                <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="viewMode" id="tableView" checked>
-                    <label class="btn btn-outline-primary btn-sm" for="tableView">
-                        <i class="bi bi-table"></i>
-                    </label>
-                    <input type="radio" class="btn-check" name="viewMode" id="cardView">
-                    <label class="btn btn-outline-primary btn-sm" for="cardView">
-                        <i class="bi bi-grid-3x3"></i>
-                    </label>
+                <div class="col-6 col-md-3">
+                    <select class="form-select form-select-sm" id="filterCategory" onchange="applyFilters()">
+                        <option value="">Todas categorias</option>
+                    </select>
                 </div>
-            </div>
-            <div class="card-body p-0">
-                <!-- Loading -->
-                <div id="loadingTransactions" class="text-center py-5">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2 text-muted">Carregando transações...</p>
+                <div class="col-6 col-md-2">
+                    <input type="date" class="form-control form-control-sm" id="filterStartDate" onchange="applyFilters()">
                 </div>
-                
-                <!-- Table View -->
-                <div id="tableViewContainer" class="d-none">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="d-none d-md-table-cell">Data</th>
-                                    <th>Descrição</th>
-                                    <th class="d-none d-lg-table-cell">Categoria</th>
-                                    <th class="d-none d-md-table-cell">Observações</th>
-                                    <th class="text-end">Valor</th>
-                                    <th width="100" class="d-none d-md-table-cell">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="transactionsTableBody">
-                                <!-- Transactions will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="col-6 col-md-2">
+                    <input type="date" class="form-control form-control-sm" id="filterEndDate" onchange="applyFilters()">
                 </div>
-                
-                <!-- Card View -->
-                <div id="cardViewContainer" class="d-none p-3">
-                    <div class="row" id="transactionsCardContainer">
-                        <!-- Cards will be loaded here -->
-                    </div>
-                </div>
-                
-                <!-- Empty State -->
-                <div id="emptyState" class="text-center py-5 d-none">
-                    <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
-                    <h6 class="text-muted mt-3">Nenhuma transação encontrada</h6>
-                    <p class="text-muted mb-3">Ajuste os filtros ou adicione uma nova transação</p>
-                    <button class="btn btn-primary" onclick="window.transactionsPage.showAddTransaction('income')">
-                        <i class="bi bi-plus me-1"></i> Nova Transação
+                <div class="col-12 col-md-2">
+                    <button class="btn btn-outline-secondary btn-sm w-100" onclick="clearFilters()">
+                        <i class="bi bi-x-circle me-1"></i>Limpar
                     </button>
                 </div>
             </div>
-            
-            <!-- Pagination -->
-            <div class="card-footer bg-transparent" id="paginationContainer" style="display: none;">
-                <nav>
-                    <ul class="pagination pagination-sm justify-content-center mb-0">
-                        <li class="page-item" id="prevPage">
-                            <button class="page-link" onclick="loadPage(currentPage - 1)">
-                                <i class="bi bi-chevron-left"></i> Anterior
-                            </button>
-                        </li>
-                        <li class="page-item active">
-                            <span class="page-link" id="currentPageInfo">Página 1</span>
-                        </li>
-                        <li class="page-item" id="nextPage">
-                            <button class="page-link" onclick="loadPage(currentPage + 1)">
-                                Próximo <i class="bi bi-chevron-right"></i>
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingTransactions" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Carregando...</p>
+    </div>
+
+    <!-- Lista de Transações (mobile-first) -->
+    <div id="txListContainer" class="tx-list d-none"></div>
+
+    <!-- Table View (desktop) -->
+    <div id="tableViewContainer" class="d-none">
+        <div class="card">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <span>Histórico</span>
+                <div class="btn-group btn-group-sm" id="transactionsViewToggle">
+                    <input type="radio" class="btn-check" name="viewMode" id="tableView" checked>
+                    <label class="btn btn-outline-primary btn-sm" for="tableView"><i class="bi bi-table"></i></label>
+                    <input type="radio" class="btn-check" name="viewMode" id="cardView">
+                    <label class="btn btn-outline-primary btn-sm" for="cardView"><i class="bi bi-grid"></i></label>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Observações</th>
+                            <th class="text-end">Valor</th>
+                            <th width="100">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody"></tbody>
+                </table>
             </div>
         </div>
     </div>
+
+    <!-- Card View -->
+    <div id="cardViewContainer" class="d-none">
+        <div class="row" id="transactionsCardContainer"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="text-center py-5 d-none">
+        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+        <h6 class="text-muted mt-3">Nenhuma transação</h6>
+        <p class="text-muted small">Adicione sua primeira transação</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="d-flex justify-content-center mt-3 d-none">
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" id="prevPage">
+                    <button class="page-link" onclick="loadPage(currentPage - 1)"><i class="bi bi-chevron-left"></i></button>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link" id="currentPageInfo">1</span>
+                </li>
+                <li class="page-item" id="nextPage">
+                    <button class="page-link" onclick="loadPage(currentPage + 1)"><i class="bi bi-chevron-right"></i></button>
+                </li>
+            </ul>
+        </nav>
+    </div>
 </div>
 
-<!-- Search/Filter Quick Actions Mobile -->
-<div class="d-md-none quick-actions">
-    <button class="btn btn-primary" onclick="document.getElementById('filterType').focus()">
-        <i class="bi bi-funnel"></i> Filtros
-    </button>
-    <button class="btn btn-success" onclick="window.transactionsPage.showAddTransaction('income')">
-        <i class="bi bi-plus-circle"></i> Entrada
-    </button>
-    <button class="btn btn-danger" onclick="window.transactionsPage.showAddTransaction('expense')">
-        <i class="bi bi-dash-circle"></i> Despesa
-    </button>
-</div>
-
-<!-- Modal Escolha de Escopo de Edição -->
+<!-- Modal Escopo de Edição -->
 <div class="modal fade" id="editScopeModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -202,7 +306,6 @@
     </div>
 </div>
 
-<!-- Include the add transaction modal from dashboard -->
 <!-- Modal Adicionar Transação -->
 <div class="modal fade" id="addTransactionModal" tabindex="-1">
     <div class="modal-dialog">
@@ -341,6 +444,15 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAllCategories();
     // Set default filter to 'income' (Entradas)
     document.getElementById('filterType').value = 'income';
+
+    try {
+        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+            const table = document.getElementById('tableView');
+            if (table) table.checked = true;
+            switchToTableView();
+        }
+    } catch (e) {}
+
     loadTransactions();
     
     // View mode switch
@@ -449,8 +561,16 @@ async function loadTransactions(page = 1) {
 
 // Display transactions
 function displayTransactions(transactions) {
-    const isTableView = document.getElementById('tableView').checked;
+    // Mobile: usar lista estilo app
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
     
+    if (isMobile) {
+        displayMobileList(transactions);
+        return;
+    }
+    
+    // Desktop: tabela ou cards
+    const isTableView = document.getElementById('tableView').checked;
     if (isTableView) {
         displayTableView(transactions);
     } else {
@@ -996,27 +1116,58 @@ function filterTransactionsByType(type) {
         filterType.value = type;
     }
     
-    // Atualizar estilos das abas
+    // Atualizar estilos das abas (segmented control)
     const tabIncome = document.getElementById('tabIncomeTransactions');
     const tabExpense = document.getElementById('tabExpenseTransactions');
     
     if (tabIncome && tabExpense) {
-        // Remover estilo ativo de todas
-        [tabIncome, tabExpense].forEach(tab => {
-            tab.style.borderBottomColor = 'transparent';
-            tab.style.color = 'var(--text-secondary)';
-        });
+        tabIncome.classList.remove('active');
+        tabExpense.classList.remove('active');
         
-        // Aplicar estilo ativo à aba selecionada
         if (type === 'income') {
-            tabIncome.style.borderBottomColor = '#10b981';
-            tabIncome.style.color = '#10b981';
+            tabIncome.classList.add('active');
         } else if (type === 'expense') {
-            tabExpense.style.borderBottomColor = '#ef4444';
-            tabExpense.style.color = '#ef4444';
+            tabExpense.classList.add('active');
         }
     }
     
     // Aplicar filtros
     applyFilters();
 }
+
+// Renderizar lista mobile (tx-list)
+function displayMobileList(transactions) {
+    const container = document.getElementById('txListContainer');
+    if (!container) return;
+    
+    container.innerHTML = transactions.map(t => {
+        const icon = t.subcategory?.icon || t.category?.icon || (t.type === 'income' ? '💰' : '💸');
+        const categoryName = t.subcategory?.name || t.category?.name || 'Sem categoria';
+        
+        return `
+        <div class="tx-item">
+            <div class="tx-icon ${t.type}">${icon}</div>
+            <div class="tx-info">
+                <div class="tx-title">${t.description}</div>
+                <div class="tx-subtitle">${categoryName}</div>
+            </div>
+            <div class="tx-amount">
+                <div class="tx-amount-value ${t.type}">${t.type === 'income' ? '+' : '-'}R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                <div class="tx-amount-date">${new Date(t.transaction_date).toLocaleDateString('pt-BR')}</div>
+            </div>
+            <div class="tx-actions">
+                <button class="tx-action-btn edit" onclick="event.stopPropagation(); window.transactionsPage.editTransaction(${t.id})" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="tx-action-btn delete" onclick="event.stopPropagation(); window.transactionsPage.deleteTransaction(${t.id})" title="Excluir">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+    
+    showElement('txListContainer');
+}
+</script>
+{% endblock %}

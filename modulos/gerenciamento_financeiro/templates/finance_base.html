@@ -22,7 +22,9 @@
             --text-primary: #1e293b;
             --text-secondary: #64748b;
             --border-color: #e2e8f0;
-            --shadow: rgba(0, 0, 0, 0.1);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
         
         /* Dark Mode */
@@ -39,21 +41,59 @@
             font-family: 'Inter', sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
         .card {
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px var(--shadow);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
             background: var(--bg-secondary);
-            transition: all 0.3s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 8px 24px rgba(0,0,0,0.08);
         }
         
         .btn {
-            border-radius: 8px;
+            border-radius: 10px;
             font-weight: 500;
-            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            transition: all 0.15s ease;
+        }
+        
+        .btn:active {
+            transform: scale(0.97);
+        }
+        
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.625rem 0.875rem;
+            border: 1.5px solid var(--border-color);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+        
+        .table {
+            --bs-table-bg: transparent;
+        }
+        
+        .table > :not(caption) > * > * {
+            padding: 0.875rem 0.75rem;
+        }
+        
+        .badge {
+            font-weight: 500;
+            padding: 0.35em 0.65em;
         }
         
         .value-card {
@@ -225,16 +265,21 @@
         
 
     @media (max-width: 768px) {
+        :root {
+            --mobile-top-safe: env(safe-area-inset-top);
+            --mobile-top-ui: calc(1.5rem + var(--mobile-top-safe) + 44px + 0.5rem);
+        }
+
         .container-fluid {
             padding: 0.5rem;
         }
 
         main.container-fluid {
-            padding-top: 0.75rem;
+            padding-top: var(--mobile-top-ui);
         }
 
         body.finance-authenticated main.container-fluid {
-            padding-top: calc(0.75rem + 52px);
+            padding-top: var(--mobile-top-ui);
             padding-bottom: calc(155px + env(safe-area-inset-bottom));
         }
         
@@ -263,14 +308,14 @@
 
         .mobile-top-menu-dropdown {
             position: fixed;
-            top: calc(0.5rem + env(safe-area-inset-top));
+            top: calc(1.5rem + env(safe-area-inset-top));
             right: 0.5rem;
             z-index: 1040;
         }
 
         .mobile-top-menu-btn {
             position: fixed;
-            top: calc(0.5rem + env(safe-area-inset-top));
+            top: calc(1.5rem + env(safe-area-inset-top));
             right: 0.5rem;
             z-index: 1040;
             width: 44px;
@@ -312,8 +357,6 @@
         .mobile-top-menu-dropdown .dropdown-item:active {
             background: rgba(59, 130, 246, 0.2);
         }
-
-    }
 
         .mobile-action-bar {
             position: fixed;
@@ -401,7 +444,12 @@
         .mobile-action-bar .mobile-action-btn:active i {
             transform: scale(1.1);
         }
-        /* ... */
+
+        .toast-container {
+            top: env(safe-area-inset-top);
+        }
+
+    }
     </style>
 </head>
 <body class="{% if user %}finance-authenticated{% endif %}">
