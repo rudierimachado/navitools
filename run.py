@@ -24,7 +24,11 @@ ChoiceLoader = FileSystemLoader = None
 
 try:
     import click
-    from flask import Flask
+    from flask import Flask, jsonify, request
+    try:
+        from flask_cors import CORS
+    except ImportError:
+        CORS = None
 
     from dotenv import load_dotenv
     _dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
@@ -102,7 +106,7 @@ def create_app():
                 default_loader = app.jinja_loader
                 template_dirs = [
                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'administrador', 'templates'),
-                    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'gerenciamento_financeiro', 'templates'),
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'App_financeiro', 'templates'),
                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'conversor_imagens', 'templates'),
                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'gerador_de_qr_code', 'templates'),
                     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modulos', 'ferramentas_web', 'removedor_de_fundo', 'templates'),
@@ -151,10 +155,28 @@ def create_app():
 
         app.secret_key = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
 
+        # Configurar CORS para permitir Flutter Web e Mobile
+        try:
+            CORS(app, resources={
+                r"/gerenciamento-financeiro/*": {
+                    "origins": "*",
+                    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                    "allow_headers": ["Content-Type", "Authorization"],
+                    "supports_credentials": False
+                }
+            })
+            log_debug("✅ CORS configurado para Flutter Web e Mobile")
+        except Exception as e:
+            log_debug(f"⚠️ CORS não disponível: {e}")
+
         if register_blueprints:
             try:
                 register_blueprints(app)
-
+                # Debug: listar rotas registradas
+                log_debug("📋 Rotas registradas:")
+                for rule in app.url_map.iter_rules():
+                    if '/api/' in rule.rule:
+                        log_debug(f"  {rule.rule} -> {rule.methods}")
             except Exception as e:
                 log_debug(f"❌ ERRO ao registrar blueprints: {e}")
                 log_debug(f"Traceback blueprints: {traceback.format_exc()}")
@@ -189,7 +211,53 @@ def create_app():
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
+
+            if request.path.startswith('/gerenciamento-financeiro/api/'):
+                origin = request.headers.get('Origin')
+                if origin:
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Vary'] = 'Origin'
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+                    requested_headers = request.headers.get('Access-Control-Request-Headers')
+                    response.headers['Access-Control-Allow-Headers'] = requested_headers or 'Content-Type, Authorization'
             return response
+
+        @app.errorhandler(404)
+        def api_404(_):
+            if request.path.startswith('/gerenciamento-financeiro/api/'):
+                origin = request.headers.get('Origin') or '*'
+                resp = jsonify({'success': False, 'message': 'Endpoint não encontrado', 'path': request.path})
+                resp.headers['Access-Control-Allow-Origin'] = origin
+                resp.headers['Vary'] = 'Origin'
+                if origin != '*':
+                    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+                return resp, 404
+            return _, 404
+
+        @app.errorhandler(405)
+        def api_405(_):
+            if request.path.startswith('/gerenciamento-financeiro/api/'):
+                origin = request.headers.get('Origin') or '*'
+                resp = jsonify({'success': False, 'message': 'Método não permitido', 'path': request.path})
+                resp.headers['Access-Control-Allow-Origin'] = origin
+                resp.headers['Vary'] = 'Origin'
+                if origin != '*':
+                    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+                return resp, 405
+            return _, 405
+
+        @app.errorhandler(500)
+        def api_500(_):
+            if request.path.startswith('/gerenciamento-financeiro/api/'):
+                origin = request.headers.get('Origin') or '*'
+                resp = jsonify({'success': False, 'message': 'Erro interno no servidor', 'path': request.path})
+                resp.headers['Access-Control-Allow-Origin'] = origin
+                resp.headers['Vary'] = 'Origin'
+                if origin != '*':
+                    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+                return resp, 500
+            return _, 500
 
         @app.cli.command('init-db')
         def init_db_command():

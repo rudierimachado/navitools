@@ -22,7 +22,8 @@ from datetime import datetime
 
 from administrador.routes import administrador_bp
 from extensions import db
-from modulos.gerenciamento_financeiro.routes import gerenciamento_financeiro_bp
+from modulos.App_financeiro.routes import gerenciamento_financeiro_bp
+from modulos.App_financeiro.api import api_financeiro_bp
 from modulos.ferramentas_web.youtub_downloader.routes import youtube_bp
 from modulos.ferramentas_web.conversor_imagens.routes import conversor_bp
 from modulos.ferramentas_web.gerador_de_qr_code.routes import gerador_de_qr_code_bp
@@ -447,58 +448,6 @@ def sitemap():
     xml_content = "\n".join(xml_lines)
     return Response(xml_content, mimetype="application/xml")
 
-@main_bp.route("/api/system/share", methods=["POST", "OPTIONS"])
-def api_share_system_alias():
-    origin = request.headers.get("Origin", "*")
-    if request.method == "OPTIONS":
-        resp = Response("", status=204)
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp
-
-    print(f"[SYSTEM SHARE ALIAS] HIT path={request.path} method={request.method}", flush=True)
-    resp = current_app.view_functions["gerenciamento_financeiro.api_share_system"]()
-    try:
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-    except Exception:
-        pass
-    return resp
-
-@main_bp.route("/api/system/shares", methods=["GET", "OPTIONS"])
-def api_list_shares_alias():
-    origin = request.headers.get("Origin", "*")
-    if request.method == "OPTIONS":
-        resp = Response("", status=204)
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-        return resp
-
-    print(f"[SYSTEM SHARES ALIAS] HIT path={request.path} method={request.method}", flush=True)
-    resp = current_app.view_functions["gerenciamento_financeiro.api_list_shares"]()
-    try:
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Credentials"] = "true"
-    except Exception:
-        pass
-    return resp
-
-@main_bp.route("/api/system/share/<int:share_id>/accept", methods=["POST"])
-def api_accept_share_alias(share_id: int):
-    return current_app.view_functions["gerenciamento_financeiro.api_accept_share"](share_id)
-
-@main_bp.route("/api/system/share/<int:share_id>", methods=["DELETE"])
-def api_delete_share_alias(share_id: int):
-    return current_app.view_functions["gerenciamento_financeiro.api_delete_share"](share_id)
-
 def register_blueprints(app):
     """Registra todos os blueprints globais da aplicação."""
     # Home / página principal
@@ -507,8 +456,9 @@ def register_blueprints(app):
     # Admin
     app.register_blueprint(administrador_bp)
 
-    # Gerenciamento Financeiro
+    # Gerenciamento Financeiro (Web + API)
     app.register_blueprint(gerenciamento_financeiro_bp, url_prefix="/gerenciamento-financeiro")
+    app.register_blueprint(api_financeiro_bp, url_prefix="/gerenciamento-financeiro")
 
     # Conversor de imagens
 

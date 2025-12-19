@@ -543,6 +543,7 @@ class BlogPost(db.Model):
 
 
 class NewsletterSubscriber(db.Model):
+    """Assinantes da newsletter"""
     __tablename__ = "newsletter_subscribers"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -553,3 +554,28 @@ class NewsletterSubscriber(db.Model):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<NewsletterSubscriber {self.email} active={self.active}>"
+
+
+class TransactionAttachment(db.Model):
+    """Comprovantes anexados às transações (múltiplos por transação)"""
+    __tablename__ = "transaction_attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey("transactions.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    
+    # Dados do arquivo
+    file_name = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.Integer, nullable=False)  # em bytes
+    mime_type = db.Column(db.String(100))
+    
+    # Timestamps
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    transaction = db.relationship("Transaction", backref="attachments", lazy=True)
+    user = db.relationship("User", backref="transaction_attachments", lazy=True)
+
+    def __repr__(self) -> str:
+        return f"<TransactionAttachment {self.file_name} for Transaction {self.transaction_id}>"

@@ -274,7 +274,7 @@ def _seed_initial_data_direct(engine, db_type):
                 MenuItem(nome="Removedor de Fundo", nivel=2, ordem=2, ativo=True, icone="image", url="/removedor-de-fundo", parent_id=1),
                 MenuItem(nome="Gerador de QR Code", nivel=2, ordem=3, ativo=True, icone="qr-code", url="/gerador-de-qr-code", parent_id=1),
                 MenuItem(nome="YouTube Downloader", nivel=2, ordem=4, ativo=True, icone="youtube", url="/youtube-downloader", parent_id=1),
-                MenuItem(nome="Gestão Financeira Familiar", nivel=2, ordem=1, ativo=True, icone="cash-coin", url="/gerenciamento-financeiro/login", parent_id=2),
+                MenuItem(nome="Gestão Financeira Familiar", nivel=2, ordem=1, ativo=True, icone="cash-coin", url="/gerenciamento-financeiro/apresentacao", parent_id=2),
             ]
 
             session.add_all(menu_items)
@@ -311,7 +311,7 @@ def _seed_initial_data(engine):
                 MenuItem(nome="Removedor de Fundo", nivel=2, ordem=2, ativo=True, icone="image", url="/removedor-de-fundo", parent_id=1),
                 MenuItem(nome="Gerador de QR Code", nivel=2, ordem=3, ativo=True, icone="qr-code", url="/gerador-de-qr-code", parent_id=1),
                 MenuItem(nome="YouTube Downloader", nivel=2, ordem=4, ativo=True, icone="youtube", url="/youtube-downloader", parent_id=1),
-                MenuItem(nome="Gestão Financeira Familiar", nivel=2, ordem=1, ativo=True, icone="cash-coin", url="/gerenciamento-financeiro/login", parent_id=2),
+                MenuItem(nome="Gestão Financeira Familiar", nivel=2, ordem=1, ativo=True, icone="cash-coin", url="/gerenciamento-financeiro/apresentacao", parent_id=2),
             ]
 
             session.add_all(menu_items)
