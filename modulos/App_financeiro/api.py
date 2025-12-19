@@ -24,7 +24,12 @@ api_financeiro_bp = Blueprint(
     __name__,
 )
 
-print("[API_FINANCEIRO] Blueprint api_financeiro_bp criado")
+_DEBUG = False
+
+
+def _dbg(msg: str):
+    if _DEBUG:
+        print(msg)
 
 
 def _cors_preflight(origin: str, methods: str):
@@ -74,7 +79,7 @@ def _migrate_legacy_recurring_transactions(user_id: int):
         Transaction.recurring_transaction_id.is_(None),
     ).all()
 
-    print(f"[MIGRATE_RECURRING] Encontradas {len(legacy)} transações recorrentes antigas para migrar")
+    _dbg(f"[MIGRATE_RECURRING] Encontradas {len(legacy)} transações recorrentes antigas para migrar")
 
     if not legacy:
         return
@@ -111,7 +116,7 @@ def _migrate_legacy_recurring_transactions(user_id: int):
             ).first()
 
         if not rec_tx:
-            print(f"[MIGRATE_RECURRING] Criando RecurringTransaction para: {tx.description} (dia {day_of_month})")
+            _dbg(f"[MIGRATE_RECURRING] Criando RecurringTransaction para: {tx.description} (dia {day_of_month})")
             # start_date deve ser o primeiro dia do mês da transação
             start_date_first_day = date(tx.transaction_date.year, tx.transaction_date.month, 1)
             rec_tx = RecurringTransaction(
@@ -133,7 +138,7 @@ def _migrate_legacy_recurring_transactions(user_id: int):
             db.session.add(rec_tx)
             db.session.flush()
         else:
-            print(f"[MIGRATE_RECURRING] RecurringTransaction já existe para: {tx.description}")
+            _dbg(f"[MIGRATE_RECURRING] RecurringTransaction já existe para: {tx.description}")
 
         cache[key] = rec_tx
 
@@ -174,9 +179,9 @@ def _fix_recurring_start_dates(user_id: int):
         ).all()
         
         if unlinked_txs:
-            print(f"[FIX_START_DATE] {rec_tx.description}: encontradas {len(unlinked_txs)} transações não vinculadas")
+            _dbg(f"[FIX_START_DATE] {rec_tx.description}: encontradas {len(unlinked_txs)} transações não vinculadas")
             for tx in unlinked_txs:
-                print(f"[FIX_START_DATE]   - Vinculando {tx.description} de {tx.transaction_date}")
+                _dbg(f"[FIX_START_DATE]   - Vinculando {tx.description} de {tx.transaction_date}")
                 tx.recurring_transaction_id = rec_tx.id
                 tx.frequency = "monthly"
             try:
@@ -190,9 +195,9 @@ def _fix_recurring_start_dates(user_id: int):
             recurring_transaction_id=rec_tx.id
         ).order_by(Transaction.transaction_date.asc()).all()
         
-        print(f"[FIX_START_DATE] {rec_tx.description}: {len(all_txs)} transações vinculadas, start_date atual: {rec_tx.start_date}")
+        _dbg(f"[FIX_START_DATE] {rec_tx.description}: {len(all_txs)} transações vinculadas, start_date atual: {rec_tx.start_date}")
         for tx in all_txs:
-            print(f"[FIX_START_DATE]   - {tx.description} em {tx.transaction_date}")
+            _dbg(f"[FIX_START_DATE]   - {tx.description} em {tx.transaction_date}")
         
         # Buscar a primeira transação vinculada a esta recorrente
         first_tx = all_txs[0] if all_txs else None
@@ -202,24 +207,24 @@ def _fix_recurring_start_dates(user_id: int):
             # Usar o mês da primeira transação como referência
             new_start = date(first_tx.transaction_date.year, first_tx.transaction_date.month, 1)
             
-            print(f"[FIX_START_DATE] {rec_tx.description}: comparando start_date {old_start} com primeira transação {first_tx.transaction_date} -> novo start_date seria {new_start}")
+            _dbg(f"[FIX_START_DATE] {rec_tx.description}: comparando start_date {old_start} com primeira transação {first_tx.transaction_date} -> novo start_date seria {new_start}")
             
             # Corrigir se o start_date for diferente do mês da primeira transação
             if old_start != new_start:
                 rec_tx.start_date = new_start
-                print(f"[FIX_START_DATE] ✅ Corrigindo {rec_tx.description}: {old_start} -> {new_start}")
+                _dbg(f"[FIX_START_DATE] ✅ Corrigindo {rec_tx.description}: {old_start} -> {new_start}")
                 fixed_count += 1
             else:
-                print(f"[FIX_START_DATE] ✓ {rec_tx.description}: start_date já está correto ({old_start})")
+                _dbg(f"[FIX_START_DATE] ✓ {rec_tx.description}: start_date já está correto ({old_start})")
         else:
-            print(f"[FIX_START_DATE] ⚠️ {rec_tx.description}: sem transações vinculadas, mantendo start_date {rec_tx.start_date}")
+            _dbg(f"[FIX_START_DATE] ⚠️ {rec_tx.description}: sem transações vinculadas, mantendo start_date {rec_tx.start_date}")
     
     if fixed_count > 0:
         try:
             db.session.commit()
-            print(f"[FIX_START_DATE] {fixed_count} RecurringTransaction corrigidas")
+            _dbg(f"[FIX_START_DATE] {fixed_count} RecurringTransaction corrigidas")
         except Exception as e:
-            print(f"[FIX_START_DATE] Erro ao corrigir: {e}")
+            _dbg(f"[FIX_START_DATE] Erro ao corrigir: {e}")
             db.session.rollback()
 
 
@@ -227,7 +232,7 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
     """
     Gera automaticamente as transações recorrentes do mês se ainda não existirem.
     """
-    print(f"[GENERATE_RECURRING] Iniciando geração para {month}/{year}")
+    _dbg(f"[GENERATE_RECURRING] Iniciando geração para {month}/{year}")
     
     # Corrigir start_date de recorrentes existentes (uma única vez)
     _fix_recurring_start_dates(user_id)
@@ -242,27 +247,27 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
         frequency="monthly"
     ).all()
     
-    print(f"[GENERATE_RECURRING] Encontradas {len(recurring_txs)} RecurringTransaction ativas")
+    _dbg(f"[GENERATE_RECURRING] Encontradas {len(recurring_txs)} RecurringTransaction ativas")
 
     for rec_tx in recurring_txs:
         # Verificar se está dentro do período de validade
         target_date = date(year, month, 1)
         
-        print(f"[GENERATE_RECURRING] Processando: {rec_tx.description} (dia {rec_tx.day_of_month})")
-        print(f"[GENERATE_RECURRING] start_date: {rec_tx.start_date}, end_date: {rec_tx.end_date}, target: {target_date}")
+        _dbg(f"[GENERATE_RECURRING] Processando: {rec_tx.description} (dia {rec_tx.day_of_month})")
+        _dbg(f"[GENERATE_RECURRING] start_date: {rec_tx.start_date}, end_date: {rec_tx.end_date}, target: {target_date}")
         
         # Se tem start_date e o mês é anterior ao início, pular
         if rec_tx.start_date:
             start_month = date(rec_tx.start_date.year, rec_tx.start_date.month, 1)
             if target_date < start_month:
-                print(f"[GENERATE_RECURRING] Pulando {rec_tx.description}: mês anterior ao início ({target_date} < {start_month})")
+                _dbg(f"[GENERATE_RECURRING] Pulando {rec_tx.description}: mês anterior ao início ({target_date} < {start_month})")
                 continue
         
         # Se tem end_date e o mês é posterior ao fim, pular
         if rec_tx.end_date:
             end_month = date(rec_tx.end_date.year, rec_tx.end_date.month, 1)
             if target_date > end_month:
-                print(f"[GENERATE_RECURRING] Pulando {rec_tx.description}: mês posterior ao fim ({target_date} > {end_month})")
+                _dbg(f"[GENERATE_RECURRING] Pulando {rec_tx.description}: mês posterior ao fim ({target_date} > {end_month})")
                 continue
         
         # Calcular a data da transação usando o dia do mês
@@ -280,11 +285,11 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
         ).first()
         
         if existing:
-            print(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
+            _dbg(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
             continue  # Já existe, não criar novamente
         
         # Criar a transação do mês
-        print(f"[GENERATE_RECURRING] Criando transação para {rec_tx.description} em {transaction_date}")
+        _dbg(f"[GENERATE_RECURRING] Criando transação para {rec_tx.description} em {transaction_date}")
         new_tx = Transaction(
             user_id=user_id,
             category_id=rec_tx.category_id,
@@ -453,7 +458,7 @@ def api_login():
 def api_transaction_remove(tx_id: int):
     """Endpoint GET para exclusão (workaround CORS para Flutter Web)."""
     origin = request.headers.get("Origin", "*")
-    print(f"[TX_REMOVE] GET /api/transactions/{tx_id}/remove - args: {dict(request.args)}")
+    _dbg(f"[TX_REMOVE] GET /api/transactions/{tx_id}/remove - args: {dict(request.args)}")
 
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, OPTIONS")
@@ -465,7 +470,7 @@ def api_transaction_remove(tx_id: int):
             if raw_user_id:
                 user_id_int = int(raw_user_id)
         except Exception as e:
-            print(f"[TX_REMOVE] Erro ao parsear user_id: {e}")
+            _dbg(f"[TX_REMOVE] Erro ao parsear user_id: {e}")
             user_id_int = None
 
     if not user_id_int:
@@ -529,12 +534,12 @@ def api_transaction_remove(tx_id: int):
     try:
         _delete_recurring_scope(tx, scope)
         db.session.commit()
-        print(f"[TX_REMOVE] Transação {tx_id} excluída com sucesso")
+        _dbg(f"[TX_REMOVE] Transação {tx_id} excluída com sucesso")
         resp = jsonify({"success": True})
         return _cors_wrap(resp, origin), 200
     except Exception as e:
         db.session.rollback()
-        print(f"[TX_REMOVE] Erro ao excluir: {e}")
+        _dbg(f"[TX_REMOVE] Erro ao excluir: {e}")
         resp = jsonify({"success": False, "message": f"Falha ao excluir transação: {e}"})
         return _cors_wrap(resp, origin), 500
 
@@ -571,13 +576,6 @@ def api_dashboard():
 
     if month < 1 or month > 12:
         month = today.month
-    
-    # Gerar automaticamente as transações recorrentes do mês
-    try:
-        _generate_recurring_for_month(user_id_int, year, month)
-    except Exception as e:
-        print(f"[RECURRING] Erro ao gerar recorrentes: {e}")
-        db.session.rollback()
 
     start = date(year, month, 1)
     if month == 12:
@@ -585,51 +583,41 @@ def api_dashboard():
     else:
         end = date(year, month + 1, 1)
 
-    # Totais do mês (pagos + pendentes) para os cards "Receitas" e "Gastos"
-    month_income = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id_int,
-            Transaction.type == "income",
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
-        )
-        .scalar()
-    )
-    month_expense = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id_int,
-            Transaction.type == "expense",
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
-        )
-        .scalar()
-    )
-
-    # Totais pagos do mês para o "Saldo total atual"
-    month_income_paid = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id_int,
-            Transaction.type == "income",
-            Transaction.is_paid == True,
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
-        )
-        .scalar()
-    )
-    month_expense_paid = (
-        db.session.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.user_id == user_id_int,
-            Transaction.type == "expense",
-            Transaction.is_paid == True,
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
-        )
-        .scalar()
-    )
+    # Otimização: consolidar todas as queries de totais em uma única query
+    from sqlalchemy import case
+    
+    totals = db.session.query(
+        func.coalesce(func.sum(case(
+            (Transaction.type == "income", Transaction.amount),
+            else_=0
+        )), 0).label("month_income"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense_pending"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_income_paid"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense_paid"),
+    ).filter(
+        Transaction.user_id == user_id_int,
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date < end,
+    ).one()
+    
+    month_income = totals.month_income
+    month_expense = totals.month_expense
+    month_expense_pending = totals.month_expense_pending
+    month_income_paid = totals.month_income_paid
+    month_expense_paid = totals.month_expense_paid
 
     expense_by_category_rows = (
         db.session.query(
@@ -643,6 +631,7 @@ def api_dashboard():
         .filter(
             Transaction.user_id == user_id_int,
             Transaction.type == "expense",
+            Transaction.is_paid == True,
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
@@ -664,6 +653,7 @@ def api_dashboard():
 
     month_income_f = float(month_income or 0)
     month_expense_f = float(month_expense or 0)
+    month_expense_pending_f = float(month_expense_pending or 0)
     month_income_paid_f = float(month_income_paid or 0)
     month_expense_paid_f = float(month_expense_paid or 0)
 
@@ -720,6 +710,7 @@ def api_dashboard():
         "year": year,
         "month_income": month_income_f,
         "month_expense": month_expense_f,
+        "month_expense_pending": month_expense_pending_f,
         "month_income_paid": month_income_paid_f,
         "month_expense_paid": month_expense_paid_f,
         "month_balance": month_income_f - month_expense_f,
@@ -1051,7 +1042,7 @@ def api_list_transactions():
 @api_financeiro_bp.route("/api/transactions/<int:tx_id>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
 def api_transaction_detail(tx_id: int):
     origin = request.headers.get("Origin", "*")
-    print(f"[TX_DETAIL] {request.method} /api/transactions/{tx_id} - args: {dict(request.args)}")
+    _dbg(f"[TX_DETAIL] {request.method} /api/transactions/{tx_id} - args: {dict(request.args)}")
     
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, PUT, DELETE, OPTIONS")
@@ -1061,29 +1052,29 @@ def api_transaction_detail(tx_id: int):
         try:
             if request.method in ("GET", "DELETE"):
                 raw_user_id = request.args.get("user_id")
-                print(f"[TX_DETAIL] raw_user_id from args: {raw_user_id}")
+                _dbg(f"[TX_DETAIL] raw_user_id from args: {raw_user_id}")
                 if not raw_user_id:
                     raw_user_id = (request.get_json(silent=True) or {}).get("user_id")
-                    print(f"[TX_DETAIL] raw_user_id from body: {raw_user_id}")
+                    _dbg(f"[TX_DETAIL] raw_user_id from body: {raw_user_id}")
                 if raw_user_id:
                     user_id_int = int(raw_user_id)
             else:
                 raw_user_id = (request.get_json(silent=True) or {}).get("user_id")
-                print(f"[TX_DETAIL] raw_user_id from body: {raw_user_id}")
+                _dbg(f"[TX_DETAIL] raw_user_id from body: {raw_user_id}")
                 if raw_user_id:
                     user_id_int = int(raw_user_id)
         except Exception as e:
-            print(f"[TX_DETAIL] Erro ao parsear user_id: {e}")
+            _dbg(f"[TX_DETAIL] Erro ao parsear user_id: {e}")
             user_id_int = None
 
-    print(f"[TX_DETAIL] user_id_int final: {user_id_int}")
+    _dbg(f"[TX_DETAIL] user_id_int final: {user_id_int}")
 
     if not user_id_int:
         resp = jsonify({"success": False, "message": "Não autenticado"})
         return _cors_wrap(resp, origin), 401
 
     tx = Transaction.query.filter_by(id=tx_id, user_id=int(user_id_int)).first()
-    print(f"[TX_DETAIL] Transaction found: {tx}")
+    _dbg(f"[TX_DETAIL] Transaction found: {tx}")
     if not tx:
         resp = jsonify({"success": False, "message": "Transação não encontrada"})
         return _cors_wrap(resp, origin), 404
@@ -1443,12 +1434,12 @@ def api_suggest_category():
 
     # Chamar Groq API
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
-    print(f"[GROQ] API Key presente: {bool(groq_api_key)}")
-    print(f"[GROQ] Descrição: {description}")
-    print(f"[GROQ] Tipo: {transaction_type}")
+    _dbg(f"[GROQ] API Key presente: {bool(groq_api_key)}")
+    _dbg(f"[GROQ] Descrição: {description}")
+    _dbg(f"[GROQ] Tipo: {transaction_type}")
     
     if not groq_api_key:
-        print("[GROQ] ERRO: API Key não encontrada")
+        _dbg("[GROQ] ERRO: API Key não encontrada")
         resp = jsonify({
             "success": False,
             "message": "IA não configurada (GROQ_API_KEY ausente). Preencha manualmente.",
@@ -1486,12 +1477,12 @@ Escolha a melhor categoria da lista."""
             timeout=5
         )
 
-        print(f"[GROQ] Status da resposta: {response.status_code}")
+        _dbg(f"[GROQ] Status da resposta: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
             content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            print(f"[GROQ] Resposta da IA: {content}")
+            _dbg(f"[GROQ] Resposta da IA: {content}")
             
             # Limpar markdown code blocks se houver
             content_clean = content.strip()
@@ -1502,8 +1493,8 @@ Escolha a melhor categoria da lista."""
             if content_clean.endswith("```"):
                 content_clean = content_clean[:-3]  # Remove ```
             content_clean = content_clean.strip()
-            
-            print(f"[GROQ] JSON limpo: {content_clean}")
+
+            _dbg(f"[GROQ] JSON limpo: {content_clean}")
             
             # Tentar parsear JSON da resposta
             import json
@@ -1511,9 +1502,9 @@ Escolha a melhor categoria da lista."""
                 suggestion = json.loads(content_clean)
                 suggested_category = suggestion.get("category", "Outros")
                 suggested_subcategory = suggestion.get("subcategory")
-                
-                print(f"[GROQ] Categoria sugerida: {suggested_category}")
-                print(f"[GROQ] Subcategoria sugerida: {suggested_subcategory}")
+
+                _dbg(f"[GROQ] Categoria sugerida: {suggested_category}")
+                _dbg(f"[GROQ] Subcategoria sugerida: {suggested_subcategory}")
                 
                 # Validar se categoria existe
                 matched_cat = next((c for c in categories if c.name.lower() == suggested_category.lower()), None)
@@ -1533,20 +1524,20 @@ Escolha a melhor categoria da lista."""
                     })
                     return _cors_wrap(resp, origin), 200
                 else:
-                    print(f"[GROQ] Categoria '{suggested_category}' não encontrada nas disponíveis")
+                    _dbg(f"[GROQ] Categoria '{suggested_category}' não encontrada nas disponíveis")
             except json.JSONDecodeError as e:
-                print(f"[GROQ] Erro ao parsear JSON: {e}")
+                _dbg(f"[GROQ] Erro ao parsear JSON: {e}")
                 pass
         else:
-            print(f"[GROQ] Erro na API: {response.text}")
+            _dbg(f"[GROQ] Erro na API: {response.text}")
 
     except Exception as e:
-        print(f"[GROQ ERROR] Exceção: {e}")
+        _dbg(f"[GROQ ERROR] Exceção: {e}")
         import traceback
-        print(f"[GROQ ERROR] Traceback: {traceback.format_exc()}")
+        _dbg(f"[GROQ ERROR] Traceback: {traceback.format_exc()}")
 
     # Se chegou aqui, houve erro: retornar erro e deixar o app liberar entrada manual
-    print("[GROQ] Falha ao gerar categoria")
+    _dbg("[GROQ] Falha ao gerar categoria")
     resp = jsonify({
         "success": False,
         "message": "Não foi possível gerar categoria. Preencha manualmente.",

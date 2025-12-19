@@ -6,6 +6,7 @@ Mantém apenas logs mínimos de erro para não poluir a saída em produção.
 import os
 import sys
 import traceback
+import logging
 from datetime import datetime
 
 def log_debug(message: str) -> None:
@@ -41,41 +42,41 @@ try:
     try:
         from modulos.ferramentas_web.conversor_imagens.config import Config
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar Config: {e}")
+        log_debug(f" ERRO ao importar Config: {e}")
         log_debug(f"Traceback Config: {traceback.format_exc()}")
     
     try:
         from global_blueprints import register_blueprints
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar global_blueprints: {e}")
+        log_debug(f" ERRO ao importar global_blueprints: {e}")
         log_debug(f"Traceback blueprints: {traceback.format_exc()}")
     
     try:
         from menu_helpers import build_sidebar_menu
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar menu_helpers: {e}")
+        log_debug(f" ERRO ao importar menu_helpers: {e}")
         log_debug(f"Traceback menu: {traceback.format_exc()}")
     
     try:
         from extensions import db, migrate, get_current_db_url, init_database
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar extensions: {e}")
+        log_debug(f" ERRO ao importar extensions: {e}")
         log_debug(f"Traceback extensions: {traceback.format_exc()}")
     
     try:
         from email_service import init_mail
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar email_service: {e}")
+        log_debug(f" ERRO ao importar email_service: {e}")
         log_debug(f"Traceback email: {traceback.format_exc()}")
     
     try:
         from jinja2 import ChoiceLoader, FileSystemLoader
     except Exception as e:
-        log_debug(f"❌ ERRO ao importar Jinja2: {e}")
+        log_debug(f" ERRO ao importar Jinja2: {e}")
         log_debug(f"Traceback jinja: {traceback.format_exc()}")
 
 except Exception as e:
-    log_debug(f"🚨 ERRO CRÍTICO nos imports iniciais: {e}")
+    log_debug(f" ERRO CRÍTICO nos imports iniciais: {e}")
     log_debug(f"Traceback completo: {traceback.format_exc()}")
 
 def create_app():
@@ -90,7 +91,7 @@ def create_app():
 
         if Config:
             app.config.from_object(Config)
-            log_debug("✅ Config aplicado via from_object")
+            log_debug(" Config aplicado via from_object")
         else:
             app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
             app.config['DEBUG'] = False
@@ -117,9 +118,9 @@ def create_app():
                 app.jinja_loader = ChoiceLoader(loaders)
 
             except Exception as e:
-                log_debug(f"❌ ERRO ao configurar Jinja2: {e}")
+                log_debug(f" ERRO ao configurar Jinja2: {e}")
         else:
-            log_debug("⚠️ Jinja2 não disponível, usando configuração padrão")
+            log_debug(" Jinja2 não disponível, usando configuração padrão")
         
         if get_current_db_url:
 
@@ -132,9 +133,9 @@ def create_app():
                 }
 
             except Exception as e:
-                log_debug(f"❌ ERRO ao configurar banco: {e}")
+                log_debug(f" ERRO ao configurar banco: {e}")
         else:
-            log_debug("⚠️ get_current_db_url não disponível")
+            log_debug(" get_current_db_url não disponível")
         
         if db and migrate:
 
@@ -143,15 +144,15 @@ def create_app():
                 migrate.init_app(app, db)
 
             except Exception as e:
-                log_debug(f"❌ ERRO ao inicializar db/migrate: {e}")
+                log_debug(f" ERRO ao inicializar db/migrate: {e}")
         else:
-            log_debug("⚠️ db/migrate não disponíveis")
+            log_debug(" db/migrate não disponíveis")
         
         if init_mail:
             try:
                 init_mail(app)
             except Exception as e:
-                log_debug(f"❌ ERRO ao inicializar mail: {e}")
+                log_debug(f" ERRO ao inicializar mail: {e}")
 
         app.secret_key = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
 
@@ -165,23 +166,23 @@ def create_app():
                     "supports_credentials": False
                 }
             })
-            log_debug("✅ CORS configurado para Flutter Web e Mobile")
+            log_debug(" CORS configurado para Flutter Web e Mobile")
         except Exception as e:
-            log_debug(f"⚠️ CORS não disponível: {e}")
+            log_debug(f" CORS não disponível: {e}")
 
         if register_blueprints:
             try:
                 register_blueprints(app)
                 # Debug: listar rotas registradas
-                log_debug("📋 Rotas registradas:")
+                log_debug(" Rotas registradas:")
                 for rule in app.url_map.iter_rules():
                     if '/api/' in rule.rule:
                         log_debug(f"  {rule.rule} -> {rule.methods}")
             except Exception as e:
-                log_debug(f"❌ ERRO ao registrar blueprints: {e}")
+                log_debug(f" ERRO ao registrar blueprints: {e}")
                 log_debug(f"Traceback blueprints: {traceback.format_exc()}")
         else:
-            log_debug("⚠️ register_blueprints não disponível")
+            log_debug(" register_blueprints não disponível")
         
         @app.context_processor
         def inject_sidebar_menu():
@@ -189,7 +190,7 @@ def create_app():
                 try:
                     return {'sidebar_menu': build_sidebar_menu()}
                 except Exception as e:
-                    log_debug(f"❌ ERRO em build_sidebar_menu: {e}")
+                    log_debug(f" ERRO em build_sidebar_menu: {e}")
                     return {'sidebar_menu': []}
 
             return {'sidebar_menu': []}
@@ -265,26 +266,26 @@ def create_app():
                 try:
                     with app.app_context():
                         init_database()
-                    click.echo('✅ Banco inicializado com sucesso!')
-                    click.echo('🔧 Admin: admin@nexusrdr.com / admin123')
+                    click.echo(' Banco inicializado com sucesso!')
+                    click.echo(' Admin: admin@nexusrdr.com / admin123')
                 except Exception as e:
-                    click.echo(f'❌ Erro: {e}')
+                    click.echo(f' Erro: {e}')
             else:
-                click.echo('❌ init_database não disponível')
+                click.echo(' init_database não disponível')
 
         @app.cli.command('db-stats')
         def db_stats_command():
             try:
                 from config_db import get_db_stats
                 stats = get_db_stats()
-                click.echo(f"📊 Estatísticas do Banco: {stats['type']}")
-                click.echo(f"🔗 Status: {stats['status']}")
+                click.echo(f" Estatísticas do Banco: {stats['type']}")
+                click.echo(f" Status: {stats['status']}")
                 if stats.get('tables'):
-                    click.echo(f"📋 Tabelas: {', '.join(stats['tables'])}")
+                    click.echo(f" Tabelas: {', '.join(stats['tables'])}")
                 if stats.get('connections'):
-                    click.echo(f"🔗 Conexões: {stats['connections']}")
+                    click.echo(f" Conexões: {stats['connections']}")
             except Exception as e:
-                click.echo(f'❌ Erro: {e}')
+                click.echo(f' Erro: {e}')
 
         # Health check simples
         @app.route('/health')
@@ -294,7 +295,7 @@ def create_app():
         return app
         
     except Exception as e:
-        log_debug(f"🚨 ERRO CRÍTICO em create_app(): {e}")
+        log_debug(f" ERRO CRÍTICO em create_app(): {e}")
         log_debug(f"Traceback create_app: {traceback.format_exc()}")
         
         # App de fallback
@@ -303,7 +304,7 @@ def create_app():
         @fallback_app.route('/')
         def error_page():
             return f"""
-            <h1>❌ Erro de Inicialização</h1>
+            <h1>Erro de Inicialização</h1>
             <p><strong>Erro:</strong> {str(e)}</p>
             <pre>{traceback.format_exc()}</pre>
             """
@@ -315,7 +316,7 @@ try:
     app = application  # Alias para compatibilidade
 
 except Exception as e:  # pragma: no cover - fallback de segurança
-    log_debug(f"🚨 ERRO CRÍTICO ao criar application: {e}")
+    log_debug(f" ERRO CRÍTICO ao criar application: {e}")
     log_debug(f"Traceback final: {traceback.format_exc()}")
 
     from flask import Flask
@@ -329,4 +330,6 @@ except Exception as e:  # pragma: no cover - fallback de segurança
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     # Sem modo debug para não expor informações sensíveis/extras
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    logging.getLogger('werkzeug').propagate = False
     application.run(debug=False, host='0.0.0.0', port=port)
