@@ -70,9 +70,16 @@ def download_apk():
     if not os.path.exists(apk_path):
         abort(404, description="APK não encontrado no servidor.")
     
-    return send_file(
+    filename = os.path.basename(apk_path)
+    resp = send_file(
         apk_path,
         as_attachment=True,
-        download_name="nexus-financeiro.apk",
+        download_name=filename,
         mimetype="application/vnd.android.package-archive"
     )
+
+    # Evitar cache (para não baixar APK antigo)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
