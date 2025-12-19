@@ -6,7 +6,7 @@ Interface web para gestão financeira via navegador.
 """
 
 import os
-from flask import Blueprint, render_template, send_file, abort
+from flask import Blueprint, render_template, send_file, abort, request
 
 # Blueprint das rotas web
 gerenciamento_financeiro_bp = Blueprint(
@@ -30,21 +30,42 @@ def apresentacao():
 @gerenciamento_financeiro_bp.route("/download/apk")
 def download_apk():
     """Download do APK do aplicativo financeiro"""
-    # Prioridade 1: APK versionado dentro do módulo (mais simples para deploy)
-    module_apk_path = os.path.join(
-        os.path.dirname(__file__),
+    module_dir = os.path.dirname(__file__)
+
+    # Opcional: escolher ABI via querystring (?abi=arm64-v8a|armeabi-v7a|x86_64)
+    abi = (request.args.get("abi") or "").strip().lower()
+
+    preferred_names = [
+        "app-arm64-v8a-release.apk",
         "app-armeabi-v7a-release.apk",
-    )
+        "app-x86_64-release.apk",
+    ]
+
+    if abi:
+        # Normaliza para o formato do nome do arquivo
+        if abi in ("arm64", "arm64-v8a", "arm64_v8a"):
+            preferred_names = ["app-arm64-v8a-release.apk"] + [n for n in preferred_names if n != "app-arm64-v8a-release.apk"]
+        elif abi in ("armeabi", "armeabi-v7a", "armeabi_v7a"):
+            preferred_names = ["app-armeabi-v7a-release.apk"] + [n for n in preferred_names if n != "app-armeabi-v7a-release.apk"]
+        elif abi in ("x86_64", "x86-64"):
+            preferred_names = ["app-x86_64-release.apk"] + [n for n in preferred_names if n != "app-x86_64-release.apk"]
+
+    apk_path = None
+    for name in preferred_names:
+        candidate = os.path.join(module_dir, name)
+        if os.path.exists(candidate):
+            apk_path = candidate
+            break
 
     # Fallback: APK em static/downloads (caso você prefira manter em static)
-    static_apk_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "static",
-        "downloads",
-        "finance-app.apk",
-    )
-
-    apk_path = module_apk_path if os.path.exists(module_apk_path) else static_apk_path
+    if apk_path is None:
+        static_apk_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "static",
+            "downloads",
+            "finance-app.apk",
+        )
+        apk_path = static_apk_path
     
     if not os.path.exists(apk_path):
         abort(404, description="APK não encontrado no servidor.")
