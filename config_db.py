@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from urllib.parse import urlparse
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine as sqlalchemy_create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from dotenv import load_dotenv
@@ -169,7 +169,7 @@ def create_engine(db_type: str = 'auto', echo: bool = False):
 
     database_url = get_database_url(db_type)
 
-    return create_engine(database_url, echo=echo)
+    return sqlalchemy_create_engine(database_url, echo=echo)
 
 
 def create_session_factory(engine):
@@ -189,7 +189,7 @@ def _create_engine_direct(database_url: str, echo: bool = False):
     """
     Cria engine SQLAlchemy diretamente com URL já resolvida.
     """
-    return create_engine(database_url, echo=echo)
+    return sqlalchemy_create_engine(database_url, echo=echo)
 
 
 def init_database(db_type: str = 'auto', create_tables: bool = True):
