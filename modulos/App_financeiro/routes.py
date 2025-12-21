@@ -50,6 +50,7 @@ def download_apk():
     abi = (request.args.get("abi") or "").strip().lower()
 
     preferred_names = [
+        "app-release.apk",
         "app-arm64-v8a-release.apk",
         "app-armeabi-v7a-release.apk",
         "app-x86_64-release.apk",
