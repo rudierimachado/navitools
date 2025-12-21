@@ -142,7 +142,7 @@ def create_app():
             try:
                 db.init_app(app)
                 migrate.init_app(app, db)
-
+                log_debug(" ✅ db/migrate configurados")
             except Exception as e:
                 log_debug(f" ERRO ao inicializar db/migrate: {e}")
         else:
@@ -151,8 +151,9 @@ def create_app():
         if init_mail:
             try:
                 init_mail(app)
+                log_debug(" ✅ Email service configurado")
             except Exception as e:
-                log_debug(f" ERRO ao inicializar mail: {e}")
+                log_debug(f" ❌ ERRO ao configurar email: {e}")
 
         app.secret_key = os.getenv('SECRET_KEY', 'chave_padrao_insegura')
 

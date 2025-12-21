@@ -494,7 +494,7 @@ def send_workspace_invitation(recipient_email: str, inviter_email: str, token: s
             print(f"[WORKSPACE_INVITE] MAIL_DEFAULT_SENDER={mail_sender or 'AUSENTE'}")
 
             base_url = app.config.get('APP_BASE_URL', '').rstrip('/')
-            invite_path = url_for('gerenciamento_financeiro.open_workspace_invite', token=token)
+            invite_path = url_for('gerenciamento_financeiro.accept_workspace_invite', token=token)
             accept_url = f"{base_url}{invite_path}" if base_url else invite_path
             print(f"[WORKSPACE_INVITE] URL do convite: {accept_url}")
 

@@ -6,7 +6,21 @@ Interface web para gestão financeira via navegador.
 """
 
 import os
-from flask import Blueprint, render_template, send_file, abort, request
+from datetime import datetime
+from flask import (
+    Blueprint,
+    render_template,
+    send_file,
+    abort,
+    request,
+    flash,
+    redirect,
+    url_for,
+    session,
+)
+
+from extensions import db
+from models import WorkspaceInvite, Workspace, WorkspaceMember, User
 
 # Blueprint das rotas web
 gerenciamento_financeiro_bp = Blueprint(
@@ -83,3 +97,68 @@ def download_apk():
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
     return resp
+
+
+@gerenciamento_financeiro_bp.route("/invite/accept/<token>")
+def accept_workspace_invite(token):
+    """Processa o link de convite enviado por email"""
+    invite = WorkspaceInvite.query.filter_by(token=token).first()
+
+    if not invite:
+        flash("Convite inválido ou inexistente.", "danger")
+        return render_template("finance_invite_status.html", status="error", message="Convite inválido.")
+
+    if invite.status != "pending":
+        flash("Este convite já foi utilizado ou cancelado.", "danger")
+        return render_template("finance_invite_status.html", status="error", message="Convite já utilizado.")
+
+    if invite.expires_at and invite.expires_at < datetime.utcnow():
+        invite.status = "expired"
+        invite.responded_at = datetime.utcnow()
+        db.session.commit()
+        flash("Este convite expirou.", "danger")
+        return render_template("finance_invite_status.html", status="error", message="Convite expirado.")
+
+    workspace = Workspace.query.get(invite.workspace_id)
+    if not workspace:
+        invite.status = "cancelled"
+        invite.responded_at = datetime.utcnow()
+        db.session.commit()
+        flash("O workspace deste convite não existe mais.", "danger")
+        return render_template("finance_invite_status.html", status="error", message="Workspace inexistente.")
+
+    # Verificar se já é membro
+    existing_member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=invite.invited_user_id).first()
+    if existing_member or workspace.owner_id == invite.invited_user_id:
+        invite.status = "accepted"
+        invite.responded_at = datetime.utcnow()
+        db.session.commit()
+        flash("Você já faz parte deste workspace!", "info")
+        session["finance_user_id"] = invite.invited_user_id
+        return redirect("/gerenciamento-financeiro/app")
+
+    # Se usuário não existe, enviar para registro
+    user = None
+    if invite.invited_email:
+        user = User.query.filter_by(email=invite.invited_email).first()
+
+    if not user:
+        flash("Crie sua conta para entrar no workspace.", "info")
+        register_url = f"/gerenciamento-financeiro/register?email={invite.invited_email}&invite_token={token}"
+        return redirect(register_url)
+
+    # Adicionar como membro
+    member = WorkspaceMember(
+        workspace_id=workspace.id,
+        user_id=user.id,
+        role=invite.role or "viewer",
+    )
+    db.session.add(member)
+
+    invite.status = "accepted"
+    invite.responded_at = datetime.utcnow()
+    db.session.commit()
+
+    session["finance_user_id"] = user.id
+    flash("Bem-vindo ao workspace!", "success")
+    return redirect("/gerenciamento-financeiro/app")

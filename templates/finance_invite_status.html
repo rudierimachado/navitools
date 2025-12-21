@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or 'Status do Convite' }}</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --text: #374151;
+            --card: #ffffff;
+            --shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+            --radius: 18px;
+            --primary-start: #0F2027;
+            --primary-mid: #203A43;
+            --primary-end: #2C5364;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            max-width: 420px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-mid), var(--primary-end));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon {
+            font-size: 28px;
+        }
+
+        .status {
+            padding: 20px;
+        }
+
+        .title {
+            margin: 0 0 8px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .message {
+            margin: 0;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .pill.success { background: var(--success); }
+        .pill.error { background: var(--error); }
+
+        .actions {
+            padding: 0 20px 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 18px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-mid), var(--primary-end));
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(44, 83, 100, 0.25);
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        @media (max-width: 480px) {
+            .card { max-width: 100%; }
+            .title { font-size: 18px; }
+            .message { font-size: 15px; }
+        }
+    </style>
+    <script>
+        // Define ícone conforme status
+        document.addEventListener('DOMContentLoaded', () => {
+            const iconEl = document.getElementById('status-icon');
+            const isError = {{ 'true' if is_error else 'false' }};
+            iconEl.textContent = isError ? '❌' : '✅';
+        });
+    </script>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="icon" id="status-icon">✅</div>
+            <div>
+                <div class="pill {{ 'error' if is_error else 'success' }}">
+                    {{ 'Erro' if is_error else 'Sucesso' }}
+                </div>
+                <h1 class="title">{{ title or 'Status do Convite' }}</h1>
+            </div>
+        </div>
+        <div class="status">
+            <p class="message">{{ message or 'Atualização do convite.' }}</p>
+        </div>
+        <div class="actions">
+            <a class="btn btn-primary" href="/gerenciamento-financeiro/">
+                Ir para Login
+            </a>
+        </div>
+    </div>
+</body>
+</html>

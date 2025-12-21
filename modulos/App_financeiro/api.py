@@ -5,7 +5,7 @@ API REST para Aplicativo Mobile (Flutter) - Gerenciamento Financeiro
 Endpoints JSON para autenticação e operações financeiras via app mobile.
 """
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from sqlalchemy import func
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta, date
@@ -13,10 +13,13 @@ import random
 import os
 import requests
 import calendar
+import re
+import secrets
 
 from extensions import db
-from models import User, Workspace, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment
+from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment
 from werkzeug.utils import secure_filename
+from email_service import send_workspace_invitation
 
 # Blueprint da API
 api_financeiro_bp = Blueprint(
@@ -57,7 +60,17 @@ def _cors_wrap(resp, origin: str):
 def _get_user_id_from_request():
     session_user_id = session.get("finance_user_id")
     request_user_id = request.args.get("user_id")
-    user_id = session_user_id or request_user_id
+    
+    # Para requisições POST, também verificar no body JSON
+    body_user_id = None
+    if request.method == "POST" and request.is_json:
+        try:
+            data = request.get_json() or {}
+            body_user_id = data.get("user_id")
+        except Exception:
+            pass
+    
+    user_id = session_user_id or request_user_id or body_user_id
     try:
         return int(user_id) if user_id is not None else None
     except Exception:
@@ -423,17 +436,7 @@ def api_login():
     session["finance_user_id"] = user.id
     session["finance_user_email"] = user.email
     
-    # Garantir workspace padrão
-    workspace_count = Workspace.query.filter_by(owner_id=user.id).count()
-    if workspace_count == 0:
-        default_workspace = Workspace(
-            owner_id=user.id,
-            name="Meu Workspace",
-            description="Workspace padrão",
-            color="#3b82f6",
-        )
-        db.session.add(default_workspace)
-        db.session.commit()
+    # NÃO criar workspace automaticamente - usuário deve criar manualmente
     
     _log_attempt(email, True, "Login via API", user_id=user.id)
 
@@ -1645,17 +1648,9 @@ def api_register():
         # Criar usuário
         user = User(email=email, password_hash=generate_password_hash(password))
         db.session.add(user)
-        db.session.flush()
-        
-        # Criar workspace padrão
-        default_workspace = Workspace(
-            owner_id=user.id,
-            name="Meu Workspace",
-            description="Workspace padrão",
-            color="#3b82f6"
-        )
-        db.session.add(default_workspace)
         db.session.commit()
+        
+        # NÃO criar workspace automaticamente - usuário deve criar manualmente após login
         
         resp = jsonify({
             "success": True,
@@ -1760,3 +1755,397 @@ def api_me():
 # Registrar rotas de comprovantes
 from .attachments_endpoints import register_attachment_routes
 register_attachment_routes(api_financeiro_bp)
+
+
+# ============================================================================
+# WORKSPACE MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@api_financeiro_bp.route("/api/workspaces", methods=["GET", "OPTIONS"])
+def api_get_workspaces():
+    """Lista todos os workspaces do usuário"""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, OPTIONS")
+    
+    try:
+        user_id = _get_user_id_from_request()
+        print(f"[WORKSPACE] GET /api/workspaces - user_id={user_id}")
+        
+        if not user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+        
+        # Buscar APENAS workspaces onde o usuário é owner (simplificado)
+        print(f"[WORKSPACE] Buscando workspaces para owner_id={user_id}")
+        owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
+        print(f"[WORKSPACE] Encontrados {len(owned_workspaces)} workspaces")
+        
+        workspaces_data = [{
+            "id": w.id,
+            "name": w.name,
+            "description": w.description or "",
+            "color": w.color or "#3b82f6",
+            "is_owner": True,
+            "created_at": w.created_at.isoformat() if w.created_at else None,
+        } for w in owned_workspaces]
+        
+        print(f"[WORKSPACE] Retornando {len(workspaces_data)} workspaces para user_id={user_id}")
+        
+        return _cors_wrap(jsonify({"success": True, "workspaces": workspaces_data}), origin), 200
+        
+    except Exception as e:
+        print(f"[WORKSPACE] ERRO no GET /api/workspaces: {e}")
+        import traceback
+        traceback.print_exc()
+        return _cors_wrap(jsonify({"success": False, "message": "Erro interno no servidor", "error": str(e)}), origin), 500
+
+
+@api_financeiro_bp.route("/api/workspaces/active", methods=["GET", "OPTIONS"])
+def api_get_active_workspace_legacy():
+    """Retorna o workspace ativo do usuário (legado - mantém compatibilidade)"""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, OPTIONS")
+    
+    user_id = _get_user_id_from_request()
+    if not user_id:
+        return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+    
+    # Buscar workspace ativo na sessão
+    active_workspace_id = session.get(f"active_workspace_{user_id}")
+    
+    if active_workspace_id:
+        workspace = Workspace.query.get(active_workspace_id)
+        if workspace and (workspace.owner_id == user_id or 
+                         WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user_id).first()):
+            return _cors_wrap(jsonify({
+                "success": True,
+                "workspace": {
+                    "id": workspace.id,
+                    "name": workspace.name,
+                    "description": workspace.description,
+                    "color": workspace.color,
+                }
+            }), origin), 200
+    
+    # Se não tem workspace ativo, pegar o primeiro workspace do usuário
+    workspace = Workspace.query.filter_by(owner_id=user_id).first()
+    if workspace:
+        session[f"active_workspace_{user_id}"] = workspace.id
+        return _cors_wrap(jsonify({
+            "success": True,
+            "workspace": {
+                "id": workspace.id,
+                "name": workspace.name,
+                "description": workspace.description,
+                "color": workspace.color,
+            }
+        }), origin), 200
+    
+    # Se não tem nenhum workspace, retornar erro
+    return _cors_wrap(jsonify({
+        "success": False,
+        "message": "Nenhum workspace encontrado. Crie um workspace primeiro."
+    }), origin), 404
+
+
+@api_financeiro_bp.route("/api/workspaces", methods=["POST", "OPTIONS"])
+def api_create_workspace():
+    """Cria um novo workspace"""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+    
+    try:
+        user_id = _get_user_id_from_request()
+        print(f"[WORKSPACE] POST /api/workspaces - user_id={user_id}")
+        
+        if not user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+        
+        data = request.get_json()
+        name = data.get("name", "").strip()
+        print(f"[WORKSPACE] Criando workspace com nome='{name}' para user_id={user_id}")
+        
+        if not name:
+            return _cors_wrap(jsonify({"success": False, "message": "Nome obrigatório"}), origin), 400
+        
+        # Verificar se já existe workspace com esse nome para o usuário
+        existing = Workspace.query.filter_by(owner_id=user_id, name=name).first()
+        if existing:
+            print(f"[WORKSPACE] AVISO: Workspace '{name}' já existe para user_id={user_id} com id={existing.id}")
+            # Retornar o workspace existente em vez de criar duplicado
+            session[f"active_workspace_{user_id}"] = existing.id
+            return _cors_wrap(jsonify({
+                "success": True,
+                "workspace": {
+                    "id": existing.id,
+                    "name": existing.name,
+                    "description": existing.description,
+                    "color": existing.color,
+                }
+            }), origin), 201
+        
+        workspace = Workspace(
+            owner_id=user_id,
+            name=name,
+            description=data.get("description", ""),
+            color=data.get("color", "#3b82f6"),
+        )
+        
+        db.session.add(workspace)
+        db.session.commit()
+        print(f"[WORKSPACE] Workspace criado com sucesso: id={workspace.id}, name='{workspace.name}'")
+        
+        # Definir como workspace ativo
+        session[f"active_workspace_{user_id}"] = workspace.id
+        print(f"[WORKSPACE] Workspace id={workspace.id} definido como ativo para user_id={user_id}")
+        
+        return _cors_wrap(jsonify({
+            "success": True,
+            "workspace": {
+                "id": workspace.id,
+                "name": workspace.name,
+                "description": workspace.description,
+                "color": workspace.color,
+            }
+        }), origin), 201
+        
+    except Exception as e:
+        print(f"[WORKSPACE] ERRO no POST /api/workspaces: {e}")
+        import traceback
+        traceback.print_exc()
+        return _cors_wrap(jsonify({"success": False, "message": "Erro interno no servidor", "error": str(e)}), origin), 500
+
+
+@api_financeiro_bp.route("/api/workspaces/<int:workspace_id>", methods=["PUT", "OPTIONS"])
+def api_update_workspace(workspace_id):
+    """Atualiza um workspace"""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "PUT, OPTIONS")
+    
+    user_id = _get_user_id_from_request()
+    if not user_id:
+        return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+    
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        return _cors_wrap(jsonify({"success": False, "message": "Workspace não encontrado"}), origin), 404
+    
+    if workspace.owner_id != user_id:
+        return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+    
+    data = request.get_json()
+    
+    if "name" in data:
+        workspace.name = data["name"].strip()
+    if "description" in data:
+        workspace.description = data["description"]
+    if "color" in data:
+        workspace.color = data["color"]
+    
+    db.session.commit()
+    
+    return _cors_wrap(jsonify({
+        "success": True,
+        "workspace": {
+            "id": workspace.id,
+            "name": workspace.name,
+            "description": workspace.description,
+            "color": workspace.color,
+        }
+    }), origin), 200
+
+
+@api_financeiro_bp.route("/api/workspace/invite", methods=["POST", "OPTIONS"])
+def api_invite_workspace_member():
+    """Envia convite para um email participar de um workspace"""
+    origin = request.headers.get("Origin", "*")
+
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+
+    try:
+        user_id = _get_user_id_from_request()
+        if not user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+
+        data = request.get_json() or {}
+        workspace_id = data.get("workspace_id")
+        recipient_email = (data.get("recipient_email") or "").strip().lower()
+        role = (data.get("role") or "viewer").strip().lower()
+
+        if not isinstance(workspace_id, int):
+            return _cors_wrap(jsonify({"success": False, "message": "workspace_id inválido"}), origin), 400
+
+        if not recipient_email:
+            return _cors_wrap(jsonify({"success": False, "message": "Email obrigatório"}), origin), 400
+
+        email_regex = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+        if not re.match(email_regex, recipient_email):
+            return _cors_wrap(jsonify({"success": False, "message": "Email inválido"}), origin), 400
+
+        allowed_roles = {"viewer", "editor", "owner"}
+        if role not in allowed_roles:
+            return _cors_wrap(jsonify({"success": False, "message": "Permissão inválida"}), origin), 400
+
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            return _cors_wrap(jsonify({"success": False, "message": "Workspace não encontrado"}), origin), 404
+
+        # Verificar se usuário solicitante tem acesso
+        is_owner = workspace.owner_id == user_id
+        is_member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+        if not (is_owner or is_member):
+            return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+
+        inviter = User.query.get(user_id)
+        if not inviter:
+            return _cors_wrap(jsonify({"success": False, "message": "Usuário não encontrado"}), origin), 400
+
+        if inviter.email.lower() == recipient_email:
+            return _cors_wrap(jsonify({"success": False, "message": "Não é possível convidar a si mesmo"}), origin), 400
+
+        # Verificar se email já é membro
+        existing_user = User.query.filter(func.lower(User.email) == recipient_email).first()
+        if existing_user:
+            member_record = WorkspaceMember.query.filter_by(
+                workspace_id=workspace_id,
+                user_id=existing_user.id
+            ).first()
+            if member_record or workspace.owner_id == existing_user.id:
+                return _cors_wrap(jsonify({"success": False, "message": "Usuário já faz parte do workspace"}), origin), 400
+
+        # Verificar convite pendente
+        pending_invite = WorkspaceInvite.query.filter_by(
+            workspace_id=workspace_id,
+            invited_email=recipient_email,
+            status="pending"
+        ).first()
+        if pending_invite:
+            return _cors_wrap(jsonify({"success": False, "message": "Convite pendente já enviado para este email"}), origin), 400
+
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(days=7)
+
+        invite = WorkspaceInvite(
+            workspace_id=workspace_id,
+            invited_by_id=user_id,
+            invited_email=recipient_email,
+            invited_user_id=existing_user.id if existing_user else None,
+            role=role,
+            token=token,
+            status="pending",
+            expires_at=expires_at,
+        )
+
+        db.session.add(invite)
+        db.session.commit()
+
+        email_sent = send_workspace_invitation(
+            recipient_email=recipient_email,
+            inviter_email=inviter.email,
+            token=token,
+            workspace_name=workspace.name,
+            role=role,
+            app=current_app,
+        )
+
+        if not email_sent:
+            return _cors_wrap(jsonify({"success": False, "message": "Convite salvo, mas falha ao enviar email"}), origin), 500
+
+        return _cors_wrap(jsonify({"success": True, "message": "Convite enviado!"}), origin), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WORKSPACE_INVITE] ERRO: {e}")
+        return _cors_wrap(jsonify({"success": False, "message": "Erro interno no servidor"}), origin), 500
+
+
+@api_financeiro_bp.route("/api/user/active-workspace", methods=["GET", "OPTIONS"])
+def api_get_user_active_workspace():
+    """Retorna o workspace ativo (ou primeiro disponível) para o usuário"""
+    origin = request.headers.get("Origin", "*")
+
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, OPTIONS")
+
+    try:
+        user_id = _get_user_id_from_request()
+        if not user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+
+        # 1) Se tiver workspace ativo em sessão e o usuário tem acesso, retorna
+        active_ws_id = session.get(f"active_workspace_{user_id}")
+        workspace = None
+        if active_ws_id:
+            ws = Workspace.query.get(active_ws_id)
+            if ws and (ws.owner_id == user_id or WorkspaceMember.query.filter_by(workspace_id=ws.id, user_id=user_id).first()):
+                workspace = ws
+
+        # 2) Se não houver em sessão, procurar primeiro workspace onde é dono
+        if not workspace:
+            workspace = Workspace.query.filter_by(owner_id=user_id).order_by(Workspace.id.asc()).first()
+
+        # 3) Se ainda não houver, pegar primeiro onde é membro
+        if not workspace:
+            member = WorkspaceMember.query.filter_by(user_id=user_id).order_by(WorkspaceMember.id.asc()).first()
+            if member:
+                workspace = Workspace.query.get(member.workspace_id)
+
+        if not workspace:
+            return _cors_wrap(jsonify({"success": False, "message": "Nenhum workspace encontrado"}), origin), 404
+
+        # Atualiza sessão com workspace ativo
+        session[f"active_workspace_{user_id}"] = workspace.id
+
+        return _cors_wrap(jsonify({
+            "success": True,
+            "workspace_id": workspace.id,
+            "name": workspace.name,
+        }), origin), 200
+
+    except Exception as e:
+        print(f"[WORKSPACE] ERRO no GET /api/user/active-workspace: {e}")
+        return _cors_wrap(jsonify({"success": False, "message": "Erro interno no servidor"}), origin), 500
+
+
+@api_financeiro_bp.route("/api/workspaces/<int:workspace_id>/activate", methods=["POST", "OPTIONS"])
+def api_activate_workspace(workspace_id):
+    """Define um workspace como ativo"""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+    
+    user_id = _get_user_id_from_request()
+    if not user_id:
+        return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+    
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        return _cors_wrap(jsonify({"success": False, "message": "Workspace não encontrado"}), origin), 404
+    
+    # Verificar se usuário tem acesso
+    if workspace.owner_id != user_id and not WorkspaceMember.query.filter_by(
+        workspace_id=workspace_id, user_id=user_id
+    ).first():
+        return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+    
+    session[f"active_workspace_{user_id}"] = workspace.id
+    
+    return _cors_wrap(jsonify({
+        "success": True,
+        "workspace": {
+            "id": workspace.id,
+            "name": workspace.name,
+            "description": workspace.description,
+            "color": workspace.color,
+        }
+    }), origin), 200
+
