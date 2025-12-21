@@ -102,63 +102,167 @@ def download_apk():
 @gerenciamento_financeiro_bp.route("/invite/accept/<token>")
 def accept_workspace_invite(token):
     """Processa o link de convite enviado por email"""
+    # 1. DETECTAR DISPOSITIVO
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile = ('mobile' in user_agent or 
+                'android' in user_agent or 
+                'iphone' in user_agent or 
+                'ipad' in user_agent or
+                'windows phone' in user_agent or
+                'blackberry' in user_agent)
+    print(f"[INVITE] User-Agent: {request.headers.get('User-Agent', '')}")
+    print(f"[INVITE] Is Mobile: {is_mobile}")
+    
     invite = WorkspaceInvite.query.filter_by(token=token).first()
 
     if not invite:
-        flash("Convite inválido ou inexistente.", "danger")
-        return render_template("finance_invite_status.html", status="error", message="Convite inválido.")
+        if is_mobile:
+            deep_link = f"nexusfinance://invite/error?message=convite_invalido"
+            return render_template("finance_invite_status.html", 
+                                 title="Convite Inválido",
+                                 message="Este convite é inválido ou não existe.",
+                                 is_error=True,
+                                 deep_link=deep_link,
+                                 show_app_button=True)
+        else:
+            flash("Convite inválido ou inexistente.", "danger")
+            return render_template("finance_invite_status.html", status="error", message="Convite inválido.")
 
     if invite.status != "pending":
-        flash("Este convite já foi utilizado ou cancelado.", "danger")
-        return render_template("finance_invite_status.html", status="error", message="Convite já utilizado.")
+        if is_mobile:
+            deep_link = f"nexusfinance://invite/error?message=convite_utilizado"
+            return render_template("finance_invite_status.html",
+                                 title="Convite Já Utilizado", 
+                                 message="Este convite já foi utilizado ou cancelado.",
+                                 is_error=True,
+                                 deep_link=deep_link,
+                                 show_app_button=True)
+        else:
+            flash("Este convite já foi utilizado ou cancelado.", "danger")
+            return render_template("finance_invite_status.html", status="error", message="Convite já utilizado.")
 
     if invite.expires_at and invite.expires_at < datetime.utcnow():
         invite.status = "expired"
         invite.responded_at = datetime.utcnow()
         db.session.commit()
-        flash("Este convite expirou.", "danger")
-        return render_template("finance_invite_status.html", status="error", message="Convite expirado.")
+        if is_mobile:
+            deep_link = f"nexusfinance://invite/error?message=convite_expirado"
+            return render_template("finance_invite_status.html",
+                                 title="Convite Expirado",
+                                 message="Este convite expirou.",
+                                 is_error=True,
+                                 deep_link=deep_link,
+                                 show_app_button=True)
+        else:
+            flash("Este convite expirou.", "danger")
+            return render_template("finance_invite_status.html", status="error", message="Convite expirado.")
 
     workspace = Workspace.query.get(invite.workspace_id)
     if not workspace:
         invite.status = "cancelled"
         invite.responded_at = datetime.utcnow()
         db.session.commit()
-        flash("O workspace deste convite não existe mais.", "danger")
-        return render_template("finance_invite_status.html", status="error", message="Workspace inexistente.")
+        if is_mobile:
+            deep_link = f"nexusfinance://invite/error?message=workspace_inexistente"
+            return render_template("finance_invite_status.html",
+                                 title="Workspace Inexistente",
+                                 message="O workspace deste convite não existe mais.",
+                                 is_error=True,
+                                 deep_link=deep_link,
+                                 show_app_button=True)
+        else:
+            flash("O workspace deste convite não existe mais.", "danger")
+            return render_template("finance_invite_status.html", status="error", message="Workspace inexistente.")
 
-    # Verificar se já é membro
-    existing_member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=invite.invited_user_id).first()
-    if existing_member or workspace.owner_id == invite.invited_user_id:
-        invite.status = "accepted"
-        invite.responded_at = datetime.utcnow()
-        db.session.commit()
-        flash("Você já faz parte deste workspace!", "info")
-        session["finance_user_id"] = invite.invited_user_id
-        return redirect("/gerenciamento-financeiro/app")
-
-    # Se usuário não existe, enviar para registro
+    # Verificar se usuário existe
     user = None
     if invite.invited_email:
         user = User.query.filter_by(email=invite.invited_email).first()
+    
+    print(f"[INVITE] User exists: {user is not None}")
 
-    if not user:
-        flash("Crie sua conta para entrar no workspace.", "info")
-        register_url = f"/gerenciamento-financeiro/register?email={invite.invited_email}&invite_token={token}"
-        return redirect(register_url)
-
-    # Adicionar como membro
-    member = WorkspaceMember(
-        workspace_id=workspace.id,
-        user_id=user.id,
-        role=invite.role or "viewer",
-    )
-    db.session.add(member)
-
-    invite.status = "accepted"
-    invite.responded_at = datetime.utcnow()
-    db.session.commit()
-
-    session["finance_user_id"] = user.id
-    flash("Bem-vindo ao workspace!", "success")
-    return redirect("/gerenciamento-financeiro/app")
+    # 3. LÓGICA DE REDIRECIONAMENTO
+    print(f"[INVITE] Starting redirect logic - is_mobile: {is_mobile}")
+    if is_mobile:
+        print(f"[INVITE] Mobile path taken")
+        if not user:
+            # Usuário não existe - precisa criar conta no app
+            deep_link = f"nexusfinance://invite/register?email={invite.invited_email}&token={token}&workspace_name={workspace.name}"
+            print(f"[INVITE] New user - deep_link: {deep_link}")
+            return render_template("finance_invite_status.html", 
+                                 title="Convite Recebido!",
+                                 message="Você foi convidado! Toque no botão abaixo para abrir o app e criar sua conta.",
+                                 is_error=False,
+                                 deep_link=deep_link,
+                                 show_app_button=True,
+                                 workspace_name=workspace.name,
+                                 invite_email=invite.invited_email)
+        else:
+            # Verificar se já é membro
+            existing_member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user.id).first()
+            if existing_member or workspace.owner_id == user.id:
+                # Já é membro - apenas informar
+                deep_link = f"nexusfinance://workspace?workspace_id={workspace.id}"
+                print(f"[INVITE] Already member - deep_link: {deep_link}")
+                return render_template("finance_invite_status.html",
+                                     title="Você Já é Membro!",
+                                     message="Você já faz parte deste workspace! Toque para abrir o app.",
+                                     is_error=False,
+                                     deep_link=deep_link,
+                                     show_app_button=True,
+                                     workspace_name=workspace.name)
+            else:
+                # Usuário existe - adicionar como membro E redirecionar
+                print(f"[INVITE] Adding existing user as member")
+                member = WorkspaceMember(
+                    workspace_id=workspace.id,
+                    user_id=user.id,
+                    role=invite.role or "viewer",
+                )
+                db.session.add(member)
+                invite.status = "accepted"
+                invite.responded_at = datetime.utcnow()
+                db.session.commit()
+                
+                deep_link = f"nexusfinance://invite/accepted?token={token}&workspace_id={workspace.id}"
+                print(f"[INVITE] User added as member - deep_link: {deep_link}")
+                return render_template("finance_invite_status.html",
+                                     title="Convite Aceito!", 
+                                     message="Convite aceito com sucesso! Toque no botão para abrir o app.",
+                                     is_error=False,
+                                     deep_link=deep_link,
+                                     show_app_button=True,
+                                     workspace_name=workspace.name)
+    else:
+        print(f"[INVITE] Desktop path taken")
+        # Desktop - manter URLs web atuais
+        if not user:
+            flash("Crie sua conta para entrar no workspace.", "info")
+            register_url = f"/gerenciamento-financeiro/register?email={invite.invited_email}&invite_token={token}"
+            print(f"[INVITE] Desktop new user - redirecting to: {register_url}")
+            return redirect(register_url)
+        else:
+            # Verificar se já é membro
+            existing_member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user.id).first()
+            if existing_member or workspace.owner_id == user.id:
+                flash("Você já faz parte deste workspace!", "info")
+                session["finance_user_id"] = user.id
+                print(f"[INVITE] Desktop already member - redirecting to /app")
+                return redirect("/gerenciamento-financeiro/app")
+            else:
+                # Adicionar usuário existente como membro
+                print(f"[INVITE] Desktop adding user as member")
+                member = WorkspaceMember(
+                    workspace_id=workspace.id,
+                    user_id=user.id,
+                    role=invite.role or "viewer",
+                )
+                db.session.add(member)
+                invite.status = "accepted"
+                invite.responded_at = datetime.utcnow()
+                db.session.commit()
+                
+                session["finance_user_id"] = user.id
+                flash("Bem-vindo ao workspace!", "success")
+                print(f"[INVITE] Desktop user added - redirecting to /app")
+                return redirect("/gerenciamento-financeiro/app")

@@ -16,6 +16,7 @@
             --primary-end: #2C5364;
             --success: #22c55e;
             --error: #ef4444;
+            --info: #3b82f6;
         }
 
         * { box-sizing: border-box; }
@@ -65,9 +66,17 @@
         }
 
         .message {
-            margin: 0;
+            margin: 0 0 16px;
             line-height: 1.6;
             color: #4b5563;
+        }
+
+        .workspace-info {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 14px;
         }
 
         .pill {
@@ -84,11 +93,13 @@
 
         .pill.success { background: var(--success); }
         .pill.error { background: var(--error); }
+        .pill.info { background: var(--info); }
 
         .actions {
             padding: 0 20px 20px;
             display: flex;
-            justify-content: flex-end;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .btn {
@@ -100,12 +111,36 @@
             border: none;
             cursor: pointer;
             transition: transform 0.1s ease, box-shadow 0.2s ease;
+            text-align: center;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--primary-mid), var(--primary-end));
             color: #fff;
             box-shadow: 0 10px 20px rgba(44, 83, 100, 0.25);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.25);
+        }
+
+        .btn-info {
+            background: var(--info);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-stores {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-stores .btn {
+            flex: 1;
+            font-size: 14px;
+            padding: 10px 12px;
         }
 
         .btn:hover { transform: translateY(-1px); }
@@ -115,15 +150,62 @@
             .card { max-width: 100%; }
             .title { font-size: 18px; }
             .message { font-size: 15px; }
+            .btn-stores { flex-direction: column; }
         }
     </style>
     <script>
+        // Template variables (processed by Jinja2)
+        const templateData = {
+            showAppButton: {% if show_app_button %}true{% else %}false{% endif %},
+            deepLink: '{{ deep_link | default("", true) }}',
+            status: '{{ status or "success" }}'
+        };
+
         // Define ícone conforme status
         document.addEventListener('DOMContentLoaded', () => {
             const iconEl = document.getElementById('status-icon');
-            const isError = {{ 'true' if is_error else 'false' }};
-            iconEl.textContent = isError ? '❌' : '✅';
+            
+            if (templateData.status === 'error') {
+                iconEl.textContent = '❌';
+            } else if (templateData.status === 'info') {
+                iconEl.textContent = '📱';
+            } else {
+                iconEl.textContent = '✅';
+            }
+
+            // Tentar abrir app automaticamente se for mobile e tiver deep link
+            if (templateData.showAppButton && templateData.deepLink) {
+                console.log('Tentando abrir app automaticamente...');
+                openApp(templateData.deepLink);
+            }
         });
+
+        // Função para tentar abrir deep link
+        function openApp(deepLink) {
+            console.log('Abrindo deep link:', deepLink);
+            window.location.href = deepLink;
+            
+            // Fallback: se não abrir o app em 3s, mostrar instruções
+            setTimeout(() => {
+                console.log('App não abriu automaticamente, mostrando botão');
+                const appButtonContainer = document.getElementById('app-button-container');
+                const loadingMessage = document.getElementById('loading-message');
+                if (appButtonContainer) appButtonContainer.style.display = 'block';
+                if (loadingMessage) loadingMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // Função para tentar novamente
+        function tryAgain() {
+            const appButtonContainer = document.getElementById('app-button-container');
+            const loadingMessage = document.getElementById('loading-message');
+            if (appButtonContainer) appButtonContainer.style.display = 'none';
+            if (loadingMessage) loadingMessage.style.display = 'block';
+            
+            if (templateData.showAppButton && templateData.deepLink) {
+                openApp(templateData.deepLink);
+            }
+        }
     </script>
 </head>
 <body>
@@ -131,19 +213,60 @@
         <div class="header">
             <div class="icon" id="status-icon">✅</div>
             <div>
-                <div class="pill {{ 'error' if is_error else 'success' }}">
-                    {{ 'Erro' if is_error else 'Sucesso' }}
+                <div class="pill {{ status }}">
+                    {% if status == 'error' %}Erro
+                    {% elif status == 'info' %}Convite
+                    {% else %}Sucesso{% endif %}
                 </div>
                 <h1 class="title">{{ title or 'Status do Convite' }}</h1>
             </div>
         </div>
         <div class="status">
             <p class="message">{{ message or 'Atualização do convite.' }}</p>
+            
+            {% if workspace_name %}
+            <div class="workspace-info">
+                <strong>Workspace:</strong> {{ workspace_name }}
+                {% if invite_email %}<br><strong>Email:</strong> {{ invite_email }}{% endif %}
+            </div>
+            {% endif %}
         </div>
         <div class="actions">
-            <a class="btn btn-primary" href="/gerenciamento-financeiro/">
-                Ir para Login
-            </a>
+            {% if show_app_button %}
+                <!-- Loading message (shown initially) -->
+                <div id="loading-message" class="loading-container" style="text-align: center; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📱</div>
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Abrindo App...</div>
+                    <div style="color: #6b7280; font-size: 14px;">Se o app não abrir automaticamente, toque no botão abaixo.</div>
+                </div>
+                
+                <!-- App button container (hidden initially) -->
+                <div id="app-button-container" style="display: none;">
+                    <button class="btn btn-success" onclick="tryAgain()">
+                        📱 Abrir App Novamente
+                    </button>
+                    <div style="text-align: center; margin-top: 16px; color: #6b7280; font-size: 14px;">
+                        Se ainda não funcionar, abra o app manualmente.
+                    </div>
+                </div>
+            {% endif %}
+            
+            {% if is_mobile and show_download_button %}
+                <div class="btn-stores">
+                    <a class="btn btn-info" href="{{ play_store_url }}" target="_blank">
+                        📱 Google Play
+                    </a>
+                    <a class="btn btn-info" href="{{ app_store_url }}" target="_blank">
+                        🍎 App Store
+                    </a>
+                </div>
+            {% endif %}
+            
+            {% if not is_mobile %}
+                <a class="btn btn-primary" href="/gerenciamento-financeiro/">
+                    Ir para Login
+                </a>
+            {% endif %}
         </div>
     </div>
 </body>
