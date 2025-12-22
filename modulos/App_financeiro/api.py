@@ -657,21 +657,7 @@ def api_dashboard():
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, OPTIONS")
 
-    # Para APIs, priorizar request args sobre session para evitar interferência
-    user_id_int = None
-    try:
-        user_id_int = int(request.args.get("user_id"))
-    except Exception:
-        pass
-    
-    if not user_id_int:
-        try:
-            user_id_int = int((request.get_json(silent=True) or {}).get("user_id"))
-        except Exception:
-            pass
-    
-    if not user_id_int:
-        user_id_int = session.get("finance_user_id")
+    user_id_int = _get_user_id_from_request()
 
     if not user_id_int:
         resp = jsonify({
@@ -680,23 +666,10 @@ def api_dashboard():
         })
         return _cors_wrap(resp, origin), 401
 
-    # Determinar workspace ativo usando mesma lógica das transações
-    workspace_id_hint = request.args.get("workspace_id")
-    if workspace_id_hint:
-        try:
-            workspace_id_hint = int(workspace_id_hint)
-        except Exception:
-            workspace_id_hint = None
-    
-    # Usar nova lógica consistente para determinar workspace ativo
-    active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
-    
-    # Verificar preferências de compartilhamento do usuário
-    share_prefs = None
-    if active_workspace_id:
-        share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
-
-    print(f"[DASHBOARD_DEBUG] user_id_int={user_id_int}, active_workspace_id={active_workspace_id}, share_prefs={share_prefs}")
+    try:
+        _ensure_finance_config_and_categories(user_id_int)
+    except Exception:
+        db.session.rollback()
 
     today = datetime.utcnow().date()
     try:
@@ -718,53 +691,38 @@ def api_dashboard():
     # Otimização: consolidar todas as queries de totais em uma única query
     from sqlalchemy import case
     
-    # Usar EXATAMENTE a mesma estrutura de query das transações para garantir funcionamento
-    query = (
-        db.session.query(
-            Transaction.id,
-            Transaction.description,
-            Transaction.amount,
-            Transaction.type,
-            Transaction.transaction_date,
-            Transaction.is_paid,
-            Transaction.is_recurring,
-            Category.id,
-            Category.name,
-            Category.color,
-            Category.icon,
-        )
-        .join(Category, Category.id == Transaction.category_id)
-        .filter()
-    )
+    totals = db.session.query(
+        func.coalesce(func.sum(case(
+            (Transaction.type == "income", Transaction.amount),
+            else_=0
+        )), 0).label("month_income"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense_pending"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_income_paid"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0
+        )), 0).label("month_expense_paid"),
+    ).filter(
+        Transaction.user_id == user_id_int,
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date < end,
+    ).one()
     
-    # Aplicar filtros de workspace EXATAMENTE como na API de transações
-    if active_workspace_id and share_prefs:
-        if share_prefs.get('share_transactions', True):
-            # Mostrar todas as transações do workspace
-            query = query.filter(Transaction.workspace_id == active_workspace_id)
-        else:
-            # Mostrar apenas transações próprias do usuário no workspace
-            query = query.filter(
-                Transaction.workspace_id == active_workspace_id,
-                Transaction.user_id == user_id_int
-            )
-    else:
-        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
-        query = query.filter(
-            Transaction.user_id == user_id_int,
-            Transaction.workspace_id.is_(None)
-        )
-
-    # Executar query e calcular totais
-    all_transactions = query.all()
-    print(f"[DASHBOARD_DEBUG] Found {len(all_transactions)} transactions with exact same query as transactions API")
-    
-    # Calcular totais exatamente como na API
-    month_income = sum(tx.amount for tx in all_transactions if tx.type == "income")
-    month_expense = sum(tx.amount for tx in all_transactions if tx.type == "expense" and tx.is_paid)
-    month_expense_pending = sum(tx.amount for tx in all_transactions if tx.type == "expense" and not tx.is_paid)
-    month_income_paid = sum(tx.amount for tx in all_transactions if tx.type == "income" and tx.is_paid)
-    month_expense_paid = month_expense
+    month_income = totals.month_income
+    month_expense = totals.month_expense
+    month_expense_pending = totals.month_expense_pending
+    month_income_paid = totals.month_income_paid
+    month_expense_paid = totals.month_expense_paid
 
     expense_by_category_rows = (
         db.session.query(
@@ -776,32 +734,17 @@ def api_dashboard():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
+            Transaction.user_id == user_id_int,
             Transaction.type == "expense",
             Transaction.is_paid == True,
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
+        .group_by(Category.id, Category.name, Category.color, Category.icon)
+        .order_by(func.sum(Transaction.amount).desc())
+        .limit(8)
+        .all()
     )
-    
-    # Aplicar filtros de workspace na query de categorias
-    if active_workspace_id and share_prefs:
-        if share_prefs.get('share_transactions', True):
-            # Mostrar todas as transações do workspace
-            expense_by_category_rows = expense_by_category_rows.filter(Transaction.workspace_id == active_workspace_id)
-        else:
-            # Mostrar apenas transações próprias do usuário no workspace
-            expense_by_category_rows = expense_by_category_rows.filter(
-                Transaction.workspace_id == active_workspace_id,
-                Transaction.user_id == user_id_int
-            )
-    else:
-        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
-        expense_by_category_rows = expense_by_category_rows.filter(
-            Transaction.user_id == user_id_int,
-            Transaction.workspace_id.is_(None)
-        )
-    
-    expense_by_category_rows = expense_by_category_rows.group_by(Category.id, Category.name, Category.color, Category.icon).order_by(func.sum(Transaction.amount).desc()).limit(8).all()
 
     expense_by_category = []
     for cat_id, cat_name, cat_color, cat_icon, total in expense_by_category_rows:
@@ -838,30 +781,14 @@ def api_dashboard():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
+            Transaction.user_id == user_id_int,
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
+        .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
+        .limit(10)
+        .all()
     )
-    
-    # Aplicar filtros de workspace na query de últimas transações
-    if active_workspace_id and share_prefs:
-        if share_prefs.get('share_transactions', True):
-            # Mostrar todas as transações do workspace
-            latest_rows = latest_rows.filter(Transaction.workspace_id == active_workspace_id)
-        else:
-            # Mostrar apenas transações próprias do usuário no workspace
-            latest_rows = latest_rows.filter(
-                Transaction.workspace_id == active_workspace_id,
-                Transaction.user_id == user_id_int
-            )
-    else:
-        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
-        latest_rows = latest_rows.filter(
-            Transaction.user_id == user_id_int,
-            Transaction.workspace_id.is_(None)
-        )
-    
-    latest_rows = latest_rows.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).limit(10).all()
 
     latest_transactions = []
     for tid, desc, amt, ttype, tdate, is_paid, is_rec, rec_id, cname, ccolor, cicon in latest_rows:
