@@ -89,6 +89,8 @@ class WorkspaceMember(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     role = db.Column(db.String(20), default="viewer")  # owner, editor, viewer
     joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    onboarding_completed = db.Column(db.Boolean, default=False, nullable=False)
+    share_preferences = db.Column(db.JSON, nullable=True)
 
     user = db.relationship("User", backref="workspace_memberships")
 

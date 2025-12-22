@@ -18,6 +18,7 @@ import secrets
 
 from extensions import db
 from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from email_service import send_workspace_invitation
 
@@ -775,6 +776,8 @@ def api_create_transaction():
     if not user_id_int:
         resp = jsonify({"success": False, "message": "Não autenticado"})
         return _cors_wrap(resp, origin), 401
+    
+    print(f"[CREATE_TX] user_id={user_id_int}, session_active_workspace={session.get(f'active_workspace_{user_id_int}')}")
 
     cfg = _ensure_finance_config_and_categories(int(user_id_int))
 
@@ -868,12 +871,64 @@ def api_create_transaction():
             resp = jsonify({"success": False, "message": "Categoria não encontrada."})
             return _cors_wrap(resp, origin), 400
 
+    # Determinar workspace_id: usar o enviado ou buscar o ativo do usuário
     workspace_id = None
     try:
         if workspace_id_raw is not None:
             workspace_id = int(workspace_id_raw)
-    except Exception:
+            print(f"[CREATE_TX] workspace_id do payload: {workspace_id}")
+        else:
+            # Se não foi especificado, buscar workspace ativo do usuário
+            # Primeiro tentar da sessão
+            workspace_id = session.get(f"active_workspace_{user_id_int}")
+            print(f"[CREATE_TX] workspace_id da sessão: {workspace_id}")
+            
+            # Se não tiver na sessão, buscar o primeiro workspace onde o usuário tem acesso
+            if not workspace_id:
+                print(f"[CREATE_TX] Buscando workspace no banco para user_id={user_id_int}")
+                # Buscar workspace onde é owner
+                workspace = Workspace.query.filter_by(owner_id=user_id_int).first()
+                if not workspace:
+                    # Se não é owner, buscar onde é membro
+                    member = WorkspaceMember.query.filter_by(user_id=user_id_int).first()
+                    if member:
+                        workspace = Workspace.query.get(member.workspace_id)
+                        print(f"[CREATE_TX] Usuário é membro do workspace {workspace.id if workspace else None}")
+                    else:
+                        workspace = None
+                        print(f"[CREATE_TX] Usuário não é owner nem membro de nenhum workspace")
+                
+                if workspace:
+                    workspace_id = workspace.id
+                    # Salvar na sessão para próximas chamadas
+                    session[f"active_workspace_{user_id_int}"] = workspace_id
+                    print(f"[CREATE_TX] Definindo workspace ativo na sessão: {workspace_id}")
+                    
+    except Exception as e:
+        print(f"[CREATE_TX] Erro ao determinar workspace_id: {e}")
         workspace_id = None
+    
+    print(f"[CREATE_TX] workspace_id final determinado: {workspace_id}")
+    
+    # Se ainda não tem workspace_id, criar um workspace padrão para o usuário
+    if workspace_id is None:
+        print(f"[CREATE_TX] Criando workspace padrão para user_id={user_id_int}")
+        try:
+            default_workspace = Workspace(
+                owner_id=user_id_int,
+                name="Meu Workspace",
+                description="Workspace padrão",
+                color="#3b82f6"
+            )
+            db.session.add(default_workspace)
+            db.session.flush()  # Para obter o ID
+            workspace_id = default_workspace.id
+            session[f"active_workspace_{user_id_int}"] = workspace_id
+            print(f"[CREATE_TX] Workspace padrão criado com ID: {workspace_id}")
+        except Exception as e:
+            print(f"[CREATE_TX] Erro ao criar workspace padrão: {e}")
+            resp = jsonify({"success": False, "message": "Erro ao determinar workspace"})
+            return _cors_wrap(resp, origin), 500
 
     recurring_tx = None
     if is_recurring:
@@ -985,6 +1040,30 @@ def api_list_transactions():
     else:
         end = date(year, month + 1, 1)
 
+    # Buscar workspace ativo do usuário
+    active_workspace_id = session.get(f"active_workspace_{user_id_int}")
+    print(f"[LIST_TX] user_id={user_id_int}, active_workspace_id={active_workspace_id}")
+    
+    # Se não tem workspace ativo na sessão, buscar o primeiro workspace do usuário
+    if not active_workspace_id:
+        # Buscar workspace onde é owner
+        workspace = Workspace.query.filter_by(owner_id=user_id_int).first()
+        if not workspace:
+            # Se não é owner, buscar onde é membro
+            member = WorkspaceMember.query.filter_by(user_id=user_id_int).first()
+            if member:
+                workspace = Workspace.query.get(member.workspace_id)
+                print(f"[LIST_TX] Usuário é membro do workspace {workspace.id if workspace else 'None'}")
+            else:
+                workspace = None
+                print(f"[LIST_TX] Usuário não é membro de nenhum workspace")
+        
+        if workspace:
+            active_workspace_id = workspace.id
+            # Salvar na sessão para próximas chamadas
+            session[f"active_workspace_{user_id_int}"] = active_workspace_id
+            print(f"[LIST_TX] Definindo workspace ativo: {active_workspace_id}")
+    
     query = (
         db.session.query(
             Transaction.id,
@@ -1001,11 +1080,23 @@ def api_list_transactions():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
-            Transaction.user_id == int(user_id_int),
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
     )
+    
+    # Filtrar por workspace se houver um ativo
+    if active_workspace_id:
+        print(f"[LIST_TX] Filtrando transações por workspace_id={active_workspace_id}")
+        # Buscar transações do workspace (qualquer membro pode ver)
+        query = query.filter(Transaction.workspace_id == active_workspace_id)
+    else:
+        print(f"[LIST_TX] Sem workspace ativo, mostrando transações pessoais do usuário")
+        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
+        query = query.filter(
+            Transaction.user_id == int(user_id_int),
+            Transaction.workspace_id.is_(None)
+        )
 
     if tx_type in ("income", "expense"):
         query = query.filter(Transaction.type == tx_type)
@@ -1014,6 +1105,7 @@ def api_list_transactions():
         query = query.filter(func.lower(Transaction.description).like(f"%{q.lower()}%"))
 
     rows = query.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).all()
+    print(f"[LIST_TX] Encontradas {len(rows)} transações para o período {year}-{month:02d}")
 
     items = []
     for tid, desc, amt, ttype, tdate, is_paid, is_recurring, cid, cname, ccolor, cicon in rows:
@@ -1776,19 +1868,34 @@ def api_get_workspaces():
         if not user_id:
             return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
         
-        # Buscar APENAS workspaces onde o usuário é owner (simplificado)
-        print(f"[WORKSPACE] Buscando workspaces para owner_id={user_id}")
+        # Buscar workspaces onde usuário é owner ou membro
+        print(f"[WORKSPACE] Buscando workspaces para user_id={user_id}")
         owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
-        print(f"[WORKSPACE] Encontrados {len(owned_workspaces)} workspaces")
+        member_links = WorkspaceMember.query.filter_by(user_id=user_id).all()
+        workspace_ids = {w.id for w in owned_workspaces} | {m.workspace_id for m in member_links}
+        all_workspaces = Workspace.query.filter(Workspace.id.in_(workspace_ids)).all() if workspace_ids else []
+        print(f"[WORKSPACE] Encontrados {len(all_workspaces)} workspaces (owner ou membro)")
         
-        workspaces_data = [{
-            "id": w.id,
-            "name": w.name,
-            "description": w.description or "",
-            "color": w.color or "#3b82f6",
-            "is_owner": True,
-            "created_at": w.created_at.isoformat() if w.created_at else None,
-        } for w in owned_workspaces]
+        # Mapear status de onboarding
+        member_status = {m.workspace_id: (m.onboarding_completed, m.share_preferences) for m in member_links}
+        
+        workspaces_data = []
+        for w in all_workspaces:
+            onboarding_completed, prefs = member_status.get(w.id, (True, None)) if w.owner_id != user_id else (True, None)
+            # Buscar informações do owner
+            owner = User.query.get(w.owner_id) if w.owner_id else None
+            workspaces_data.append({
+                "id": w.id,
+                "name": w.name,
+                "description": w.description or "",
+                "color": w.color or "#3b82f6",
+                "is_owner": w.owner_id == user_id,
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+                "onboarding_completed": onboarding_completed,
+                "share_preferences": prefs or {},
+                "owner_email": owner.email if owner else None,
+                "owner_name": owner.email.split('@')[0] if owner else None,  # Nome baseado no email
+            })
         
         print(f"[WORKSPACE] Retornando {len(workspaces_data)} workspaces para user_id={user_id}")
         
@@ -1818,22 +1925,41 @@ def api_get_active_workspace_legacy():
     
     if active_workspace_id:
         workspace = Workspace.query.get(active_workspace_id)
-        if workspace and (workspace.owner_id == user_id or 
-                         WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user_id).first()):
-            return _cors_wrap(jsonify({
-                "success": True,
-                "workspace": {
-                    "id": workspace.id,
-                    "name": workspace.name,
-                    "description": workspace.description,
-                    "color": workspace.color,
-                }
-            }), origin), 200
+        if workspace:
+            member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user_id).first()
+            has_access = workspace.owner_id == user_id or member
+            if has_access:
+                # Buscar informações do owner
+                owner = User.query.get(workspace.owner_id) if workspace.owner_id else None
+                return _cors_wrap(jsonify({
+                    "success": True,
+                    "workspace": {
+                        "id": workspace.id,
+                        "name": workspace.name,
+                        "description": workspace.description,
+                        "color": workspace.color,
+                        "is_owner": workspace.owner_id == user_id,
+                        "owner_email": owner.email if owner else None,
+                        "owner_name": owner.email.split('@')[0] if owner else None,
+                    }
+                }), origin), 200
     
-    # Se não tem workspace ativo, pegar o primeiro workspace do usuário
+    # Se não tem workspace ativo, pegar o primeiro workspace do usuário (owner ou membro)
     workspace = Workspace.query.filter_by(owner_id=user_id).first()
+    if not workspace:
+        # Se não é owner, buscar primeiro workspace onde é membro
+        member = WorkspaceMember.query.filter_by(user_id=user_id).first()
+        if member:
+            workspace = Workspace.query.get(member.workspace_id)
+            print(f"[ACTIVE_WS] Membro encontrado - workspace_id={workspace.id if workspace else None}")
+    
     if workspace:
+        # SEMPRE definir o workspace ativo na sessão
         session[f"active_workspace_{user_id}"] = workspace.id
+        print(f"[ACTIVE_WS] Definindo workspace ativo na sessão: user_id={user_id}, workspace_id={workspace.id}")
+        
+        # Buscar informações do owner
+        owner = User.query.get(workspace.owner_id) if workspace.owner_id else None
         return _cors_wrap(jsonify({
             "success": True,
             "workspace": {
@@ -1841,6 +1967,9 @@ def api_get_active_workspace_legacy():
                 "name": workspace.name,
                 "description": workspace.description,
                 "color": workspace.color,
+                "is_owner": workspace.owner_id == user_id,
+                "owner_email": owner.email if owner else None,
+                "owner_name": owner.email.split('@')[0] if owner else None,
             }
         }), origin), 200
     
@@ -2132,9 +2261,10 @@ def api_activate_workspace(workspace_id):
         return _cors_wrap(jsonify({"success": False, "message": "Workspace não encontrado"}), origin), 404
     
     # Verificar se usuário tem acesso
-    if workspace.owner_id != user_id and not WorkspaceMember.query.filter_by(
+    member = WorkspaceMember.query.filter_by(
         workspace_id=workspace_id, user_id=user_id
-    ).first():
+    ).first()
+    if workspace.owner_id != user_id and not member:
         return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
     
     session[f"active_workspace_{user_id}"] = workspace.id
@@ -2148,4 +2278,51 @@ def api_activate_workspace(workspace_id):
             "color": workspace.color,
         }
     }), origin), 200
+
+
+@api_financeiro_bp.route("/api/workspaces/<int:workspace_id>/complete_onboarding", methods=["POST", "OPTIONS"])
+def api_complete_onboarding(workspace_id):
+    """Marca onboarding como concluído e salva preferências de compartilhamento."""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+    
+    try:
+        user_id = _get_user_id_from_request()
+        if not user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+        
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            return _cors_wrap(jsonify({"success": False, "message": "Workspace não encontrado"}), origin), 404
+        
+        member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+        if not member and workspace.owner_id != user_id:
+            return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+        
+        data = request.get_json() or {}
+        share_preferences = data.get("share_preferences") or {}
+        
+        if member:
+            member.onboarding_completed = True
+            member.share_preferences = share_preferences
+        else:
+            # Owner não tem registro em workspace_members; nada a salvar além de seguir.
+            pass
+        
+        db.session.commit()
+        session[f"active_workspace_{user_id}"] = workspace_id
+        
+        return _cors_wrap(jsonify({
+            "success": True,
+            "workspace_id": workspace_id,
+            "onboarding_completed": True
+        }), origin), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return _cors_wrap(jsonify({"success": False, "message": "Erro ao salvar onboarding", "error": str(e)}), origin), 500
+    except Exception as e:
+        db.session.rollback()
+        return _cors_wrap(jsonify({"success": False, "message": "Erro interno", "error": str(e)}), origin), 500
 

@@ -17,6 +17,7 @@ from flask import (
     redirect,
     url_for,
     session,
+    jsonify,
 )
 
 from extensions import db
@@ -198,8 +199,6 @@ def accept_workspace_invite(token):
                                  show_app_button=True,
                                  workspace_name=workspace.name,
                                  invite_email=invite.invited_email)
-        else:
-            # Verificar se já é membro
             existing_member = WorkspaceMember.query.filter_by(workspace_id=workspace.id, user_id=user.id).first()
             if existing_member or workspace.owner_id == user.id:
                 # Já é membro - apenas informar
@@ -223,13 +222,24 @@ def accept_workspace_invite(token):
                 db.session.add(member)
                 invite.status = "accepted"
                 invite.responded_at = datetime.utcnow()
+                
+                # CRÍTICO: Definir o workspace como ativo na sessão
+                session[f"active_workspace_{user.id}"] = workspace.id
+                print(f"[INVITE] Definindo workspace ativo na sessão: user_id={user.id}, workspace_id={workspace.id}")
+                
                 db.session.commit()
                 
-                deep_link = f"nexusfinance://invite/accepted?token={token}&workspace_id={workspace.id}"
-                print(f"[INVITE] User added as member - deep_link: {deep_link}")
+                deep_link = (
+                    f"nexusfinance://workspace/onboarding"
+                    f"?workspace_id={workspace.id}"
+                    f"&role={member.role}"
+                    f"&workspace_name={workspace.name}"
+                    f"&user_id={user.id}"
+                )
+                print(f"[INVITE] User added as member - onboarding deep_link: {deep_link}")
                 return render_template("finance_invite_status.html",
                                      title="Convite Aceito!", 
-                                     message="Convite aceito com sucesso! Toque no botão para abrir o app.",
+                                     message="Convite aceito com sucesso! Toque no botão para configurar o compartilhamento no app.",
                                      is_error=False,
                                      deep_link=deep_link,
                                      show_app_button=True,
@@ -264,6 +274,52 @@ def accept_workspace_invite(token):
                 db.session.commit()
                 
                 session["finance_user_id"] = user.id
-                flash("Bem-vindo ao workspace!", "success")
-                print(f"[INVITE] Desktop user added - redirecting to /app")
-                return redirect("/gerenciamento-financeiro/app")
+                onboarding_url = url_for("gerenciamento_financeiro.workspace_onboarding", workspace_id=workspace.id)
+                flash("Bem-vindo! Complete as preferências de compartilhamento.", "success")
+                print(f"[INVITE] Desktop user added - redirecting to onboarding {onboarding_url}")
+                return redirect(onboarding_url)
+
+
+@gerenciamento_financeiro_bp.route("/workspace/<int:workspace_id>/onboarding", methods=["GET", "POST"])
+def workspace_onboarding(workspace_id):
+    """Tela web simples para concluir onboarding do workspace."""
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        flash("Workspace não encontrado.", "danger")
+        return redirect("/gerenciamento-financeiro/")
+
+    user_id = session.get("finance_user_id")
+    member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first() if user_id else None
+
+    if not user_id or (workspace.owner_id != user_id and not member):
+        flash("Faça login para continuar o onboarding.", "danger")
+        return redirect("/gerenciamento-financeiro/login" if hasattr(gerenciamento_financeiro_bp, "login") else "/")
+
+    if member and member.onboarding_completed:
+        flash("Onboarding já concluído.", "success")
+        return redirect("/gerenciamento-financeiro/app")
+
+    if request.method == "POST":
+        share_transactions = bool(request.form.get("share_transactions"))
+        share_categories = bool(request.form.get("share_categories"))
+        share_files = bool(request.form.get("share_files"))
+
+        prefs = {
+            "share_transactions": share_transactions,
+            "share_categories": share_categories,
+            "share_files": share_files,
+        }
+
+        if member:
+            member.onboarding_completed = True
+            member.share_preferences = prefs
+        db.session.commit()
+        flash("Onboarding concluído com sucesso!", "success")
+        session[f"active_workspace_{user_id}"] = workspace_id
+        return redirect("/gerenciamento-financeiro/app")
+
+    return render_template(
+        "finance_onboarding.html",
+        workspace=workspace,
+        member=member,
+    )
