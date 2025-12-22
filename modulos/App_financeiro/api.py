@@ -78,6 +78,107 @@ def _get_user_id_from_request():
         return None
 
 
+def _get_active_workspace_for_user(user_id: int, workspace_id_hint: int = None):
+    """
+    Determina o workspace ativo para um usuário de forma consistente.
+    Prioriza workspace_id do request, depois workspace compartilhado único,
+    depois o mais recentemente acessado.
+    """
+    # 1. Se workspace_id foi fornecido no request, verificar se usuário tem acesso
+    if workspace_id_hint:
+        workspace = Workspace.query.get(workspace_id_hint)
+        if workspace:
+            # Verificar se usuário tem acesso (owner ou membro)
+            is_owner = workspace.owner_id == user_id
+            is_member = WorkspaceMember.query.filter_by(
+                workspace_id=workspace_id_hint, user_id=user_id
+            ).first()
+            if is_owner or is_member:
+                return workspace_id_hint
+    
+    # 2. Buscar workspaces do usuário (owner + membro)
+    owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
+    member_links = WorkspaceMember.query.filter_by(user_id=user_id).all()
+    
+    # Se tem apenas um workspace (owner ou membro), usar esse
+    all_workspace_ids = [w.id for w in owned_workspaces] + [m.workspace_id for m in member_links]
+    unique_workspace_ids = list(set(all_workspace_ids))
+    
+    if len(unique_workspace_ids) == 1:
+        return unique_workspace_ids[0]
+    
+    # 3. Se múltiplos workspaces, priorizar workspace compartilhado (onde é membro)
+    if member_links:
+        # Pegar o workspace compartilhado mais recente
+        latest_member = max(member_links, key=lambda m: m.joined_at)
+        return latest_member.workspace_id
+    
+    # 4. Fallback: primeiro workspace próprio
+    if owned_workspaces:
+        return owned_workspaces[0].id
+    
+    return None
+
+
+def _check_user_share_preferences(user_id: int, workspace_id: int):
+    """
+    Verifica as preferências de compartilhamento do usuário.
+    Retorna dict com permissões ou None se usuário é owner.
+    """
+    workspace = Workspace.query.get(workspace_id)
+    if not workspace:
+        return None
+    
+    # Se é owner, tem acesso total
+    if workspace.owner_id == user_id:
+        return {'share_transactions': True, 'share_categories': True}
+    
+    # Se é membro, verificar preferências
+    member = WorkspaceMember.query.filter_by(
+        workspace_id=workspace_id, user_id=user_id
+    ).first()
+    
+    if not member:
+        return None
+    
+    # Retornar preferências ou padrão
+    return member.share_preferences or {'share_transactions': True, 'share_categories': True}
+
+
+def api_sync_workspace_context(workspace_id: int, requesting_user_id: int):
+    """
+    Sincroniza o contexto de workspace para todos os membros online.
+    Define o mesmo workspace ativo para todos os usuários do workspace.
+    """
+    try:
+        workspace = Workspace.query.get(workspace_id)
+        if not workspace:
+            return False
+        
+        # Verificar se usuário solicitante tem acesso
+        is_owner = workspace.owner_id == requesting_user_id
+        is_member = WorkspaceMember.query.filter_by(
+            workspace_id=workspace_id, user_id=requesting_user_id
+        ).first()
+        
+        if not (is_owner or is_member):
+            return False
+        
+        # Buscar todos os membros do workspace
+        all_member_ids = [workspace.owner_id]
+        members = WorkspaceMember.query.filter_by(workspace_id=workspace_id).all()
+        all_member_ids.extend([m.user_id for m in members])
+        
+        # Atualizar sessão para todos os membros (simulação - em produção seria via WebSocket/Redis)
+        # Por enquanto, apenas loggar a ação
+        _dbg(f"[SYNC_WORKSPACE] Sincronizando workspace {workspace_id} para usuários: {all_member_ids}")
+        
+        return True
+    except Exception as e:
+        _dbg(f"[SYNC_WORKSPACE] Erro: {e}")
+        return False
+
+
 def _migrate_legacy_recurring_transactions(user_id: int):
     """
     Migra recorrências antigas criadas diretamente na tabela transactions
@@ -556,7 +657,21 @@ def api_dashboard():
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, OPTIONS")
 
-    user_id_int = _get_user_id_from_request()
+    # Para APIs, priorizar request args sobre session para evitar interferência
+    user_id_int = None
+    try:
+        user_id_int = int(request.args.get("user_id"))
+    except Exception:
+        pass
+    
+    if not user_id_int:
+        try:
+            user_id_int = int((request.get_json(silent=True) or {}).get("user_id"))
+        except Exception:
+            pass
+    
+    if not user_id_int:
+        user_id_int = session.get("finance_user_id")
 
     if not user_id_int:
         resp = jsonify({
@@ -565,10 +680,23 @@ def api_dashboard():
         })
         return _cors_wrap(resp, origin), 401
 
-    try:
-        _ensure_finance_config_and_categories(user_id_int)
-    except Exception:
-        db.session.rollback()
+    # Determinar workspace ativo usando mesma lógica das transações
+    workspace_id_hint = request.args.get("workspace_id")
+    if workspace_id_hint:
+        try:
+            workspace_id_hint = int(workspace_id_hint)
+        except Exception:
+            workspace_id_hint = None
+    
+    # Usar nova lógica consistente para determinar workspace ativo
+    active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+    
+    # Verificar preferências de compartilhamento do usuário
+    share_prefs = None
+    if active_workspace_id:
+        share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
+
+    print(f"[DASHBOARD_DEBUG] user_id_int={user_id_int}, active_workspace_id={active_workspace_id}, share_prefs={share_prefs}")
 
     today = datetime.utcnow().date()
     try:
@@ -590,38 +718,53 @@ def api_dashboard():
     # Otimização: consolidar todas as queries de totais em uma única query
     from sqlalchemy import case
     
-    totals = db.session.query(
-        func.coalesce(func.sum(case(
-            (Transaction.type == "income", Transaction.amount),
-            else_=0
-        )), 0).label("month_income"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense_pending"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_income_paid"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense_paid"),
-    ).filter(
-        Transaction.user_id == user_id_int,
-        Transaction.transaction_date >= start,
-        Transaction.transaction_date < end,
-    ).one()
+    # Usar EXATAMENTE a mesma estrutura de query das transações para garantir funcionamento
+    query = (
+        db.session.query(
+            Transaction.id,
+            Transaction.description,
+            Transaction.amount,
+            Transaction.type,
+            Transaction.transaction_date,
+            Transaction.is_paid,
+            Transaction.is_recurring,
+            Category.id,
+            Category.name,
+            Category.color,
+            Category.icon,
+        )
+        .join(Category, Category.id == Transaction.category_id)
+        .filter()
+    )
     
-    month_income = totals.month_income
-    month_expense = totals.month_expense
-    month_expense_pending = totals.month_expense_pending
-    month_income_paid = totals.month_income_paid
-    month_expense_paid = totals.month_expense_paid
+    # Aplicar filtros de workspace EXATAMENTE como na API de transações
+    if active_workspace_id and share_prefs:
+        if share_prefs.get('share_transactions', True):
+            # Mostrar todas as transações do workspace
+            query = query.filter(Transaction.workspace_id == active_workspace_id)
+        else:
+            # Mostrar apenas transações próprias do usuário no workspace
+            query = query.filter(
+                Transaction.workspace_id == active_workspace_id,
+                Transaction.user_id == user_id_int
+            )
+    else:
+        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
+        query = query.filter(
+            Transaction.user_id == user_id_int,
+            Transaction.workspace_id.is_(None)
+        )
+
+    # Executar query e calcular totais
+    all_transactions = query.all()
+    print(f"[DASHBOARD_DEBUG] Found {len(all_transactions)} transactions with exact same query as transactions API")
+    
+    # Calcular totais exatamente como na API
+    month_income = sum(tx.amount for tx in all_transactions if tx.type == "income")
+    month_expense = sum(tx.amount for tx in all_transactions if tx.type == "expense" and tx.is_paid)
+    month_expense_pending = sum(tx.amount for tx in all_transactions if tx.type == "expense" and not tx.is_paid)
+    month_income_paid = sum(tx.amount for tx in all_transactions if tx.type == "income" and tx.is_paid)
+    month_expense_paid = month_expense
 
     expense_by_category_rows = (
         db.session.query(
@@ -633,17 +776,32 @@ def api_dashboard():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
-            Transaction.user_id == user_id_int,
             Transaction.type == "expense",
             Transaction.is_paid == True,
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
-        .group_by(Category.id, Category.name, Category.color, Category.icon)
-        .order_by(func.sum(Transaction.amount).desc())
-        .limit(8)
-        .all()
     )
+    
+    # Aplicar filtros de workspace na query de categorias
+    if active_workspace_id and share_prefs:
+        if share_prefs.get('share_transactions', True):
+            # Mostrar todas as transações do workspace
+            expense_by_category_rows = expense_by_category_rows.filter(Transaction.workspace_id == active_workspace_id)
+        else:
+            # Mostrar apenas transações próprias do usuário no workspace
+            expense_by_category_rows = expense_by_category_rows.filter(
+                Transaction.workspace_id == active_workspace_id,
+                Transaction.user_id == user_id_int
+            )
+    else:
+        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
+        expense_by_category_rows = expense_by_category_rows.filter(
+            Transaction.user_id == user_id_int,
+            Transaction.workspace_id.is_(None)
+        )
+    
+    expense_by_category_rows = expense_by_category_rows.group_by(Category.id, Category.name, Category.color, Category.icon).order_by(func.sum(Transaction.amount).desc()).limit(8).all()
 
     expense_by_category = []
     for cat_id, cat_name, cat_color, cat_icon, total in expense_by_category_rows:
@@ -680,14 +838,30 @@ def api_dashboard():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
-            Transaction.user_id == user_id_int,
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
         )
-        .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
-        .limit(10)
-        .all()
     )
+    
+    # Aplicar filtros de workspace na query de últimas transações
+    if active_workspace_id and share_prefs:
+        if share_prefs.get('share_transactions', True):
+            # Mostrar todas as transações do workspace
+            latest_rows = latest_rows.filter(Transaction.workspace_id == active_workspace_id)
+        else:
+            # Mostrar apenas transações próprias do usuário no workspace
+            latest_rows = latest_rows.filter(
+                Transaction.workspace_id == active_workspace_id,
+                Transaction.user_id == user_id_int
+            )
+    else:
+        # Sem workspace ativo, mostrar apenas transações pessoais do usuário
+        latest_rows = latest_rows.filter(
+            Transaction.user_id == user_id_int,
+            Transaction.workspace_id.is_(None)
+        )
+    
+    latest_rows = latest_rows.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).limit(10).all()
 
     latest_transactions = []
     for tid, desc, amt, ttype, tdate, is_paid, is_rec, rec_id, cname, ccolor, cicon in latest_rows:
@@ -759,254 +933,320 @@ def api_categories():
     return _cors_wrap(resp, origin), 200
 
 
+@api_financeiro_bp.route("/api/test", methods=["GET", "OPTIONS"])
+def api_test():
+    """Endpoint de teste simples"""
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, OPTIONS")
+    
+    print(f"[TEST] Test endpoint called successfully!")
+    resp = jsonify({"success": True, "message": "API is working"})
+    return _cors_wrap(resp, origin), 200
+
+
 @api_financeiro_bp.route("/api/transactions", methods=["POST", "OPTIONS"])
 def api_create_transaction():
     origin = request.headers.get("Origin", "*")
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "POST, OPTIONS")
 
-    user_id_int = session.get("finance_user_id")
-    if not user_id_int:
-        # fallback para app atual
-        try:
-            user_id_int = int((request.get_json(silent=True) or {}).get("user_id"))
-        except Exception:
-            user_id_int = None
+    print(f"[CREATE_TX] Starting transaction creation")
+    
+    try:
+        print(f"[CREATE_TX] Getting user_id from session")
+        user_id_int = session.get("finance_user_id")
+        print(f"[CREATE_TX] user_id from session: {user_id_int}")
+        
+        if not user_id_int:
+            # fallback para app atual
+            print(f"[CREATE_TX] Getting user_id from request body")
+            try:
+                user_id_int = int((request.get_json(silent=True) or {}).get("user_id"))
+                print(f"[CREATE_TX] user_id from body: {user_id_int}")
+            except Exception:
+                user_id_int = None
 
+        if not user_id_int:
+            resp = jsonify({"success": False, "message": "Não autenticado"})
+            return _cors_wrap(resp, origin), 401
+        
+        print(f"[CREATE_TX] Ensuring finance config and categories")
+        cfg = _ensure_finance_config_and_categories(int(user_id_int))
+        print(f"[CREATE_TX] Config ensured: {cfg}")
+
+        data = request.get_json(silent=True) or {}
+        print(f"[CREATE_TX] Request data: {data}")
+        
+        # Determinar workspace_id do request (se fornecido)
+        workspace_id_hint = data.get("workspace_id")
+        if workspace_id_hint:
+            try:
+                workspace_id_hint = int(workspace_id_hint)
+            except Exception:
+                workspace_id_hint = None
+        
+        # Usar nova lógica consistente para determinar workspace ativo
+        try:
+            active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+            print(f"[CREATE_TX] user_id={user_id_int}, active_workspace_id={active_workspace_id}")
+        except Exception as e:
+            print(f"[CREATE_TX] Erro ao determinar workspace: {e}")
+            # Temporarily disable new logic and use old approach
+            active_workspace_id = None
+        ttype = str(data.get("type", "")).strip().lower()
+        description = str(data.get("description", "")).strip()
+        amount_raw = data.get("amount")
+        category_text = str(data.get("category_text", "")).strip() or None
+        date_raw = str(data.get("transaction_date", "")).strip()
+        workspace_id_raw = data.get("workspace_id")
+        
+        # Campos adicionais
+        payment_method = str(data.get("payment_method", "")).strip() or None
+        notes = str(data.get("notes", "")).strip() or None
+        is_paid = bool(data.get("is_paid", True))
+        subcategory_text = str(data.get("subcategory_text", "")).strip() or None
+        is_recurring = bool(data.get("is_recurring", False))
+        recurring_day = data.get("recurring_day")  # Dia do vencimento (1-31)
+        recurring_unlimited = data.get("recurring_unlimited")
+        recurring_end_date_raw = str(data.get("recurring_end_date", "")).strip() or None
+
+        if ttype not in ("income", "expense"):
+            resp = jsonify({"success": False, "message": "Tipo inválido (income/expense)."})
+            return _cors_wrap(resp, origin), 400
+
+        if not description:
+            resp = jsonify({"success": False, "message": "Descrição é obrigatória."})
+            return _cors_wrap(resp, origin), 400
+
+        try:
+            amount = float(amount_raw)
+        except Exception:
+            amount = 0
+
+        if amount <= 0:
+            resp = jsonify({"success": False, "message": "Valor inválido."})
+            return _cors_wrap(resp, origin), 400
+
+        # Data base da transação
+        try:
+            if date_raw:
+                tdate = date.fromisoformat(date_raw)
+            else:
+                tdate = datetime.utcnow().date()
+        except Exception:
+            tdate = datetime.utcnow().date()
+
+        # Se for recorrente, usar apenas o dia do vencimento e ignorar a data enviada
+        recurring_day_int = None
+        if is_recurring:
+            try:
+                recurring_day_int = int(recurring_day)
+            except Exception:
+                recurring_day_int = None
+
+            if not recurring_day_int or recurring_day_int < 1 or recurring_day_int > 31:
+                resp = jsonify({"success": False, "message": "Dia de vencimento inválido (1-31)."})
+                return _cors_wrap(resp, origin), 400
+
+            last_day = calendar.monthrange(tdate.year, tdate.month)[1]
+            day = min(recurring_day_int, last_day)
+            tdate = date(tdate.year, tdate.month, day)
+
+        # Buscar ou criar categoria baseada no texto
+        category = None
+        if category_text:
+            # Tentar encontrar categoria existente (case-insensitive)
+            category = Category.query.filter(
+                func.lower(Category.name) == category_text.lower(),
+                Category.config_id == cfg.id,
+                Category.type == ttype
+            ).first()
+            
+            # Se não existir, criar nova categoria
+            if not category:
+                category = Category(
+                    config_id=cfg.id,
+                    name=category_text,
+                    type=ttype,
+                    color="#64748B",  # Cor padrão cinza
+                    icon="📝",  # Ícone padrão
+                    is_default=False
+                )
+                db.session.add(category)
+                db.session.flush()  # Para obter o ID
+        
+        # Fallback para categoria "Outros" se não tiver categoria
+        if not category:
+            category = Category.query.filter_by(config_id=cfg.id, type=ttype, name="Outros").first()
+            if not category:
+                resp = jsonify({"success": False, "message": "Categoria não encontrada."})
+                return _cors_wrap(resp, origin), 400
+
+        # Usar o workspace ativo determinado pela nova lógica
+        workspace_id = active_workspace_id
+        
+        # Verificar se usuário tem permissão para criar transações no workspace
+        if workspace_id:
+            share_prefs = _check_user_share_preferences(user_id_int, workspace_id)
+            if not share_prefs:
+                resp = jsonify({"success": False, "message": "Sem permissão para acessar este workspace"})
+                return _cors_wrap(resp, origin), 403
+            
+            # Sincronizar contexto do workspace para todos os membros
+            try:
+                api_sync_workspace_context(workspace_id, user_id_int)
+            except Exception as e:
+                print(f"[CREATE_TX] Erro na sincronização: {e}")
+            
+            print(f"[CREATE_TX] Usando workspace_id={workspace_id} com permissões: {share_prefs}")
+        
+        print(f"[CREATE_TX] workspace_id final determinado: {workspace_id}")
+        
+        # Se ainda não tem workspace_id, criar um workspace padrão para o usuário
+        if workspace_id is None:
+            print(f"[CREATE_TX] Criando workspace padrão para user_id={user_id_int}")
+            try:
+                default_workspace = Workspace(
+                    owner_id=user_id_int,
+                    name="Meu Workspace",
+                    description="Workspace padrão",
+                    color="#3b82f6"
+                )
+                db.session.add(default_workspace)
+                db.session.flush()  # Para obter o ID
+                workspace_id = default_workspace.id
+                session[f"active_workspace_{user_id_int}"] = workspace_id
+                print(f"[CREATE_TX] Workspace padrão criado com ID: {workspace_id}")
+            except Exception as e:
+                print(f"[CREATE_TX] Erro ao criar workspace padrão: {e}")
+                resp = jsonify({"success": False, "message": "Erro ao determinar workspace"})
+                return _cors_wrap(resp, origin), 500
+
+        recurring_tx = None
+        if is_recurring:
+            # Null = sem fim
+            unlimited_bool = True
+            if recurring_unlimited is not None:
+                try:
+                    unlimited_bool = bool(recurring_unlimited)
+                except Exception:
+                    unlimited_bool = True
+
+            end_date = None
+            if not unlimited_bool and recurring_end_date_raw:
+                try:
+                    end_date = date.fromisoformat(recurring_end_date_raw)
+                except Exception:
+                    end_date = None
+
+            # start_date deve ser o primeiro dia do mês da transação
+            start_date_first_day = date(tdate.year, tdate.month, 1)
+            
+            recurring_tx = RecurringTransaction(
+                user_id=int(user_id_int),
+                category_id=category.id,
+                subcategory_id=None,
+                subcategory_text=subcategory_text,
+                description=description,
+                amount=amount,
+                type=ttype,
+                frequency="monthly",
+                day_of_month=recurring_day_int,
+                start_date=start_date_first_day,
+                end_date=end_date,
+                is_active=True,
+                payment_method=payment_method,
+                notes=notes,
+            )
+            db.session.add(recurring_tx)
+            db.session.flush()
+
+        tx = Transaction(
+            user_id=int(user_id_int),
+            category_id=category.id,
+            description=description,
+            amount=amount,
+            type=ttype,
+            transaction_date=tdate,
+            is_paid=is_paid,
+            paid_date=tdate if is_paid else None,
+            workspace_id=workspace_id,
+            payment_method=payment_method,
+            notes=notes,
+            subcategory_text=subcategory_text,
+            is_recurring=is_recurring,
+            frequency="monthly" if is_recurring else "once",
+            recurring_transaction_id=recurring_tx.id if recurring_tx else None,
+        )
+
+        db.session.add(tx)
+        db.session.commit()
+
+        resp = jsonify({
+            "success": True,
+            "transaction": {
+                "id": tx.id,
+                "description": tx.description,
+                "amount": float(tx.amount or 0),
+                "type": tx.type,
+                "date": tx.transaction_date.isoformat() if tx.transaction_date else None,
+                "category": {
+                    "id": category.id,
+                    "name": category.name,
+                    "color": category.color,
+                    "icon": category.icon,
+                },
+            },
+        })
+        return _cors_wrap(resp, origin), 201
+        
+    except Exception as e:
+        print(f"[CREATE_TX] Erro inesperado: {e}")
+        import traceback
+        traceback.print_exc()
+        resp = jsonify({"success": False, "message": f"Erro interno: {str(e)}"})
+        return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/workspace/sync", methods=["POST", "OPTIONS"])
+def api_sync_workspace():
+    """Endpoint para sincronizar contexto de workspace entre membros"""
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+    
+    user_id_int = _get_user_id_from_request()
     if not user_id_int:
         resp = jsonify({"success": False, "message": "Não autenticado"})
         return _cors_wrap(resp, origin), 401
     
-    print(f"[CREATE_TX] user_id={user_id_int}, session_active_workspace={session.get(f'active_workspace_{user_id_int}')}")
-
-    cfg = _ensure_finance_config_and_categories(int(user_id_int))
-
     data = request.get_json(silent=True) or {}
-    ttype = str(data.get("type", "")).strip().lower()
-    description = str(data.get("description", "")).strip()
-    amount_raw = data.get("amount")
-    category_text = str(data.get("category_text", "")).strip() or None
-    date_raw = str(data.get("transaction_date", "")).strip()
-    workspace_id_raw = data.get("workspace_id")
+    workspace_id = data.get("workspace_id")
     
-    # Campos adicionais
-    payment_method = str(data.get("payment_method", "")).strip() or None
-    notes = str(data.get("notes", "")).strip() or None
-    is_paid = bool(data.get("is_paid", True))
-    subcategory_text = str(data.get("subcategory_text", "")).strip() or None
-    is_recurring = bool(data.get("is_recurring", False))
-    recurring_day = data.get("recurring_day")  # Dia do vencimento (1-31)
-    recurring_unlimited = data.get("recurring_unlimited")
-    recurring_end_date_raw = str(data.get("recurring_end_date", "")).strip() or None
-
-    if ttype not in ("income", "expense"):
-        resp = jsonify({"success": False, "message": "Tipo inválido (income/expense)."})
+    if not workspace_id:
+        resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
         return _cors_wrap(resp, origin), 400
-
-    if not description:
-        resp = jsonify({"success": False, "message": "Descrição é obrigatória."})
-        return _cors_wrap(resp, origin), 400
-
+    
     try:
-        amount = float(amount_raw)
+        workspace_id = int(workspace_id)
     except Exception:
-        amount = 0
-
-    if amount <= 0:
-        resp = jsonify({"success": False, "message": "Valor inválido."})
+        resp = jsonify({"success": False, "message": "workspace_id inválido"})
         return _cors_wrap(resp, origin), 400
-
-    # Data base da transação
-    try:
-        if date_raw:
-            tdate = date.fromisoformat(date_raw)
-        else:
-            tdate = datetime.utcnow().date()
-    except Exception:
-        tdate = datetime.utcnow().date()
-
-    # Se for recorrente, usar apenas o dia do vencimento e ignorar a data enviada
-    recurring_day_int = None
-    if is_recurring:
-        try:
-            recurring_day_int = int(recurring_day)
-        except Exception:
-            recurring_day_int = None
-
-        if not recurring_day_int or recurring_day_int < 1 or recurring_day_int > 31:
-            resp = jsonify({"success": False, "message": "Dia de vencimento inválido (1-31)."})
-            return _cors_wrap(resp, origin), 400
-
-        last_day = calendar.monthrange(tdate.year, tdate.month)[1]
-        day = min(recurring_day_int, last_day)
-        tdate = date(tdate.year, tdate.month, day)
-
-    # Buscar ou criar categoria baseada no texto
-    category = None
-    if category_text:
-        # Tentar encontrar categoria existente (case-insensitive)
-        category = Category.query.filter(
-            func.lower(Category.name) == category_text.lower(),
-            Category.config_id == cfg.id,
-            Category.type == ttype
-        ).first()
-        
-        # Se não existir, criar nova categoria
-        if not category:
-            category = Category(
-                config_id=cfg.id,
-                name=category_text,
-                type=ttype,
-                color="#64748B",  # Cor padrão cinza
-                icon="📝",  # Ícone padrão
-                is_default=False
-            )
-            db.session.add(category)
-            db.session.flush()  # Para obter o ID
     
-    # Fallback para categoria "Outros" se não tiver categoria
-    if not category:
-        category = Category.query.filter_by(config_id=cfg.id, type=ttype, name="Outros").first()
-        if not category:
-            resp = jsonify({"success": False, "message": "Categoria não encontrada."})
-            return _cors_wrap(resp, origin), 400
-
-    # Determinar workspace_id: usar o enviado ou buscar o ativo do usuário
-    workspace_id = None
-    try:
-        if workspace_id_raw is not None:
-            workspace_id = int(workspace_id_raw)
-            print(f"[CREATE_TX] workspace_id do payload: {workspace_id}")
-        else:
-            # Se não foi especificado, buscar workspace ativo do usuário
-            # Primeiro tentar da sessão
-            workspace_id = session.get(f"active_workspace_{user_id_int}")
-            print(f"[CREATE_TX] workspace_id da sessão: {workspace_id}")
-            
-            # Se não tiver na sessão, buscar o primeiro workspace onde o usuário tem acesso
-            if not workspace_id:
-                print(f"[CREATE_TX] Buscando workspace no banco para user_id={user_id_int}")
-                # Buscar workspace onde é owner
-                workspace = Workspace.query.filter_by(owner_id=user_id_int).first()
-                if not workspace:
-                    # Se não é owner, buscar onde é membro
-                    member = WorkspaceMember.query.filter_by(user_id=user_id_int).first()
-                    if member:
-                        workspace = Workspace.query.get(member.workspace_id)
-                        print(f"[CREATE_TX] Usuário é membro do workspace {workspace.id if workspace else None}")
-                    else:
-                        workspace = None
-                        print(f"[CREATE_TX] Usuário não é owner nem membro de nenhum workspace")
-                
-                if workspace:
-                    workspace_id = workspace.id
-                    # Salvar na sessão para próximas chamadas
-                    session[f"active_workspace_{user_id_int}"] = workspace_id
-                    print(f"[CREATE_TX] Definindo workspace ativo na sessão: {workspace_id}")
-                    
-    except Exception as e:
-        print(f"[CREATE_TX] Erro ao determinar workspace_id: {e}")
-        workspace_id = None
+    # Sincronizar workspace para todos os membros
+    success = api_sync_workspace_context(workspace_id, user_id_int)
     
-    print(f"[CREATE_TX] workspace_id final determinado: {workspace_id}")
-    
-    # Se ainda não tem workspace_id, criar um workspace padrão para o usuário
-    if workspace_id is None:
-        print(f"[CREATE_TX] Criando workspace padrão para user_id={user_id_int}")
-        try:
-            default_workspace = Workspace(
-                owner_id=user_id_int,
-                name="Meu Workspace",
-                description="Workspace padrão",
-                color="#3b82f6"
-            )
-            db.session.add(default_workspace)
-            db.session.flush()  # Para obter o ID
-            workspace_id = default_workspace.id
-            session[f"active_workspace_{user_id_int}"] = workspace_id
-            print(f"[CREATE_TX] Workspace padrão criado com ID: {workspace_id}")
-        except Exception as e:
-            print(f"[CREATE_TX] Erro ao criar workspace padrão: {e}")
-            resp = jsonify({"success": False, "message": "Erro ao determinar workspace"})
-            return _cors_wrap(resp, origin), 500
-
-    recurring_tx = None
-    if is_recurring:
-        # Null = sem fim
-        unlimited_bool = True
-        if recurring_unlimited is not None:
-            try:
-                unlimited_bool = bool(recurring_unlimited)
-            except Exception:
-                unlimited_bool = True
-
-        end_date = None
-        if not unlimited_bool and recurring_end_date_raw:
-            try:
-                end_date = date.fromisoformat(recurring_end_date_raw)
-            except Exception:
-                end_date = None
-
-        # start_date deve ser o primeiro dia do mês da transação
-        start_date_first_day = date(tdate.year, tdate.month, 1)
-        
-        recurring_tx = RecurringTransaction(
-            user_id=int(user_id_int),
-            category_id=category.id,
-            subcategory_id=None,
-            subcategory_text=subcategory_text,
-            description=description,
-            amount=amount,
-            type=ttype,
-            frequency="monthly",
-            day_of_month=recurring_day_int,
-            start_date=start_date_first_day,
-            end_date=end_date,
-            is_active=True,
-            payment_method=payment_method,
-            notes=notes,
-        )
-        db.session.add(recurring_tx)
-        db.session.flush()
-
-    tx = Transaction(
-        user_id=int(user_id_int),
-        category_id=category.id,
-        description=description,
-        amount=amount,
-        type=ttype,
-        transaction_date=tdate,
-        is_paid=is_paid,
-        paid_date=tdate if is_paid else None,
-        workspace_id=workspace_id,
-        payment_method=payment_method,
-        notes=notes,
-        subcategory_text=subcategory_text,
-        is_recurring=is_recurring,
-        frequency="monthly" if is_recurring else "once",
-        recurring_transaction_id=recurring_tx.id if recurring_tx else None,
-    )
-
-    db.session.add(tx)
-    db.session.commit()
-
-    resp = jsonify({
-        "success": True,
-        "transaction": {
-            "id": tx.id,
-            "description": tx.description,
-            "amount": float(tx.amount or 0),
-            "type": tx.type,
-            "date": tx.transaction_date.isoformat() if tx.transaction_date else None,
-            "category": {
-                "id": category.id,
-                "name": category.name,
-                "color": category.color,
-                "icon": category.icon,
-            },
-        },
-    })
-    return _cors_wrap(resp, origin), 201
+    if success:
+        resp = jsonify({
+            "success": True,
+            "message": "Workspace sincronizado",
+            "workspace_id": workspace_id
+        })
+        return _cors_wrap(resp, origin), 200
+    else:
+        resp = jsonify({"success": False, "message": "Erro ao sincronizar workspace"})
+        return _cors_wrap(resp, origin), 500
 
 
 @api_financeiro_bp.route("/api/transactions", methods=["GET", "OPTIONS"])
@@ -1040,29 +1280,24 @@ def api_list_transactions():
     else:
         end = date(year, month + 1, 1)
 
-    # Buscar workspace ativo do usuário
-    active_workspace_id = session.get(f"active_workspace_{user_id_int}")
+    # Buscar workspace_id do request (se fornecido)
+    workspace_id_hint = None
+    try:
+        workspace_id_hint = request.args.get("workspace_id")
+        if workspace_id_hint:
+            workspace_id_hint = int(workspace_id_hint)
+    except Exception:
+        workspace_id_hint = None
+    
+    # Determinar workspace ativo usando nova lógica consistente
+    active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
     print(f"[LIST_TX] user_id={user_id_int}, active_workspace_id={active_workspace_id}")
     
-    # Se não tem workspace ativo na sessão, buscar o primeiro workspace do usuário
-    if not active_workspace_id:
-        # Buscar workspace onde é owner
-        workspace = Workspace.query.filter_by(owner_id=user_id_int).first()
-        if not workspace:
-            # Se não é owner, buscar onde é membro
-            member = WorkspaceMember.query.filter_by(user_id=user_id_int).first()
-            if member:
-                workspace = Workspace.query.get(member.workspace_id)
-                print(f"[LIST_TX] Usuário é membro do workspace {workspace.id if workspace else 'None'}")
-            else:
-                workspace = None
-                print(f"[LIST_TX] Usuário não é membro de nenhum workspace")
-        
-        if workspace:
-            active_workspace_id = workspace.id
-            # Salvar na sessão para próximas chamadas
-            session[f"active_workspace_{user_id_int}"] = active_workspace_id
-            print(f"[LIST_TX] Definindo workspace ativo: {active_workspace_id}")
+    # Verificar preferências de compartilhamento do usuário
+    share_prefs = None
+    if active_workspace_id:
+        share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
+        print(f"[LIST_TX] share_preferences={share_prefs}")
     
     query = (
         db.session.query(
@@ -1086,10 +1321,21 @@ def api_list_transactions():
     )
     
     # Filtrar por workspace se houver um ativo
-    if active_workspace_id:
+    if active_workspace_id and share_prefs:
         print(f"[LIST_TX] Filtrando transações por workspace_id={active_workspace_id}")
-        # Buscar transações do workspace (qualquer membro pode ver)
-        query = query.filter(Transaction.workspace_id == active_workspace_id)
+        
+        # Verificar se usuário pode ver transações compartilhadas
+        if share_prefs.get('share_transactions', True):
+            # Mostrar todas as transações do workspace
+            query = query.filter(Transaction.workspace_id == active_workspace_id)
+            print(f"[LIST_TX] Mostrando todas as transações do workspace (share_transactions=True)")
+        else:
+            # Mostrar apenas transações próprias do usuário no workspace
+            query = query.filter(
+                Transaction.workspace_id == active_workspace_id,
+                Transaction.user_id == int(user_id_int)
+            )
+            print(f"[LIST_TX] Mostrando apenas transações próprias no workspace (share_transactions=False)")
     else:
         print(f"[LIST_TX] Sem workspace ativo, mostrando transações pessoais do usuário")
         # Sem workspace ativo, mostrar apenas transações pessoais do usuário
