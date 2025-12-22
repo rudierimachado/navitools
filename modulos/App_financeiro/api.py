@@ -140,9 +140,14 @@ def _check_user_share_preferences(user_id: int, workspace_id: int):
     
     if not member:
         return None
-    
-    # Retornar preferências ou padrão
-    return member.share_preferences or {'share_transactions': True, 'share_categories': True}
+
+    prefs = member.share_preferences or {}
+    # Retornar preferências com defaults (sempre dict truthy)
+    return {
+        'share_transactions': True,
+        'share_categories': True,
+        **prefs,
+    }
 
 
 def api_sync_workspace_context(workspace_id: int, requesting_user_id: int):
@@ -688,6 +693,41 @@ def api_dashboard():
     else:
         end = date(year, month + 1, 1)
 
+    workspace_id_hint = None
+    try:
+        workspace_id_hint = request.args.get("workspace_id")
+        if workspace_id_hint:
+            workspace_id_hint = int(workspace_id_hint)
+    except Exception:
+        workspace_id_hint = None
+
+    active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+    if active_workspace_id:
+        session[f"active_workspace_{user_id_int}"] = active_workspace_id
+
+    share_prefs = None
+    if active_workspace_id:
+        share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
+
+    tx_filters = [
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date < end,
+    ]
+
+    if active_workspace_id:
+        if not share_prefs:
+            resp = jsonify({"success": False, "message": "Sem permissão para acessar este workspace"})
+            return _cors_wrap(resp, origin), 403
+
+        if share_prefs.get("share_transactions", True):
+            tx_filters.append(Transaction.workspace_id == active_workspace_id)
+        else:
+            tx_filters.append(Transaction.workspace_id == active_workspace_id)
+            tx_filters.append(Transaction.user_id == user_id_int)
+    else:
+        tx_filters.append(Transaction.user_id == user_id_int)
+        tx_filters.append(Transaction.workspace_id.is_(None))
+
     # Otimização: consolidar todas as queries de totais em uma única query
     from sqlalchemy import case
     
@@ -712,11 +752,7 @@ def api_dashboard():
             ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
             else_=0
         )), 0).label("month_expense_paid"),
-    ).filter(
-        Transaction.user_id == user_id_int,
-        Transaction.transaction_date >= start,
-        Transaction.transaction_date < end,
-    ).one()
+    ).filter(*tx_filters).one()
     
     month_income = totals.month_income
     month_expense = totals.month_expense
@@ -734,11 +770,9 @@ def api_dashboard():
         )
         .join(Category, Category.id == Transaction.category_id)
         .filter(
-            Transaction.user_id == user_id_int,
             Transaction.type == "expense",
             Transaction.is_paid == True,
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
+            *tx_filters,
         )
         .group_by(Category.id, Category.name, Category.color, Category.icon)
         .order_by(func.sum(Transaction.amount).desc())
@@ -780,11 +814,7 @@ def api_dashboard():
             Category.icon,
         )
         .join(Category, Category.id == Transaction.category_id)
-        .filter(
-            Transaction.user_id == user_id_int,
-            Transaction.transaction_date >= start,
-            Transaction.transaction_date < end,
-        )
+        .filter(*tx_filters)
         .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
         .limit(10)
         .all()
