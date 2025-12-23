@@ -81,8 +81,9 @@ def _get_user_id_from_request():
 def _get_active_workspace_for_user(user_id: int, workspace_id_hint: int = None):
     """
     Determina o workspace ativo para um usuário de forma consistente.
-    Prioriza workspace_id do request, depois workspace compartilhado único,
-    depois o mais recentemente acessado.
+    Prioriza workspace_id do request, depois workspace salvo em sessão.
+    Para evitar vazamento/mistura de dados entre workspaces, não tenta
+    "adivinhar" um workspace quando há múltiplas opções.
     """
     # 1. Se workspace_id foi fornecido no request, verificar se usuário tem acesso
     if workspace_id_hint:
@@ -95,8 +96,26 @@ def _get_active_workspace_for_user(user_id: int, workspace_id_hint: int = None):
             ).first()
             if is_owner or is_member:
                 return workspace_id_hint
+
+    # 2. Se há workspace ativo na sessão, respeitar (se usuário tem acesso)
+    active_from_session = session.get(f"active_workspace_{user_id}")
+    if active_from_session:
+        try:
+            active_from_session = int(active_from_session)
+        except Exception:
+            active_from_session = None
+
+    if active_from_session:
+        w = Workspace.query.get(active_from_session)
+        if w:
+            is_owner = w.owner_id == user_id
+            is_member = WorkspaceMember.query.filter_by(
+                workspace_id=active_from_session, user_id=user_id
+            ).first()
+            if is_owner or is_member:
+                return active_from_session
     
-    # 2. Buscar workspaces do usuário (owner + membro)
+    # 3. Buscar workspaces do usuário (owner + membro)
     owned_workspaces = Workspace.query.filter_by(owner_id=user_id).all()
     member_links = WorkspaceMember.query.filter_by(user_id=user_id).all()
     
@@ -106,18 +125,12 @@ def _get_active_workspace_for_user(user_id: int, workspace_id_hint: int = None):
     
     if len(unique_workspace_ids) == 1:
         return unique_workspace_ids[0]
-    
-    # 3. Se múltiplos workspaces, priorizar workspace compartilhado (onde é membro)
-    if member_links:
-        # Pegar o workspace compartilhado mais recente
-        latest_member = max(member_links, key=lambda m: m.joined_at)
-        return latest_member.workspace_id
-    
-    # 4. Fallback: primeiro workspace próprio
-    if owned_workspaces:
-        return owned_workspaces[0].id
-    
+
+    # 4. Se há múltiplos workspaces e nenhum foi especificado (hint/sessão),
+    # não escolher arbitrariamente para evitar misturar dados.
     return None
+    
+
 
 
 def _check_user_share_preferences(user_id: int, workspace_id: int):
@@ -701,6 +714,13 @@ def api_dashboard():
     except Exception:
         workspace_id_hint = None
 
+    if not workspace_id_hint:
+        owned_ids = [w.id for w in Workspace.query.filter_by(owner_id=user_id_int).all()]
+        member_ids = [m.workspace_id for m in WorkspaceMember.query.filter_by(user_id=user_id_int).all()]
+        if len(set(owned_ids + member_ids)) > 1:
+            resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+            return _cors_wrap(resp, origin), 400
+
     active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
     if active_workspace_id:
         session[f"active_workspace_{user_id_int}"] = active_workspace_id
@@ -942,15 +962,17 @@ def api_create_transaction():
                 workspace_id_hint = int(workspace_id_hint)
             except Exception:
                 workspace_id_hint = None
+
+        if not workspace_id_hint:
+            owned_ids = [w.id for w in Workspace.query.filter_by(owner_id=user_id_int).all()]
+            member_ids = [m.workspace_id for m in WorkspaceMember.query.filter_by(user_id=user_id_int).all()]
+            if len(set(owned_ids + member_ids)) > 1:
+                resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+                return _cors_wrap(resp, origin), 400
         
         # Usar nova lógica consistente para determinar workspace ativo
-        try:
-            active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
-            print(f"[CREATE_TX] user_id={user_id_int}, active_workspace_id={active_workspace_id}")
-        except Exception as e:
-            print(f"[CREATE_TX] Erro ao determinar workspace: {e}")
-            # Temporarily disable new logic and use old approach
-            active_workspace_id = None
+        active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+        print(f"[CREATE_TX] user_id={user_id_int}, active_workspace_id={active_workspace_id}")
         ttype = str(data.get("type", "")).strip().lower()
         description = str(data.get("description", "")).strip()
         amount_raw = data.get("amount")
@@ -1245,6 +1267,13 @@ def api_list_transactions():
             workspace_id_hint = int(workspace_id_hint)
     except Exception:
         workspace_id_hint = None
+
+    if not workspace_id_hint:
+        owned_ids = [w.id for w in Workspace.query.filter_by(owner_id=user_id_int).all()]
+        member_ids = [m.workspace_id for m in WorkspaceMember.query.filter_by(user_id=user_id_int).all()]
+        if len(set(owned_ids + member_ids)) > 1:
+            resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+            return _cors_wrap(resp, origin), 400
     
     # Determinar workspace ativo usando nova lógica consistente
     active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
@@ -2122,6 +2151,36 @@ def api_get_active_workspace_legacy():
     user_id = _get_user_id_from_request()
     if not user_id:
         return _cors_wrap(jsonify({"success": False, "message": "user_id obrigatório"}), origin), 400
+
+    # Se o cliente forneceu workspace_id explicitamente, respeitar (desde que tenha acesso)
+    workspace_id_hint = None
+    try:
+        workspace_id_hint = request.args.get("workspace_id")
+        if workspace_id_hint:
+            workspace_id_hint = int(workspace_id_hint)
+    except Exception:
+        workspace_id_hint = None
+
+    if workspace_id_hint:
+        hinted = Workspace.query.get(workspace_id_hint)
+        if hinted:
+            member = WorkspaceMember.query.filter_by(workspace_id=hinted.id, user_id=user_id).first()
+            has_access = hinted.owner_id == user_id or member
+            if has_access:
+                session[f"active_workspace_{user_id}"] = hinted.id
+                owner = User.query.get(hinted.owner_id) if hinted.owner_id else None
+                return _cors_wrap(jsonify({
+                    "success": True,
+                    "workspace": {
+                        "id": hinted.id,
+                        "name": hinted.name,
+                        "description": hinted.description,
+                        "color": hinted.color,
+                        "is_owner": hinted.owner_id == user_id,
+                        "owner_email": owner.email if owner else None,
+                        "owner_name": owner.email.split('@')[0] if owner else None,
+                    }
+                }), origin), 200
     
     # Buscar workspace ativo na sessão
     active_workspace_id = session.get(f"active_workspace_{user_id}")
@@ -2204,22 +2263,6 @@ def api_create_workspace():
         
         if not name:
             return _cors_wrap(jsonify({"success": False, "message": "Nome obrigatório"}), origin), 400
-        
-        # Verificar se já existe workspace com esse nome para o usuário
-        existing = Workspace.query.filter_by(owner_id=user_id, name=name).first()
-        if existing:
-            print(f"[WORKSPACE] AVISO: Workspace '{name}' já existe para user_id={user_id} com id={existing.id}")
-            # Retornar o workspace existente em vez de criar duplicado
-            session[f"active_workspace_{user_id}"] = existing.id
-            return _cors_wrap(jsonify({
-                "success": True,
-                "workspace": {
-                    "id": existing.id,
-                    "name": existing.name,
-                    "description": existing.description,
-                    "color": existing.color,
-                }
-            }), origin), 201
         
         workspace = Workspace(
             owner_id=user_id,
