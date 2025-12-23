@@ -6,9 +6,10 @@ Endpoints JSON para autenticação e operações financeiras via app mobile.
 """
 
 from flask import Blueprint, request, jsonify, session, current_app
-from sqlalchemy import func
+from sqlalchemy import func, case, or_
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta, date
+import math
 import random
 import os
 import requests
@@ -17,7 +18,7 @@ import re
 import secrets
 
 from extensions import db
-from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment
+from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment, Budget, SavingsPot, SavingsPotContribution
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from email_service import send_workspace_invitation
@@ -29,6 +30,8 @@ api_financeiro_bp = Blueprint(
 )
 
 _DEBUG = False
+
+_PLANNING_TABLES_READY = False
 
 
 def _dbg(msg: str):
@@ -46,6 +49,624 @@ def _cors_preflight(origin: str, methods: str):
     resp.headers["Access-Control-Max-Age"] = "86400"
     resp.headers["Access-Control-Allow-Credentials"] = "true"
     return resp
+
+
+def _ensure_planning_tables():
+    global _PLANNING_TABLES_READY
+    if _PLANNING_TABLES_READY:
+        return True
+    try:
+        db.create_all()
+        _PLANNING_TABLES_READY = True
+        return True
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return False
+
+
+def _get_workspace_role(user_id: int, workspace_id: int):
+    w = Workspace.query.get(workspace_id)
+    if not w:
+        return None
+    if int(w.owner_id) == int(user_id):
+        return "owner"
+    member = WorkspaceMember.query.filter_by(workspace_id=workspace_id, user_id=user_id).first()
+    if not member:
+        return None
+    try:
+        return (member.role or "viewer").strip().lower()
+    except Exception:
+        return "viewer"
+
+
+def _can_edit_workspace(user_id: int, workspace_id: int) -> bool:
+    role = _get_workspace_role(user_id, workspace_id)
+    return role in ("owner", "editor")
+
+
+def _require_active_workspace_or_400(user_id_int: int):
+    origin = request.headers.get("Origin", "*")
+
+    workspace_id_hint = None
+    try:
+        workspace_id_hint = request.args.get("workspace_id")
+        if workspace_id_hint:
+            workspace_id_hint = int(workspace_id_hint)
+    except Exception:
+        workspace_id_hint = None
+
+    if request.method in ("POST", "PUT") and request.is_json:
+        try:
+            body = request.get_json(silent=True) or {}
+            if not workspace_id_hint and body.get("workspace_id") is not None:
+                workspace_id_hint = int(body.get("workspace_id"))
+        except Exception:
+            pass
+
+    if not workspace_id_hint:
+        owned_ids = [w.id for w in Workspace.query.filter_by(owner_id=user_id_int).all()]
+        member_ids = [m.workspace_id for m in WorkspaceMember.query.filter_by(user_id=user_id_int).all()]
+        if len(set(owned_ids + member_ids)) > 1:
+            resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+            return None, (_cors_wrap(resp, origin), 400)
+
+    active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+    if not active_workspace_id:
+        resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+        return None, (_cors_wrap(resp, origin), 400)
+
+    share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
+    if not share_prefs:
+        resp = jsonify({"success": False, "message": "Sem permissão para acessar este workspace"})
+        return None, (_cors_wrap(resp, origin), 403)
+
+    session[f"active_workspace_{user_id_int}"] = active_workspace_id
+    return active_workspace_id, None
+
+
+@api_financeiro_bp.route("/api/budgets", methods=["GET", "POST", "OPTIONS"])
+def api_budgets():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, POST, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    if not _ensure_planning_tables():
+        resp = jsonify({"success": False, "message": "Erro ao preparar tabelas de planejamento"})
+        return _cors_wrap(resp, origin), 500
+
+    active_workspace_id, err = _require_active_workspace_or_400(user_id_int)
+    if err:
+        return err
+
+    share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id) or {}
+
+    today = datetime.utcnow().date()
+    try:
+        year = int(request.args.get("year") or today.year)
+        month = int(request.args.get("month") or today.month)
+    except Exception:
+        year = today.year
+        month = today.month
+
+    period = (request.args.get("period") or "monthly").strip().lower()
+    if period not in ("monthly", "yearly"):
+        period = "monthly"
+
+    if request.method == "GET":
+        if period == "yearly":
+            start = date(year, 1, 1)
+            end = date(year + 1, 1, 1)
+            month_key = 0
+        else:
+            start = date(year, month, 1)
+            if month == 12:
+                end = date(year + 1, 1, 1)
+            else:
+                end = date(year, month + 1, 1)
+            month_key = month
+
+        budgets = Budget.query.filter_by(
+            workspace_id=active_workspace_id,
+            period=period,
+            year=year,
+            month=month_key,
+        ).all()
+
+        cat_ids = [b.category_id for b in budgets]
+        spent_map = {}
+        if cat_ids:
+            tx_filters = [
+                Transaction.workspace_id == active_workspace_id,
+                Transaction.type == "expense",
+                Transaction.is_paid == True,
+                Transaction.transaction_date >= start,
+                Transaction.transaction_date < end,
+                Transaction.category_id.in_(cat_ids),
+            ]
+
+            if share_prefs.get("share_transactions") is False:
+                tx_filters.append(Transaction.user_id == user_id_int)
+
+            spent_rows = db.session.query(
+                Transaction.category_id,
+                func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+            ).filter(*tx_filters).group_by(Transaction.category_id).all()
+            for cid, spent in spent_rows:
+                try:
+                    spent_map[int(cid)] = float(spent or 0)
+                except Exception:
+                    spent_map[int(cid)] = 0.0
+
+        items = []
+        for b in budgets:
+            limit_v = float(b.limit_amount or 0)
+            spent_v = float(spent_map.get(int(b.category_id), 0.0))
+            pct = 0.0
+            if limit_v > 0:
+                pct = spent_v / limit_v
+            alert = "ok"
+            if limit_v > 0 and pct >= 1:
+                alert = "over_limit"
+            elif limit_v > 0 and pct >= 0.8:
+                alert = "near_limit"
+
+            items.append({
+                "id": int(b.id),
+                "category_id": int(b.category_id),
+                "category": {
+                    "name": b.category.name if b.category else None,
+                    "color": b.category.color if b.category else None,
+                    "icon": b.category.icon if b.category else None,
+                },
+                "period": b.period,
+                "year": int(b.year),
+                "month": int(b.month),
+                "limit_amount": limit_v,
+                "spent_amount": spent_v,
+                "remaining_amount": (limit_v - spent_v),
+                "percent_used": pct,
+                "alert": alert,
+            })
+
+        resp = jsonify({
+            "success": True,
+            "workspace_id": int(active_workspace_id),
+            "period": period,
+            "year": year,
+            "month": month if period == "monthly" else None,
+            "budgets": items,
+        })
+        return _cors_wrap(resp, origin), 200
+
+    if not _can_edit_workspace(user_id_int, active_workspace_id):
+        resp = jsonify({"success": False, "message": "Sem permissão para editar planejamento"})
+        return _cors_wrap(resp, origin), 403
+
+    data = request.get_json(silent=True) or {}
+    category_id = None
+    try:
+        if data.get("category_id") is not None and str(data.get("category_id")).strip() != "":
+            category_id = int(data.get("category_id"))
+    except Exception:
+        category_id = None
+
+    category_text = str(data.get("category_text") or "").strip() or None
+
+    try:
+        limit_amount = float(data.get("limit_amount"))
+    except Exception:
+        resp = jsonify({"success": False, "message": "Parâmetros inválidos"})
+        return _cors_wrap(resp, origin), 400
+
+    if not category_id and not category_text:
+        resp = jsonify({"success": False, "message": "Categoria é obrigatória"})
+        return _cors_wrap(resp, origin), 400
+
+    period_body = (data.get("period") or period or "monthly").strip().lower()
+    if period_body not in ("monthly", "yearly"):
+        period_body = "monthly"
+
+    try:
+        year_body = int(data.get("year") or year)
+    except Exception:
+        year_body = year
+
+    month_body = 0
+    if period_body == "monthly":
+        try:
+            month_body = int(data.get("month") or month)
+        except Exception:
+            month_body = month
+        if month_body < 1 or month_body > 12:
+            month_body = month
+
+    if limit_amount <= 0:
+        resp = jsonify({"success": False, "message": "Limite inválido"})
+        return _cors_wrap(resp, origin), 400
+
+    category = None
+    if category_id:
+        category = Category.query.get(category_id)
+
+    if not category and category_text:
+        # Tentar reutilizar categoria existente no workspace (evita duplicatas entre membros)
+        cfg_ids = []
+        try:
+            w = Workspace.query.get(active_workspace_id)
+            member_ids = []
+            if w:
+                member_ids.append(int(w.owner_id))
+            for m in WorkspaceMember.query.filter_by(workspace_id=active_workspace_id).all():
+                try:
+                    member_ids.append(int(m.user_id))
+                except Exception:
+                    pass
+            member_ids = list(set(member_ids))
+
+            for uid in member_ids:
+                c = FinanceConfig.query.filter_by(user_id=uid).first()
+                if c:
+                    cfg_ids.append(int(c.id))
+        except Exception:
+            cfg_ids = []
+
+        if cfg_ids:
+            category = Category.query.filter(
+                func.lower(Category.name) == category_text.lower(),
+                Category.config_id.in_(cfg_ids),
+                Category.type == "expense",
+                Category.is_active.is_(True),
+            ).first()
+
+        # Se não encontrou no workspace, criar no config do usuário atual
+        if not category:
+            cfg = _ensure_finance_config_and_categories(user_id_int)
+            category = Category.query.filter(
+                func.lower(Category.name) == category_text.lower(),
+                Category.config_id == cfg.id,
+                Category.type == "expense",
+            ).first()
+            if not category:
+                category = Category(
+                    config_id=cfg.id,
+                    name=category_text,
+                    type="expense",
+                    color="#64748B",
+                    icon="📝",
+                    is_default=False,
+                    is_active=True,
+                )
+                db.session.add(category)
+                db.session.flush()
+
+    if not category:
+        resp = jsonify({"success": False, "message": "Categoria não encontrada"})
+        return _cors_wrap(resp, origin), 400
+
+    category_id = int(category.id)
+
+    existing = Budget.query.filter_by(
+        workspace_id=active_workspace_id,
+        category_id=category_id,
+        period=period_body,
+        year=year_body,
+        month=month_body,
+    ).first()
+
+    try:
+        if existing:
+            existing.limit_amount = limit_amount
+            db.session.commit()
+            resp = jsonify({"success": True, "budget_id": int(existing.id), "updated": True})
+            return _cors_wrap(resp, origin), 200
+
+        b = Budget(
+            workspace_id=active_workspace_id,
+            created_by_user_id=user_id_int,
+            category_id=category_id,
+            period=period_body,
+            year=year_body,
+            month=month_body,
+            limit_amount=limit_amount,
+        )
+        db.session.add(b)
+        db.session.commit()
+        resp = jsonify({"success": True, "budget_id": int(b.id), "created": True})
+        return _cors_wrap(resp, origin), 201
+    except Exception:
+        db.session.rollback()
+        resp = jsonify({"success": False, "message": "Erro ao salvar orçamento"})
+        return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/budgets/<int:budget_id>", methods=["DELETE", "OPTIONS"])
+def api_delete_budget(budget_id: int):
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "DELETE, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    if not _ensure_planning_tables():
+        resp = jsonify({"success": False, "message": "Erro ao preparar tabelas de planejamento"})
+        return _cors_wrap(resp, origin), 500
+
+    active_workspace_id, err = _require_active_workspace_or_400(user_id_int)
+    if err:
+        return err
+
+    if not _can_edit_workspace(user_id_int, active_workspace_id):
+        resp = jsonify({"success": False, "message": "Sem permissão para editar planejamento"})
+        return _cors_wrap(resp, origin), 403
+
+    b = Budget.query.filter_by(id=budget_id, workspace_id=active_workspace_id).first()
+    if not b:
+        resp = jsonify({"success": False, "message": "Orçamento não encontrado"})
+        return _cors_wrap(resp, origin), 404
+
+    try:
+        db.session.delete(b)
+        db.session.commit()
+        resp = jsonify({"success": True})
+        return _cors_wrap(resp, origin), 200
+    except Exception:
+        db.session.rollback()
+        resp = jsonify({"success": False, "message": "Erro ao excluir orçamento"})
+        return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/savings-pots", methods=["GET", "POST", "OPTIONS"])
+def api_savings_pots():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, POST, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    if not _ensure_planning_tables():
+        resp = jsonify({"success": False, "message": "Erro ao preparar tabelas de planejamento"})
+        return _cors_wrap(resp, origin), 500
+
+    active_workspace_id, err = _require_active_workspace_or_400(user_id_int)
+    if err:
+        return err
+
+    today = datetime.utcnow().date()
+
+    if request.method == "GET":
+        kind = (request.args.get("kind") or "").strip().lower() or None
+        include_archived = (request.args.get("include_archived") or "0").strip() == "1"
+
+        query = SavingsPot.query.filter_by(workspace_id=active_workspace_id)
+        if not include_archived:
+            query = query.filter_by(is_archived=False)
+        if kind in ("pot", "purchase"):
+            query = query.filter_by(kind=kind)
+
+        pots = query.order_by(SavingsPot.created_at.desc()).all()
+        pot_ids = [p.id for p in pots]
+
+        totals = {}
+        if pot_ids:
+            rows = db.session.query(
+                SavingsPotContribution.pot_id,
+                func.coalesce(func.sum(SavingsPotContribution.amount), 0).label("total"),
+            ).filter(SavingsPotContribution.pot_id.in_(pot_ids)).group_by(SavingsPotContribution.pot_id).all()
+            for pid, total in rows:
+                try:
+                    totals[int(pid)] = float(total or 0)
+                except Exception:
+                    totals[int(pid)] = 0.0
+
+        items = []
+        for p in pots:
+            saved = float(totals.get(int(p.id), 0.0))
+            target = float(p.target_amount or 0)
+            progress = 0.0
+            if target > 0:
+                progress = min(1.0, saved / target)
+
+            xp = int(saved / 50)
+            level = int(xp / 10) + 1
+            next_level_xp = level * 10
+            level_progress = 0.0
+            if next_level_xp > 0:
+                level_progress = (xp % 10) / 10.0
+
+            days_left = None
+            recommended_monthly = None
+            if p.due_date and target > 0:
+                try:
+                    days_left = int((p.due_date - today).days)
+                    if days_left > 0:
+                        months_left = max(1, int(math.ceil(days_left / 30.0)))
+                        recommended_monthly = float((target - saved) / months_left)
+                except Exception:
+                    days_left = None
+
+            items.append({
+                "id": int(p.id),
+                "name": p.name,
+                "kind": p.kind,
+                "target_amount": target,
+                "saved_amount": saved,
+                "progress": progress,
+                "due_date": p.due_date.isoformat() if p.due_date else None,
+                "days_left": days_left,
+                "recommended_monthly": recommended_monthly,
+                "gamification": {
+                    "xp": xp,
+                    "level": level,
+                    "level_progress": level_progress,
+                    "next_level_xp": next_level_xp,
+                },
+                "is_archived": bool(p.is_archived),
+            })
+
+        resp = jsonify({"success": True, "workspace_id": int(active_workspace_id), "pots": items})
+        return _cors_wrap(resp, origin), 200
+
+    if not _can_edit_workspace(user_id_int, active_workspace_id):
+        resp = jsonify({"success": False, "message": "Sem permissão para editar planejamento"})
+        return _cors_wrap(resp, origin), 403
+
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()
+    kind = str(data.get("kind") or "pot").strip().lower()
+    if kind not in ("pot", "purchase"):
+        kind = "pot"
+
+    if not name:
+        resp = jsonify({"success": False, "message": "Nome é obrigatório"})
+        return _cors_wrap(resp, origin), 400
+
+    target_amount = None
+    try:
+        if data.get("target_amount") is not None and str(data.get("target_amount")).strip() != "":
+            target_amount = float(data.get("target_amount"))
+    except Exception:
+        target_amount = None
+
+    due_date = None
+    due_date_raw = str(data.get("due_date") or "").strip() or None
+    if due_date_raw:
+        try:
+            due_date = date.fromisoformat(due_date_raw)
+        except Exception:
+            due_date = None
+
+    try:
+        pot = SavingsPot(
+            workspace_id=active_workspace_id,
+            created_by_user_id=user_id_int,
+            name=name,
+            kind=kind,
+            target_amount=target_amount,
+            due_date=due_date,
+        )
+        db.session.add(pot)
+        db.session.commit()
+        resp = jsonify({"success": True, "pot_id": int(pot.id)})
+        return _cors_wrap(resp, origin), 201
+    except Exception:
+        db.session.rollback()
+        resp = jsonify({"success": False, "message": "Erro ao criar cofrinho/meta"})
+        return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/savings-pots/<int:pot_id>/contributions", methods=["POST", "OPTIONS"])
+def api_savings_pot_contribution(pot_id: int):
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    if not _ensure_planning_tables():
+        resp = jsonify({"success": False, "message": "Erro ao preparar tabelas de planejamento"})
+        return _cors_wrap(resp, origin), 500
+
+    active_workspace_id, err = _require_active_workspace_or_400(user_id_int)
+    if err:
+        return err
+
+    if not _can_edit_workspace(user_id_int, active_workspace_id):
+        resp = jsonify({"success": False, "message": "Sem permissão para editar planejamento"})
+        return _cors_wrap(resp, origin), 403
+
+    pot = SavingsPot.query.filter_by(id=pot_id, workspace_id=active_workspace_id).first()
+    if not pot:
+        resp = jsonify({"success": False, "message": "Cofrinho/meta não encontrado"})
+        return _cors_wrap(resp, origin), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        amount = float(data.get("amount"))
+    except Exception:
+        amount = 0
+    if amount <= 0:
+        resp = jsonify({"success": False, "message": "Valor inválido"})
+        return _cors_wrap(resp, origin), 400
+
+    cdate = datetime.utcnow().date()
+    date_raw = str(data.get("date") or "").strip() or None
+    if date_raw:
+        try:
+            cdate = date.fromisoformat(date_raw)
+        except Exception:
+            cdate = datetime.utcnow().date()
+
+    try:
+        contrib = SavingsPotContribution(
+            pot_id=pot.id,
+            user_id=user_id_int,
+            amount=amount,
+            contribution_date=cdate,
+        )
+        db.session.add(contrib)
+        db.session.commit()
+        resp = jsonify({"success": True, "contribution_id": int(contrib.id)})
+        return _cors_wrap(resp, origin), 201
+    except Exception:
+        db.session.rollback()
+        resp = jsonify({"success": False, "message": "Erro ao adicionar aporte"})
+        return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/savings-pots/<int:pot_id>", methods=["DELETE", "OPTIONS"])
+def api_delete_savings_pot(pot_id: int):
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "DELETE, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    if not _ensure_planning_tables():
+        resp = jsonify({"success": False, "message": "Erro ao preparar tabelas de planejamento"})
+        return _cors_wrap(resp, origin), 500
+
+    active_workspace_id, err = _require_active_workspace_or_400(user_id_int)
+    if err:
+        return err
+
+    if not _can_edit_workspace(user_id_int, active_workspace_id):
+        resp = jsonify({"success": False, "message": "Sem permissão para editar planejamento"})
+        return _cors_wrap(resp, origin), 403
+
+    pot = SavingsPot.query.filter_by(id=pot_id, workspace_id=active_workspace_id).first()
+    if not pot:
+        resp = jsonify({"success": False, "message": "Cofrinho/meta não encontrado"})
+        return _cors_wrap(resp, origin), 404
+
+    try:
+        db.session.delete(pot)
+        db.session.commit()
+        resp = jsonify({"success": True})
+        return _cors_wrap(resp, origin), 200
+    except Exception:
+        db.session.rollback()
+        resp = jsonify({"success": False, "message": "Erro ao excluir"})
+        return _cors_wrap(resp, origin), 500
 
 
 def _cors_wrap(resp, origin: str):
@@ -858,6 +1479,152 @@ def api_dashboard():
             },
         })
 
+    def _month_bounds(y: int, m: int):
+        s = date(y, m, 1)
+        if m == 12:
+            e = date(y + 1, 1, 1)
+        else:
+            e = date(y, m + 1, 1)
+        return s, e
+
+    def _shift_month(y: int, m: int, delta: int):
+        total = (y * 12) + (m - 1) + int(delta)
+        ny = total // 12
+        nm = (total % 12) + 1
+        return ny, nm
+
+    def _build_tx_filters_for_period(p_start: date, p_end: date):
+        f = [
+            Transaction.transaction_date >= p_start,
+            Transaction.transaction_date < p_end,
+        ]
+
+        if active_workspace_id:
+            if share_prefs.get("share_transactions", True):
+                f.append(Transaction.workspace_id == active_workspace_id)
+            else:
+                f.append(Transaction.workspace_id == active_workspace_id)
+                f.append(Transaction.user_id == user_id_int)
+        else:
+            f.append(Transaction.user_id == user_id_int)
+            f.append(Transaction.workspace_id.is_(None))
+
+        return f
+
+    def _paid_totals(p_filters):
+        rows = db.session.query(
+            func.coalesce(func.sum(case(
+                ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
+                else_=0,
+            )), 0).label("income_paid"),
+            func.coalesce(func.sum(case(
+                ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+                else_=0,
+            )), 0).label("expense_paid"),
+        ).filter(*p_filters).one()
+        income_paid_v = float(rows.income_paid or 0)
+        expense_paid_v = float(rows.expense_paid or 0)
+        return income_paid_v, expense_paid_v
+
+    goals = {
+        "income_goal": month_income_f,
+        "income_actual": month_income_paid_f,
+        "expense_goal": (month_expense_paid_f + month_expense_pending_f),
+        "expense_actual": month_expense_paid_f,
+    }
+
+    prev_year, prev_month = _shift_month(year, month, -1)
+    prev_start, prev_end = _month_bounds(prev_year, prev_month)
+    prev_paid_income, prev_paid_expense = _paid_totals(_build_tx_filters_for_period(prev_start, prev_end))
+
+    ytd_start = date(year, 1, 1)
+    ytd_end = end
+    ytd_paid_income, ytd_paid_expense = _paid_totals(_build_tx_filters_for_period(ytd_start, ytd_end))
+
+    prev_ytd_start = date(year - 1, 1, 1)
+    _, prev_ytd_end = _month_bounds(year - 1, month)
+    prev_ytd_paid_income, prev_ytd_paid_expense = _paid_totals(_build_tx_filters_for_period(prev_ytd_start, prev_ytd_end))
+
+    comparisons = {
+        "month_current": {
+            "income_paid": month_income_paid_f,
+            "expense_paid": month_expense_paid_f,
+            "balance": month_income_paid_f - month_expense_paid_f,
+        },
+        "month_previous": {
+            "year": prev_year,
+            "month": prev_month,
+            "income_paid": prev_paid_income,
+            "expense_paid": prev_paid_expense,
+            "balance": prev_paid_income - prev_paid_expense,
+        },
+        "year_current": {
+            "year": year,
+            "income_paid": ytd_paid_income,
+            "expense_paid": ytd_paid_expense,
+            "balance": ytd_paid_income - ytd_paid_expense,
+            "range_end": (ytd_end - timedelta(days=1)).isoformat() if ytd_end else None,
+        },
+        "year_previous": {
+            "year": year - 1,
+            "income_paid": prev_ytd_paid_income,
+            "expense_paid": prev_ytd_paid_expense,
+            "balance": prev_ytd_paid_income - prev_ytd_paid_expense,
+            "range_end": (prev_ytd_end - timedelta(days=1)).isoformat() if prev_ytd_end else None,
+        },
+    }
+
+    daily_rows = db.session.query(
+        Transaction.transaction_date,
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0,
+        )), 0).label("income_paid"),
+        func.coalesce(func.sum(case(
+            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
+            else_=0,
+        )), 0).label("expense_paid"),
+    ).filter(*_build_tx_filters_for_period(start, end)).group_by(Transaction.transaction_date).order_by(Transaction.transaction_date.asc()).all()
+
+    daily_map = {}
+    for d, inc, exp in daily_rows:
+        try:
+            daily_map[d] = (float(inc or 0), float(exp or 0))
+        except Exception:
+            daily_map[d] = (0.0, 0.0)
+
+    last_day = calendar.monthrange(year, month)[1]
+    running = 0.0
+    daily_series = []
+    for day in range(1, last_day + 1):
+        dt = date(year, month, day)
+        inc, exp = daily_map.get(dt, (0.0, 0.0))
+        running += (inc - exp)
+        daily_series.append({
+            "date": dt.isoformat(),
+            "income_paid": inc,
+            "expense_paid": exp,
+            "balance": running,
+        })
+
+    monthly_series = []
+    for i in range(11, -1, -1):
+        my, mm = _shift_month(year, month, -i)
+        ms, me = _month_bounds(my, mm)
+        mi, mep = _paid_totals(_build_tx_filters_for_period(ms, me))
+        monthly_series.append({
+            "year": my,
+            "month": mm,
+            "income_paid": mi,
+            "expense_paid": mep,
+            "balance": mi - mep,
+        })
+
+    time_series = {
+        "daily": daily_series,
+        "monthly": monthly_series,
+    }
+
     resp = jsonify({
         "success": True,
         "balance": balance,
@@ -871,6 +1638,9 @@ def api_dashboard():
         "month_balance": month_income_f - month_expense_f,
         "expense_by_category": expense_by_category,
         "latest_transactions": latest_transactions,
+        "goals": goals,
+        "comparisons": comparisons,
+        "time_series": time_series,
     })
     return _cors_wrap(resp, origin), 200
 
@@ -886,14 +1656,56 @@ def api_categories():
         resp = jsonify({"success": False, "message": "Não autenticado"})
         return _cors_wrap(resp, origin), 401
 
+    workspace_id_hint = None
+    try:
+        workspace_id_hint = request.args.get("workspace_id")
+        if workspace_id_hint:
+            workspace_id_hint = int(workspace_id_hint)
+    except Exception:
+        workspace_id_hint = None
+
+    active_workspace_id = None
+    share_prefs = None
+    if workspace_id_hint:
+        active_workspace_id = _get_active_workspace_for_user(user_id_int, workspace_id_hint)
+        if not active_workspace_id:
+            resp = jsonify({"success": False, "message": "workspace_id obrigatório"})
+            return _cors_wrap(resp, origin), 400
+        share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
+        if not share_prefs:
+            resp = jsonify({"success": False, "message": "Sem permissão para acessar este workspace"})
+            return _cors_wrap(resp, origin), 403
+
     cfg = _ensure_finance_config_and_categories(user_id_int)
     cat_type = (request.args.get("type") or "").strip().lower() or None
 
-    query = Category.query.filter_by(config_id=cfg.id, is_active=True)
-    if cat_type in ("income", "expense"):
-        query = query.filter_by(type=cat_type)
+    if active_workspace_id and share_prefs and share_prefs.get("share_categories", True):
+        w = Workspace.query.get(active_workspace_id)
+        member_ids = []
+        if w:
+            member_ids.append(int(w.owner_id))
+        for m in WorkspaceMember.query.filter_by(workspace_id=active_workspace_id).all():
+            try:
+                member_ids.append(int(m.user_id))
+            except Exception:
+                pass
+        member_ids = list(set(member_ids))
 
-    cats = query.order_by(Category.type.asc(), Category.name.asc()).all()
+        cfg_ids = []
+        for uid in member_ids:
+            c = FinanceConfig.query.filter_by(user_id=uid).first()
+            if c:
+                cfg_ids.append(int(c.id))
+
+        query = Category.query.filter(Category.is_active.is_(True), Category.config_id.in_(cfg_ids))
+        if cat_type in ("income", "expense"):
+            query = query.filter(Category.type == cat_type)
+        cats = query.order_by(Category.type.asc(), Category.name.asc()).all()
+    else:
+        query = Category.query.filter_by(config_id=cfg.id, is_active=True)
+        if cat_type in ("income", "expense"):
+            query = query.filter_by(type=cat_type)
+        cats = query.order_by(Category.type.asc(), Category.name.asc()).all()
     resp = jsonify({
         "success": True,
         "categories": [
