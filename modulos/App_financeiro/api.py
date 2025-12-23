@@ -1400,11 +1400,33 @@ def api_transaction_detail(tx_id: int):
         resp = jsonify({"success": False, "message": "Não autenticado"})
         return _cors_wrap(resp, origin), 401
 
-    tx = Transaction.query.filter_by(id=tx_id, user_id=int(user_id_int)).first()
+    tx = Transaction.query.filter_by(id=tx_id).first()
     _dbg(f"[TX_DETAIL] Transaction found: {tx}")
     if not tx:
         resp = jsonify({"success": False, "message": "Transação não encontrada"})
         return _cors_wrap(resp, origin), 404
+
+    tx_workspace_id = getattr(tx, "workspace_id", None)
+    if tx_workspace_id:
+        w = Workspace.query.get(int(tx_workspace_id))
+        is_owner = bool(w and int(getattr(w, "owner_id", 0) or 0) == int(user_id_int))
+        is_member = WorkspaceMember.query.filter_by(
+            workspace_id=int(tx_workspace_id),
+            user_id=int(user_id_int),
+        ).first()
+        if not (is_owner or is_member):
+            resp = jsonify({"success": False, "message": "Transação não encontrada"})
+            return _cors_wrap(resp, origin), 404
+
+        share_prefs = _check_user_share_preferences(int(user_id_int), int(tx_workspace_id))
+        if share_prefs and share_prefs.get("share_transactions") is False:
+            if int(getattr(tx, "user_id", 0) or 0) != int(user_id_int):
+                resp = jsonify({"success": False, "message": "Transação não encontrada"})
+                return _cors_wrap(resp, origin), 404
+    else:
+        if int(getattr(tx, "user_id", 0) or 0) != int(user_id_int):
+            resp = jsonify({"success": False, "message": "Transação não encontrada"})
+            return _cors_wrap(resp, origin), 404
 
     if request.method == "DELETE":
         try:
