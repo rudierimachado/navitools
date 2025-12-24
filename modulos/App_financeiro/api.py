@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, date
 import math
 import random
 import os
+import json
 import requests
 import calendar
 import re
@@ -982,6 +983,44 @@ def _fix_recurring_start_dates(user_id: int):
             db.session.rollback()
 
 
+def _fix_legacy_auto_loaded_income_paid(user_id: int):
+    txs = Transaction.query.filter(
+        Transaction.user_id == int(user_id),
+        Transaction.type == "income",
+        Transaction.is_paid == False,
+        Transaction.is_auto_loaded == True,
+        Transaction.recurring_transaction_id.isnot(None),
+    ).all()
+
+    if not txs:
+        return
+
+    for tx in txs:
+        try:
+            tx.is_paid = True
+            tx.paid_date = tx.transaction_date
+
+            if getattr(tx, "workspace_id", None) is None and getattr(tx, "recurring_transaction_id", None):
+                base_tx = (
+                    Transaction.query.filter(
+                        Transaction.user_id == int(user_id),
+                        Transaction.recurring_transaction_id == int(tx.recurring_transaction_id),
+                        Transaction.workspace_id.isnot(None),
+                    )
+                    .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
+                    .first()
+                )
+                if base_tx:
+                    tx.workspace_id = base_tx.workspace_id
+        except Exception:
+            pass
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 def _generate_recurring_for_month(user_id: int, year: int, month: int):
     """
     Gera automaticamente as transações recorrentes do mês se ainda não existirem.
@@ -993,6 +1032,8 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
     
     # Migra recorrências antigas para a tabela recorrente (uma única vez/por demanda)
     _migrate_legacy_recurring_transactions(user_id)
+
+    _fix_legacy_auto_loaded_income_paid(user_id)
 
     # Buscar todas as RecurringTransaction ativas do usuário
     recurring_txs = RecurringTransaction.query.filter_by(
@@ -1041,7 +1082,18 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
         if existing:
             _dbg(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
             continue  # Já existe, não criar novamente
-        
+
+        base_tx = (
+            Transaction.query.filter(
+                Transaction.user_id == user_id,
+                Transaction.recurring_transaction_id == rec_tx.id,
+            )
+            .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
+            .first()
+        )
+        base_workspace_id = getattr(base_tx, "workspace_id", None) if base_tx else None
+        generated_is_paid = True if rec_tx.type == "income" else False
+
         # Criar a transação do mês
         _dbg(f"[GENERATE_RECURRING] Criando transação para {rec_tx.description} em {transaction_date}")
         new_tx = Transaction(
@@ -1053,7 +1105,9 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
             amount=rec_tx.amount,
             type=rec_tx.type,
             transaction_date=transaction_date,
-            is_paid=False,  # Despesas recorrentes iniciam como não pagas
+            is_paid=generated_is_paid,  # Despesas recorrentes iniciam como não pagas
+            paid_date=transaction_date if generated_is_paid else None,
+            workspace_id=base_workspace_id,
             payment_method=rec_tx.payment_method,
             notes=rec_tx.notes,
             is_recurring=True,
@@ -1526,6 +1580,18 @@ def api_dashboard():
         expense_paid_v = float(rows.expense_paid or 0)
         return income_paid_v, expense_paid_v
 
+    # Saldo acumulado (carrega sobra/falta de meses anteriores):
+    # baseado apenas em transações pagas, respeitando as mesmas regras de workspace/permissões.
+    acc_epoch_start = date(1900, 1, 1)
+    opening_paid_income, opening_paid_expense = _paid_totals(
+        _build_tx_filters_for_period(acc_epoch_start, start)
+    )
+    closing_paid_income, closing_paid_expense = _paid_totals(
+        _build_tx_filters_for_period(acc_epoch_start, end)
+    )
+    opening_balance = opening_paid_income - opening_paid_expense
+    balance_accumulated = closing_paid_income - closing_paid_expense
+
     goals = {
         "income_goal": month_income_f,
         "income_actual": month_income_paid_f,
@@ -1628,6 +1694,8 @@ def api_dashboard():
     resp = jsonify({
         "success": True,
         "balance": balance,
+        "balance_accumulated": float(balance_accumulated),
+        "opening_balance": float(opening_balance),
         "month": month,
         "year": year,
         "month_income": month_income_f,
@@ -2704,6 +2772,386 @@ Escolha a melhor categoria da lista."""
         "message": "Não foi possível gerar categoria. Preencha manualmente.",
     })
     return _cors_wrap(resp, origin), 500
+
+
+@api_financeiro_bp.route("/api/finance-ai", methods=["POST", "OPTIONS"])
+def api_finance_ai():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "POST, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    data = request.get_json(silent=True) or {}
+    mode = str(data.get("mode", "")).strip().lower()
+    message = str(data.get("message", "")).strip()
+    context = data.get("context") or {}
+
+    active_workspace_id, err = _require_active_workspace_or_400(int(user_id_int))
+    if err:
+        return err
+
+    share_prefs = _check_user_share_preferences(int(user_id_int), int(active_workspace_id)) or {}
+
+    if not message:
+        resp = jsonify({"success": False, "message": "Mensagem é obrigatória"})
+        return _cors_wrap(resp, origin), 400
+
+    if mode not in ("credit_cards", "loans", "calculators"):
+        mode = "general"
+
+    groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not groq_api_key:
+        resp = jsonify({
+            "success": False,
+            "message": "IA não configurada (GROQ_API_KEY ausente).",
+        })
+        return _cors_wrap(resp, origin), 503
+
+    # ------------------------------------------------------------------
+    # Contexto do workspace (baseado nos dados reais)
+    # ------------------------------------------------------------------
+    today = datetime.utcnow().date()
+    month_start = date(today.year, today.month, 1)
+    if today.month == 12:
+        month_end = date(today.year + 1, 1, 1)
+    else:
+        month_end = date(today.year, today.month + 1, 1)
+
+    tx_filters_month = [
+        Transaction.workspace_id == int(active_workspace_id),
+        Transaction.transaction_date >= month_start,
+        Transaction.transaction_date < month_end,
+    ]
+    tx_filters_90d = [
+        Transaction.workspace_id == int(active_workspace_id),
+        Transaction.transaction_date >= (today - timedelta(days=90)),
+        Transaction.transaction_date <= today,
+    ]
+
+    if share_prefs.get("share_transactions") is False:
+        tx_filters_month.append(Transaction.user_id == int(user_id_int))
+        tx_filters_90d.append(Transaction.user_id == int(user_id_int))
+
+    income_month = 0.0
+    expense_month = 0.0
+    balance_month = 0.0
+    try:
+        sums = db.session.query(
+            func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount), else_=0)), 0),
+            func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount), else_=0)), 0),
+        ).filter(*tx_filters_month).first()
+        income_month = float(sums[0] or 0)
+        expense_month = float(sums[1] or 0)
+        balance_month = income_month - expense_month
+    except Exception:
+        income_month = 0.0
+        expense_month = 0.0
+        balance_month = 0.0
+
+    income_90d = 0.0
+    expense_90d = 0.0
+    try:
+        sums_90d = db.session.query(
+            func.coalesce(func.sum(case((Transaction.type == "income", Transaction.amount), else_=0)), 0),
+            func.coalesce(func.sum(case((Transaction.type == "expense", Transaction.amount), else_=0)), 0),
+        ).filter(*tx_filters_90d).first()
+        income_90d = float(sums_90d[0] or 0)
+        expense_90d = float(sums_90d[1] or 0)
+    except Exception:
+        income_90d = 0.0
+        expense_90d = 0.0
+
+    # Estimativa de gastos em cartão (heurística por payment_method)
+    credit_card_expense_month = 0.0
+    try:
+        credit_like = or_(
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%cart%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%credit%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%crédito%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%credito%"),
+        )
+        cc_sum = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.type == "expense",
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date < month_end,
+            credit_like,
+            *( [Transaction.user_id == int(user_id_int)] if share_prefs.get("share_transactions") is False else [] ),
+        ).scalar()
+        credit_card_expense_month = float(cc_sum or 0)
+    except Exception:
+        credit_card_expense_month = 0.0
+
+    # Top categorias de despesa no mês
+    top_categories = []
+    try:
+        rows = db.session.query(
+            func.coalesce(Category.name, "Sem categoria").label("cat"),
+            func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+        ).outerjoin(Category, Category.id == Transaction.category_id).filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.type == "expense",
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date < month_end,
+            *( [Transaction.user_id == int(user_id_int)] if share_prefs.get("share_transactions") is False else [] ),
+        ).group_by(func.coalesce(Category.name, "Sem categoria")).order_by(func.sum(Transaction.amount).desc()).limit(7).all()
+
+        top_categories = [
+            {"category": str(r[0]), "spent": float(r[1] or 0)}
+            for r in (rows or [])
+        ]
+    except Exception:
+        top_categories = []
+
+    # Orçamentos do mês (se existirem)
+    budgets_summary = []
+    try:
+        budgets = Budget.query.filter_by(
+            workspace_id=int(active_workspace_id),
+            period="monthly",
+            year=int(today.year),
+            month=int(today.month),
+        ).all()
+        cat_ids = [b.category_id for b in budgets]
+        spent_map = {}
+        if cat_ids:
+            spent_rows = db.session.query(
+                Transaction.category_id,
+                func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+            ).filter(
+                Transaction.workspace_id == int(active_workspace_id),
+                Transaction.type == "expense",
+                Transaction.transaction_date >= month_start,
+                Transaction.transaction_date < month_end,
+                Transaction.category_id.in_(cat_ids),
+                *( [Transaction.user_id == int(user_id_int)] if share_prefs.get("share_transactions") is False else [] ),
+            ).group_by(Transaction.category_id).all()
+            for cid, spent in spent_rows:
+                spent_map[int(cid)] = float(spent or 0)
+
+        for b in budgets[:7]:
+            limit_v = float(b.limit_amount or 0)
+            spent_v = float(spent_map.get(int(b.category_id), 0.0))
+            pct = (spent_v / limit_v) if limit_v > 0 else None
+            budgets_summary.append({
+                "category": b.category.name if b.category else None,
+                "limit": limit_v,
+                "spent": spent_v,
+                "percent_used": pct,
+            })
+    except Exception:
+        budgets_summary = []
+
+    # Breakdown de despesas por método de pagamento (mês)
+    expense_by_payment_method_month = []
+    try:
+        rows = db.session.query(
+            func.lower(func.coalesce(Transaction.payment_method, "")).label("pm"),
+            func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+        ).filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.type == "expense",
+            Transaction.transaction_date >= month_start,
+            Transaction.transaction_date < month_end,
+            *( [Transaction.user_id == int(user_id_int)] if share_prefs.get("share_transactions") is False else [] ),
+        ).group_by(func.lower(func.coalesce(Transaction.payment_method, ""))).order_by(func.sum(Transaction.amount).desc()).limit(10).all()
+
+        expense_by_payment_method_month = [
+            {"payment_method": (r[0] or "").strip() or None, "spent": float(r[1] or 0)}
+            for r in (rows or [])
+        ]
+    except Exception:
+        expense_by_payment_method_month = []
+
+    # Últimas transações (30 dias) para fundamentar respostas
+    recent_transactions_30d = []
+    try:
+        recent_q = Transaction.query.filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.transaction_date >= (today - timedelta(days=30)),
+            Transaction.transaction_date <= today,
+        )
+        if share_prefs.get("share_transactions") is False:
+            recent_q = recent_q.filter(Transaction.user_id == int(user_id_int))
+
+        recent = recent_q.order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc()).limit(25).all()
+        for tx in recent or []:
+            recent_transactions_30d.append({
+                "date": tx.transaction_date.isoformat() if tx.transaction_date else None,
+                "type": tx.type,
+                "amount": float(tx.amount or 0),
+                "description": tx.description,
+                "category": tx.category.name if tx.category else None,
+                "payment_method": tx.payment_method,
+                "is_paid": bool(tx.is_paid),
+            })
+    except Exception:
+        recent_transactions_30d = []
+
+    # Indícios de empréstimo/financiamento (heurística por texto/categoria)
+    loan_hints_90d = {"count": 0, "total": 0.0, "examples": []}
+    try:
+        kw = ["emprest", "emprést", "financ", "parcela", "consign", "juros"]
+        text_or = []
+        for k in kw:
+            text_or.append(func.lower(func.coalesce(Transaction.description, "")).like(f"%{k}%"))
+            text_or.append(func.lower(func.coalesce(Transaction.notes, "")).like(f"%{k}%"))
+            text_or.append(func.lower(func.coalesce(Category.name, "")).like(f"%{k}%"))
+
+        q = db.session.query(
+            func.count(Transaction.id),
+            func.coalesce(func.sum(Transaction.amount), 0),
+        ).outerjoin(Category, Category.id == Transaction.category_id).filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.type == "expense",
+            Transaction.transaction_date >= (today - timedelta(days=90)),
+            Transaction.transaction_date <= today,
+            or_(*text_or),
+            *( [Transaction.user_id == int(user_id_int)] if share_prefs.get("share_transactions") is False else [] ),
+        ).first()
+        loan_hints_90d["count"] = int(q[0] or 0)
+        loan_hints_90d["total"] = float(q[1] or 0)
+
+        ex = Transaction.query.outerjoin(Category, Category.id == Transaction.category_id).filter(
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.type == "expense",
+            Transaction.transaction_date >= (today - timedelta(days=90)),
+            Transaction.transaction_date <= today,
+            or_(*text_or),
+        )
+        if share_prefs.get("share_transactions") is False:
+            ex = ex.filter(Transaction.user_id == int(user_id_int))
+        ex = ex.order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc()).limit(8).all()
+        loan_hints_90d["examples"] = [
+            {
+                "date": t.transaction_date.isoformat() if t.transaction_date else None,
+                "amount": float(t.amount or 0),
+                "description": t.description,
+                "category": t.category.name if t.category else None,
+            }
+            for t in (ex or [])
+        ]
+    except Exception:
+        loan_hints_90d = {"count": 0, "total": 0.0, "examples": []}
+
+    workspace = None
+    try:
+        workspace = Workspace.query.get(int(active_workspace_id))
+    except Exception:
+        workspace = None
+
+    workspace_context = {
+        "workspace_id": int(active_workspace_id),
+        "workspace_name": workspace.name if workspace else None,
+        "month": f"{today.year:04d}-{today.month:02d}",
+        "income_month": income_month,
+        "expense_month": expense_month,
+        "balance_month": balance_month,
+        "income_90d": income_90d,
+        "expense_90d": expense_90d,
+        "expense_90d_monthly_avg_estimate": (expense_90d / 3.0) if expense_90d else 0.0,
+        "credit_card_expense_month_estimate": credit_card_expense_month,
+        "expense_by_payment_method_month": expense_by_payment_method_month,
+        "top_expense_categories_month": top_categories,
+        "budgets_month": budgets_summary,
+        "recent_transactions_30d": recent_transactions_30d,
+        "loan_hints_90d": loan_hints_90d,
+        "share_transactions": bool(share_prefs.get("share_transactions", True)),
+    }
+
+    system_prompt = (
+        "Você é um assistente financeiro pessoal. "
+        "Responda em português (Brasil), de forma objetiva e acionável. "
+        "Quando houver números, use cálculos simples e indique suposições. "
+        "Não invente dados: se faltar informação, peça exatamente o que precisa. "
+        "Não forneça aconselhamento legal; foque em educação financeira."
+    )
+
+    mode_label = {
+        "credit_cards": "Acompanhamento de cartões de crédito",
+        "loans": "Gestão de empréstimos e financiamentos",
+        "calculators": "Calculadoras financeiras (juros, inflação, parcelamento)",
+        "general": "Assistente financeiro",
+    }.get(mode, "Assistente financeiro")
+
+    try:
+        # O contexto do cliente é opcional; o principal é o resumo do workspace.
+        context_str = json.dumps(context, ensure_ascii=False)
+    except Exception:
+        context_str = "{}"
+
+    try:
+        workspace_context_str = json.dumps(workspace_context, ensure_ascii=False)
+    except Exception:
+        workspace_context_str = "{}"
+
+    user_prompt = (
+        f"Módulo: {mode_label}\n"
+        f"UserId: {user_id_int}\n"
+        f"WorkspaceId: {active_workspace_id}\n"
+        f"Resumo do workspace (JSON): {workspace_context_str}\n"
+        f"Contexto do app (JSON): {context_str}\n\n"
+        f"Pergunta do usuário: {message}\n\n"
+        "Regras:\n"
+        "- Baseie a resposta nos dados do 'Resumo do workspace' sempre que fizer sentido.\n"
+        "- Se o usuário pedir algo que exige dados que não existem no resumo (ex.: limite por cartão), peça quais dados faltam e sugira como registrar/organizar.\n"
+        "- Retorne uma resposta direta com passos práticos."
+    )
+
+    try:
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+                "max_tokens": 700,
+            },
+            timeout=12,
+        )
+
+        if response.status_code != 200:
+            resp = jsonify({
+                "success": False,
+                "message": "Falha ao consultar IA.",
+            })
+            return _cors_wrap(resp, origin), 502
+
+        result = response.json() or {}
+        content = (result.get("choices") or [{}])[0].get("message", {}).get("content", "") or ""
+        content = content.strip()
+
+        if not content:
+            resp = jsonify({
+                "success": False,
+                "message": "IA retornou resposta vazia.",
+            })
+            return _cors_wrap(resp, origin), 502
+
+        resp = jsonify({
+            "success": True,
+            "mode": mode,
+            "answer": content,
+        })
+        return _cors_wrap(resp, origin), 200
+
+    except Exception:
+        resp = jsonify({
+            "success": False,
+            "message": "Erro ao processar IA.",
+        })
+        return _cors_wrap(resp, origin), 500
 
 
 @api_financeiro_bp.route("/api/register", methods=["POST", "OPTIONS"])
