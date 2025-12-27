@@ -40,6 +40,36 @@ def _dbg(msg: str):
         print(msg)
 
 
+def _strip_installment_suffix(desc: str | None) -> str:
+    try:
+        s = str(desc or "").strip()
+        if not s:
+            return ""
+        return re.sub(r"\s*\(\s*\d+\s*/\s*\d+\s*\)\s*$", "", s).strip()
+    except Exception:
+        return str(desc or "").strip()
+
+
+def _shift_month_simple(y: int, m: int, delta: int) -> tuple[int, int]:
+    total = (int(y) * 12) + (int(m) - 1) + int(delta)
+    ny = total // 12
+    nm = (total % 12) + 1
+    return int(ny), int(nm)
+
+
+def _month_index(y: int, m: int) -> int:
+    return (int(y) * 12) + (int(m) - 1)
+
+
+def _months_diff(y1: int, m1: int, y2: int, m2: int) -> int:
+    return _month_index(y2, m2) - _month_index(y1, m1)
+
+
+def _last_day_of_month(y: int, m: int) -> date:
+    last = calendar.monthrange(int(y), int(m))[1]
+    return date(int(y), int(m), int(last))
+
+
 def _cors_preflight(origin: str, methods: str):
     resp = jsonify({"ok": True})
     resp.headers["Access-Control-Allow-Origin"] = origin
@@ -751,8 +781,6 @@ def _get_active_workspace_for_user(user_id: int, workspace_id_hint: int = None):
     # 4. Se há múltiplos workspaces e nenhum foi especificado (hint/sessão),
     # não escolher arbitrariamente para evitar misturar dados.
     return None
-    
-
 
 
 def _check_user_share_preferences(user_id: int, workspace_id: int):
@@ -844,66 +872,64 @@ def _migrate_legacy_recurring_transactions(user_id: int):
     for tx in legacy:
         if not tx.transaction_date:
             continue
-
-        day_of_month = int(tx.transaction_date.day)
-        key = (
-            (tx.type or "").strip().lower(),
-            (tx.description or "").strip().lower(),
-            float(tx.amount or 0),
-            int(tx.category_id),
-            day_of_month,
-            (tx.payment_method or "").strip().lower(),
-            (tx.subcategory_text or "").strip().lower(),
-        )
-
-        rec_tx = cache.get(key)
-        if not rec_tx:
-            rec_tx = RecurringTransaction.query.filter(
-                RecurringTransaction.user_id == user_id,
-                RecurringTransaction.frequency == "monthly",
-                RecurringTransaction.type == tx.type,
-                RecurringTransaction.category_id == tx.category_id,
-                RecurringTransaction.description == tx.description,
-                RecurringTransaction.amount == tx.amount,
-                RecurringTransaction.day_of_month == day_of_month,
-                RecurringTransaction.payment_method == tx.payment_method,
-                RecurringTransaction.subcategory_text == tx.subcategory_text,
-            ).first()
-
-        if not rec_tx:
-            _dbg(f"[MIGRATE_RECURRING] Criando RecurringTransaction para: {tx.description} (dia {day_of_month})")
-            # start_date deve ser o primeiro dia do mês da transação
-            start_date_first_day = date(tx.transaction_date.year, tx.transaction_date.month, 1)
-            rec_tx = RecurringTransaction(
-                user_id=user_id,
-                category_id=tx.category_id,
-                subcategory_id=getattr(tx, "subcategory_id", None),
-                subcategory_text=tx.subcategory_text,
-                description=tx.description,
-                amount=tx.amount,
-                type=tx.type,
-                frequency="monthly",
-                day_of_month=day_of_month,
-                start_date=start_date_first_day,
-                end_date=None,
-                is_active=True,
-                payment_method=tx.payment_method,
-                notes=tx.notes,
-            )
-            db.session.add(rec_tx)
-            db.session.flush()
+        
+        # Buscar transações antigas não vinculadas que correspondem a esta recorrente
+        unlinked_txs = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.is_recurring.is_(True),
+            Transaction.recurring_transaction_id.is_(None),
+            Transaction.description == tx.description,
+            Transaction.type == tx.type,
+            Transaction.amount == tx.amount
+        ).all()
+        
+        if unlinked_txs:
+            _dbg(f"[MIGRATE_RECURRING] {tx.description}: encontradas {len(unlinked_txs)} transações não vinculadas")
+            for utx in unlinked_txs:
+                _dbg(f"[MIGRATE_RECURRING]   - Vinculando {utx.description} de {utx.transaction_date}")
+                utx.recurring_transaction_id = tx.id
+                utx.frequency = "monthly"
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        
+        # Buscar TODAS as transações vinculadas para debug
+        all_txs = Transaction.query.filter_by(
+            user_id=user_id,
+            recurring_transaction_id=tx.id
+        ).order_by(Transaction.transaction_date.asc(), Transaction.id.asc()).all()
+        
+        _dbg(f"[MIGRATE_RECURRING] {tx.description}: {len(all_txs)} transações vinculadas, start_date atual: {tx.start_date}")
+        for atx in all_txs:
+            _dbg(f"[MIGRATE_RECURRING]   - {atx.description} em {atx.transaction_date}")
+        
+        # Buscar a primeira transação vinculada a esta recorrente
+        first_tx = all_txs[0] if all_txs else None
+        
+        if first_tx and first_tx.transaction_date:
+            old_start = tx.start_date
+            # Usar o mês da primeira transação como referência
+            new_start = date(first_tx.transaction_date.year, first_tx.transaction_date.month, 1)
+            
+            _dbg(f"[MIGRATE_RECURRING] {tx.description}: comparando start_date {old_start} com primeira transação {first_tx.transaction_date} -> novo start_date seria {new_start}")
+            
+            # Corrigir se o start_date for diferente do mês da primeira transação
+            if old_start != new_start:
+                tx.start_date = new_start
+                _dbg(f"[MIGRATE_RECURRING] ✅ Corrigindo {tx.description}: {old_start} -> {new_start}")
+            else:
+                _dbg(f"[MIGRATE_RECURRING] ✓ {tx.description}: start_date já está correto ({old_start})")
         else:
-            _dbg(f"[MIGRATE_RECURRING] RecurringTransaction já existe para: {tx.description}")
-
-        cache[key] = rec_tx
-
-        tx.recurring_transaction_id = rec_tx.id
-        tx.frequency = "monthly"
-
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+            _dbg(f"[MIGRATE_RECURRING] ⚠️ {tx.description}: sem transações vinculadas, mantendo start_date {tx.start_date}")
+    
+    if cache:
+        try:
+            db.session.commit()
+            _dbg(f"[MIGRATE_RECURRING] {len(cache)} RecurringTransaction criadas")
+        except Exception as e:
+            _dbg(f"[MIGRATE_RECURRING] Erro ao criar: {e}")
+            db.session.rollback()
 
 
 def _fix_recurring_start_dates(user_id: int):
@@ -948,7 +974,7 @@ def _fix_recurring_start_dates(user_id: int):
         all_txs = Transaction.query.filter_by(
             user_id=user_id,
             recurring_transaction_id=rec_tx.id
-        ).order_by(Transaction.transaction_date.asc()).all()
+        ).order_by(Transaction.transaction_date.asc(), Transaction.id.asc()).all()
         
         _dbg(f"[FIX_START_DATE] {rec_tx.description}: {len(all_txs)} transações vinculadas, start_date atual: {rec_tx.start_date}")
         for tx in all_txs:
@@ -1021,7 +1047,7 @@ def _fix_legacy_auto_loaded_income_paid(user_id: int):
         db.session.rollback()
 
 
-def _generate_recurring_for_month(user_id: int, year: int, month: int):
+def _generate_recurring_for_month(user_id: int, year: int, month: int, workspace_id_fallback: int | None = None):
     """
     Gera automaticamente as transações recorrentes do mês se ainda não existirem.
     """
@@ -1083,16 +1109,33 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
             _dbg(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
             continue  # Já existe, não criar novamente
 
-        base_tx = (
-            Transaction.query.filter(
-                Transaction.user_id == user_id,
-                Transaction.recurring_transaction_id == rec_tx.id,
+        inherited_workspace_id = None
+        try:
+            base_tx = (
+                Transaction.query.filter(
+                    Transaction.user_id == int(user_id),
+                    Transaction.recurring_transaction_id == rec_tx.id,
+                    Transaction.workspace_id.isnot(None),
+                )
+                .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
+                .first()
             )
-            .order_by(Transaction.transaction_date.asc(), Transaction.id.asc())
-            .first()
-        )
-        base_workspace_id = getattr(base_tx, "workspace_id", None) if base_tx else None
-        generated_is_paid = True if rec_tx.type == "income" else False
+            if base_tx:
+                inherited_workspace_id = base_tx.workspace_id
+        except Exception:
+            inherited_workspace_id = None
+
+        gen_desc = getattr(rec_tx, "description", "") or ""
+        if rec_tx.type == "expense" and getattr(rec_tx, "start_date", None) and getattr(rec_tx, "end_date", None):
+            try:
+                total_inst = _months_diff(rec_tx.start_date.year, rec_tx.start_date.month, rec_tx.end_date.year, rec_tx.end_date.month) + 1
+                idx_inst = _months_diff(rec_tx.start_date.year, rec_tx.start_date.month, int(year), int(month)) + 1
+                if total_inst and total_inst > 1:
+                    gen_desc = f"{_strip_installment_suffix(gen_desc)} ({idx_inst}/{total_inst})"
+                else:
+                    gen_desc = _strip_installment_suffix(gen_desc)
+            except Exception:
+                gen_desc = getattr(rec_tx, "description", "") or ""
 
         # Criar a transação do mês
         _dbg(f"[GENERATE_RECURRING] Criando transação para {rec_tx.description} em {transaction_date}")
@@ -1101,13 +1144,13 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int):
             category_id=rec_tx.category_id,
             subcategory_id=rec_tx.subcategory_id,
             subcategory_text=rec_tx.subcategory_text,
-            description=rec_tx.description,
+            description=gen_desc,
             amount=rec_tx.amount,
             type=rec_tx.type,
             transaction_date=transaction_date,
-            is_paid=generated_is_paid,  # Despesas recorrentes iniciam como não pagas
-            paid_date=transaction_date if generated_is_paid else None,
-            workspace_id=base_workspace_id,
+            is_paid=True if rec_tx.type == "income" else False,  # Despesas recorrentes iniciam como não pagas
+            paid_date=transaction_date if rec_tx.type == "income" else None,
+            workspace_id=(inherited_workspace_id if inherited_workspace_id is not None else workspace_id_fallback),
             payment_method=rec_tx.payment_method,
             notes=rec_tx.notes,
             is_recurring=True,
@@ -1256,7 +1299,6 @@ def api_login():
 def api_transaction_remove(tx_id: int):
     """Endpoint GET para exclusão (workaround CORS para Flutter Web)."""
     origin = request.headers.get("Origin", "*")
-    _dbg(f"[TX_REMOVE] GET /api/transactions/{tx_id}/remove - args: {dict(request.args)}")
 
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, OPTIONS")
@@ -1267,8 +1309,7 @@ def api_transaction_remove(tx_id: int):
             raw_user_id = request.args.get("user_id")
             if raw_user_id:
                 user_id_int = int(raw_user_id)
-        except Exception as e:
-            _dbg(f"[TX_REMOVE] Erro ao parsear user_id: {e}")
+        except Exception:
             user_id_int = None
 
     if not user_id_int:
@@ -1326,7 +1367,6 @@ def api_transaction_remove(tx_id: int):
                 rec_tx.is_active = False
             return
 
-        # fallback
         db.session.delete(target_tx)
 
     try:
@@ -1404,16 +1444,41 @@ def api_dashboard():
     if active_workspace_id:
         share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
 
+    # Gerar recorrências do mês antes de calcular totais do dashboard.
+    # Em workspaces compartilhados, gerar para todos os membros para que as parcelas
+    # criadas por outros usuários também apareçam e somem corretamente.
+    try:
+        if active_workspace_id and share_prefs and share_prefs.get("share_transactions", True):
+            member_ids = []
+            try:
+                w = Workspace.query.get(active_workspace_id)
+                if w:
+                    member_ids.append(int(getattr(w, "owner_id", 0) or 0))
+                for m in WorkspaceMember.query.filter_by(workspace_id=active_workspace_id).all():
+                    try:
+                        member_ids.append(int(getattr(m, "user_id", 0) or 0))
+                    except Exception:
+                        pass
+                member_ids = [uid for uid in set(member_ids) if uid]
+            except Exception:
+                member_ids = []
+
+            for uid in member_ids:
+                try:
+                    _generate_recurring_for_month(int(uid), int(year), int(month), int(active_workspace_id))
+                except Exception:
+                    pass
+        else:
+            _generate_recurring_for_month(int(user_id_int), int(year), int(month), int(active_workspace_id) if active_workspace_id else None)
+    except Exception:
+        pass
+
     tx_filters = [
         Transaction.transaction_date >= start,
         Transaction.transaction_date < end,
     ]
 
-    if active_workspace_id:
-        if not share_prefs:
-            resp = jsonify({"success": False, "message": "Sem permissão para acessar este workspace"})
-            return _cors_wrap(resp, origin), 403
-
+    if active_workspace_id and share_prefs:
         if share_prefs.get("share_transactions", True):
             tx_filters.append(Transaction.workspace_id == active_workspace_id)
         else:
@@ -1554,7 +1619,7 @@ def api_dashboard():
         ]
 
         if active_workspace_id:
-            if share_prefs.get("share_transactions", True):
+            if share_prefs.get("share_transactions") is True:
                 f.append(Transaction.workspace_id == active_workspace_id)
             else:
                 f.append(Transaction.workspace_id == active_workspace_id)
@@ -1817,7 +1882,6 @@ def api_create_transaction():
         
         if not user_id_int:
             # fallback para app atual
-            print(f"[CREATE_TX] Getting user_id from request body")
             try:
                 user_id_int = int((request.get_json(silent=True) or {}).get("user_id"))
                 print(f"[CREATE_TX] user_id from body: {user_id_int}")
@@ -1869,6 +1933,8 @@ def api_create_transaction():
         recurring_day = data.get("recurring_day")  # Dia do vencimento (1-31)
         recurring_unlimited = data.get("recurring_unlimited")
         recurring_end_date_raw = str(data.get("recurring_end_date", "")).strip() or None
+        recurring_installments_raw = data.get("recurring_installments")
+        recurring_installments_start = str(data.get("recurring_installments_start") or "").strip().lower() or None
 
         if ttype not in ("income", "expense"):
             resp = jsonify({"success": False, "message": "Tipo inválido (income/expense)."})
@@ -1993,26 +2059,49 @@ def api_create_transaction():
                     unlimited_bool = True
 
             end_date = None
-            if not unlimited_bool and recurring_end_date_raw:
+            installments_int = None
+            if ttype == "expense" and recurring_installments_raw is not None:
+                try:
+                    installments_int = int(recurring_installments_raw)
+                except Exception:
+                    installments_int = None
+                if installments_int is not None and installments_int < 1:
+                    installments_int = None
+
+            if recurring_installments_start not in ("current_month", "due_date"):
+                recurring_installments_start = "current_month"
+
+            start_for_installments = date(tdate.year, tdate.month, 1)
+            if installments_int is not None and recurring_installments_start == "due_date":
+                try:
+                    today = datetime.utcnow().date()
+                    if tdate < today:
+                        ny, nm = _shift_month_simple(tdate.year, tdate.month, 1)
+                        start_for_installments = date(ny, nm, 1)
+                except Exception:
+                    start_for_installments = date(tdate.year, tdate.month, 1)
+
+            if installments_int is not None:
+                unlimited_bool = False
+                end_y, end_m = _shift_month_simple(start_for_installments.year, start_for_installments.month, installments_int - 1)
+                end_date = _last_day_of_month(end_y, end_m)
+            elif not unlimited_bool and recurring_end_date_raw:
                 try:
                     end_date = date.fromisoformat(recurring_end_date_raw)
                 except Exception:
                     end_date = None
 
-            # start_date deve ser o primeiro dia do mês da transação
-            start_date_first_day = date(tdate.year, tdate.month, 1)
-            
             recurring_tx = RecurringTransaction(
                 user_id=int(user_id_int),
                 category_id=category.id,
                 subcategory_id=None,
                 subcategory_text=subcategory_text,
-                description=description,
+                description=_strip_installment_suffix(description),
                 amount=amount,
                 type=ttype,
                 frequency="monthly",
                 day_of_month=recurring_day_int,
-                start_date=start_date_first_day,
+                start_date=start_for_installments,
                 end_date=end_date,
                 is_active=True,
                 payment_method=payment_method,
@@ -2021,15 +2110,31 @@ def api_create_transaction():
             db.session.add(recurring_tx)
             db.session.flush()
 
+        tx_desc = description
+        tx_date_final = tdate
+        if is_recurring and ttype == "expense" and recurring_tx and getattr(recurring_tx, "start_date", None) and getattr(recurring_tx, "end_date", None):
+            try:
+                total_inst = _months_diff(recurring_tx.start_date.year, recurring_tx.start_date.month, recurring_tx.end_date.year, recurring_tx.end_date.month) + 1
+                if total_inst and total_inst > 1:
+                    tx_desc = f"{_strip_installment_suffix(description)} (1/{total_inst})"
+                else:
+                    tx_desc = _strip_installment_suffix(description)
+
+                if recurring_tx.start_date:
+                    last_day = calendar.monthrange(recurring_tx.start_date.year, recurring_tx.start_date.month)[1]
+                    tx_date_final = date(recurring_tx.start_date.year, recurring_tx.start_date.month, min(recurring_day_int or 1, last_day))
+            except Exception:
+                tx_desc = description
+
         tx = Transaction(
             user_id=int(user_id_int),
             category_id=category.id,
-            description=description,
+            description=tx_desc,
             amount=amount,
             type=ttype,
-            transaction_date=tdate,
+            transaction_date=tx_date_final,
             is_paid=is_paid,
-            paid_date=tdate if is_paid else None,
+            paid_date=tx_date_final if is_paid else None,
             workspace_id=workspace_id,
             payment_method=payment_method,
             notes=notes,
@@ -2127,9 +2232,6 @@ def api_list_transactions():
         year = today.year
         month = today.month
 
-    if month < 1 or month > 12:
-        month = today.month
-
     tx_type = (request.args.get("type") or "").strip().lower()
     q = (request.args.get("q") or "").strip()
 
@@ -2164,6 +2266,34 @@ def api_list_transactions():
     if active_workspace_id:
         share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
         print(f"[LIST_TX] share_preferences={share_prefs}")
+
+    # Gerar recorrências do mês para garantir que parcelas apareçam nos meses futuros.
+    # Se o workspace compartilha transações, gerar para todos os membros do workspace.
+    try:
+        if active_workspace_id and share_prefs and share_prefs.get('share_transactions', True):
+            member_ids = []
+            try:
+                w = Workspace.query.get(active_workspace_id)
+                if w:
+                    member_ids.append(int(getattr(w, 'owner_id', 0) or 0))
+                for m in WorkspaceMember.query.filter_by(workspace_id=active_workspace_id).all():
+                    try:
+                        member_ids.append(int(getattr(m, 'user_id', 0) or 0))
+                    except Exception:
+                        pass
+                member_ids = [uid for uid in set(member_ids) if uid]
+            except Exception:
+                member_ids = []
+
+            for uid in member_ids:
+                try:
+                    _generate_recurring_for_month(int(uid), int(year), int(month), int(active_workspace_id))
+                except Exception:
+                    pass
+        else:
+            _generate_recurring_for_month(int(user_id_int), int(year), int(month), int(active_workspace_id) if active_workspace_id else None)
+    except Exception:
+        pass
     
     query = (
         db.session.query(
@@ -2392,6 +2522,17 @@ def api_transaction_detail(tx_id: int):
                 "recurring_day": int(rec_tx.day_of_month) if rec_tx and rec_tx.day_of_month else (tx.transaction_date.day if tx.transaction_date else None),
                 "recurring_unlimited": True if (rec_tx and rec_tx.end_date is None) else False,
                 "recurring_end_date": rec_tx.end_date.isoformat() if (rec_tx and rec_tx.end_date) else None,
+                "recurring_installments": (
+                    (_months_diff(rec_tx.start_date.year, rec_tx.start_date.month, rec_tx.end_date.year, rec_tx.end_date.month) + 1)
+                    if (rec_tx and rec_tx.type == "expense" and rec_tx.start_date and rec_tx.end_date)
+                    else None
+                ),
+                "recurring_installments_start": None,
+                "recurring_installment_index": (
+                    (_months_diff(rec_tx.start_date.year, rec_tx.start_date.month, tx.transaction_date.year, tx.transaction_date.month) + 1)
+                    if (rec_tx and rec_tx.type == "expense" and rec_tx.start_date and rec_tx.end_date and tx.transaction_date)
+                    else None
+                ),
             },
         })
         return _cors_wrap(resp, origin), 200
@@ -2435,6 +2576,8 @@ def api_transaction_detail(tx_id: int):
     recurring_day = data.get("recurring_day")
     recurring_unlimited = data.get("recurring_unlimited")
     recurring_end_date_raw = str(data.get("recurring_end_date", "")).strip() or None
+    recurring_installments_raw = data.get("recurring_installments")
+    recurring_installments_start = str(data.get("recurring_installments_start") or "").strip().lower() or None
 
     if ttype not in ("income", "expense"):
         resp = jsonify({"success": False, "message": "Tipo inválido (income/expense)."})
@@ -2515,23 +2658,56 @@ def api_transaction_detail(tx_id: int):
                 unlimited_bool = True
 
         end_date = None
-        if not unlimited_bool and recurring_end_date_raw:
+        installments_int = None
+        if ttype == "expense" and recurring_installments_raw is not None:
+            try:
+                installments_int = int(recurring_installments_raw)
+            except Exception:
+                installments_int = None
+            if installments_int is not None and installments_int < 1:
+                installments_int = None
+
+        if recurring_installments_start not in ("current_month", "due_date"):
+            recurring_installments_start = "current_month"
+
+        if tx.recurring_transaction_id:
+            rec_tx = RecurringTransaction.query.filter_by(id=tx.recurring_transaction_id, user_id=int(user_id_int)).first()
+
+        base_start_month = date(tdate.year, tdate.month, 1)
+        if rec_tx and rec_tx.start_date:
+            # Não mudar o start_date de uma recorrência já existente ao editar parcelas do meio.
+            base_start_month = date(rec_tx.start_date.year, rec_tx.start_date.month, 1)
+        elif installments_int is not None:
+            # Definir start_date apenas quando estamos criando/ativando a recorrência.
+            base_start_month = date(tdate.year, tdate.month, 1)
+            if recurring_installments_start == "due_date":
+                try:
+                    today = datetime.utcnow().date()
+                    if tdate < today:
+                        ny, nm = _shift_month_simple(tdate.year, tdate.month, 1)
+                        base_start_month = date(ny, nm, 1)
+                except Exception:
+                    base_start_month = date(tdate.year, tdate.month, 1)
+
+        if installments_int is not None:
+            unlimited_bool = False
+            end_y, end_m = _shift_month_simple(base_start_month.year, base_start_month.month, installments_int - 1)
+            end_date = _last_day_of_month(end_y, end_m)
+        elif not unlimited_bool and recurring_end_date_raw:
             try:
                 end_date = date.fromisoformat(recurring_end_date_raw)
             except Exception:
                 end_date = None
 
-        if tx.recurring_transaction_id:
-            rec_tx = RecurringTransaction.query.filter_by(id=tx.recurring_transaction_id, user_id=int(user_id_int)).first()
-
         if not rec_tx:
-            start_date_first_day = date(tdate.year, tdate.month, 1)
+            start_date_first_day = base_start_month
+            base_desc = _strip_installment_suffix(description)
             rec_tx = RecurringTransaction(
                 user_id=int(user_id_int),
                 category_id=category.id,
                 subcategory_id=None,
                 subcategory_text=subcategory_text,
-                description=description,
+                description=base_desc,
                 amount=amount,
                 type=ttype,
                 frequency="monthly",
@@ -2547,14 +2723,14 @@ def api_transaction_detail(tx_id: int):
             tx.recurring_transaction_id = rec_tx.id
 
         if rec_tx:
-            start_date_first_day = date(tdate.year, tdate.month, 1)
-            if rec_tx.start_date is None or start_date_first_day < rec_tx.start_date:
-                rec_tx.start_date = start_date_first_day
+            # Só definir start_date se estiver vazio.
+            if rec_tx.start_date is None:
+                rec_tx.start_date = base_start_month
             rec_tx.end_date = end_date
             rec_tx.day_of_month = recurring_day_int
             rec_tx.category_id = category.id
             rec_tx.subcategory_text = subcategory_text
-            rec_tx.description = description
+            rec_tx.description = _strip_installment_suffix(description)
             rec_tx.amount = amount
             rec_tx.type = ttype
             rec_tx.payment_method = payment_method
@@ -2565,12 +2741,32 @@ def api_transaction_detail(tx_id: int):
         tx.recurring_transaction_id = None
 
     tx.type = ttype
-    tx.description = description
+    tx_desc = description
+    if is_recurring and ttype == "expense" and rec_tx and getattr(rec_tx, "end_date", None) and getattr(rec_tx, "start_date", None) and tdate:
+        try:
+            total_inst = _months_diff(rec_tx.start_date.year, rec_tx.start_date.month, rec_tx.end_date.year, rec_tx.end_date.month) + 1
+            idx_inst = _months_diff(rec_tx.start_date.year, rec_tx.start_date.month, tdate.year, tdate.month) + 1
+            if total_inst and total_inst > 1:
+                tx_desc = f"{_strip_installment_suffix(description)} ({idx_inst}/{total_inst})"
+            else:
+                tx_desc = _strip_installment_suffix(description)
+        except Exception:
+            tx_desc = description
+
+    tx.description = tx_desc
     tx.amount = amount
     tx.category_id = category.id
-    tx.transaction_date = tdate
+    tx_date_final = tdate
+    if is_recurring and recurring_day_int and tdate:
+        try:
+            last_day = calendar.monthrange(tdate.year, tdate.month)[1]
+            tx_date_final = date(tdate.year, tdate.month, min(recurring_day_int or 1, last_day))
+        except Exception:
+            tx_date_final = tdate
+
+    tx.transaction_date = tx_date_final
     tx.is_paid = is_paid
-    tx.paid_date = tdate if is_paid else None
+    tx.paid_date = tx_date_final if is_paid else None
     tx.payment_method = payment_method
     tx.notes = notes
     tx.subcategory_text = subcategory_text

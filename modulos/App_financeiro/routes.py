@@ -73,6 +73,23 @@ def download_apk():
             apk_path = candidate
             break
 
+    # Se houver múltiplos APKs, servir sempre o mais recente por data de modificação
+    try:
+        candidates = []
+        for fn in os.listdir(module_dir):
+            if fn.lower().endswith('.apk'):
+                full = os.path.join(module_dir, fn)
+                try:
+                    candidates.append((os.path.getmtime(full), full))
+                except Exception:
+                    pass
+        if candidates:
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            newest = candidates[0][1]
+            apk_path = newest
+    except Exception:
+        pass
+
     # Fallback: APK em static/downloads (caso você prefira manter em static)
     if apk_path is None:
         static_apk_path = os.path.join(
