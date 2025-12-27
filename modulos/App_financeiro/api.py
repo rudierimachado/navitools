@@ -1096,18 +1096,6 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int, workspace
         last_day = calendar.monthrange(year, month)[1]
         day = min(day_of_month, last_day)
         transaction_date = date(year, month, day)
-        
-        # Verificar se já existe uma transação deste recurring_transaction neste mês
-        existing = Transaction.query.filter(
-            Transaction.user_id == user_id,
-            Transaction.recurring_transaction_id == rec_tx.id,
-            func.extract('year', Transaction.transaction_date) == year,
-            func.extract('month', Transaction.transaction_date) == month
-        ).first()
-        
-        if existing:
-            _dbg(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
-            continue  # Já existe, não criar novamente
 
         inherited_workspace_id = None
         try:
@@ -1124,6 +1112,27 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int, workspace
                 inherited_workspace_id = base_tx.workspace_id
         except Exception:
             inherited_workspace_id = None
+
+        target_workspace_id = inherited_workspace_id if inherited_workspace_id is not None else workspace_id_fallback
+        
+        # Verificar se já existe uma transação deste recurring_transaction neste mês
+        existing_query = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.recurring_transaction_id == rec_tx.id,
+            func.extract('year', Transaction.transaction_date) == year,
+            func.extract('month', Transaction.transaction_date) == month,
+        )
+
+        if target_workspace_id is None:
+            existing_query = existing_query.filter(Transaction.workspace_id.is_(None))
+        else:
+            existing_query = existing_query.filter(Transaction.workspace_id == target_workspace_id)
+
+        existing = existing_query.first()
+        
+        if existing:
+            _dbg(f"[GENERATE_RECURRING] Já existe transação para {rec_tx.description} em {month}/{year}")
+            continue  # Já existe, não criar novamente
 
         gen_desc = getattr(rec_tx, "description", "") or ""
         if rec_tx.type == "expense" and getattr(rec_tx, "start_date", None) and getattr(rec_tx, "end_date", None):
@@ -1150,7 +1159,7 @@ def _generate_recurring_for_month(user_id: int, year: int, month: int, workspace
             transaction_date=transaction_date,
             is_paid=True if rec_tx.type == "income" else False,  # Despesas recorrentes iniciam como não pagas
             paid_date=transaction_date if rec_tx.type == "income" else None,
-            workspace_id=(inherited_workspace_id if inherited_workspace_id is not None else workspace_id_fallback),
+            workspace_id=target_workspace_id,
             payment_method=rec_tx.payment_method,
             notes=rec_tx.notes,
             is_recurring=True,
@@ -1335,6 +1344,63 @@ def api_transaction_remove(tx_id: int):
             return
 
         if scope_value == "single":
+            # Se apenas deletarmos, a transação volta no próximo refresh por causa da geração automática
+            # (_generate_recurring_for_month). Para remover só este mês e manter os próximos,
+            # quebramos a recorrência em duas: até o mês anterior, e a partir do mês seguinte.
+            rec_tx = RecurringTransaction.query.filter_by(
+                id=int(rec_id),
+                user_id=int(user_id_int),
+            ).first()
+
+            if not rec_tx or not target_tx.transaction_date:
+                db.session.delete(target_tx)
+                return
+
+            original_end_date = rec_tx.end_date
+
+            # Encerrar recorrência antiga no mês anterior
+            rec_tx.end_date = _prev_month_last_day(target_tx.transaction_date)
+
+            # Criar uma nova recorrência a partir do mês seguinte (se ainda houver futuro)
+            ny, nm = _shift_month_simple(target_tx.transaction_date.year, target_tx.transaction_date.month, 1)
+            next_month_first_day = date(ny, nm, 1)
+
+            should_create_new = True
+            if original_end_date is not None and original_end_date < next_month_first_day:
+                should_create_new = False
+
+            new_rec_tx = None
+            if should_create_new:
+                new_rec_tx = RecurringTransaction(
+                    user_id=rec_tx.user_id,
+                    category_id=rec_tx.category_id,
+                    subcategory_id=rec_tx.subcategory_id,
+                    subcategory_text=rec_tx.subcategory_text,
+                    description=rec_tx.description,
+                    amount=rec_tx.amount,
+                    type=rec_tx.type,
+                    frequency=rec_tx.frequency,
+                    day_of_month=rec_tx.day_of_month,
+                    day_of_week=rec_tx.day_of_week,
+                    start_date=next_month_first_day,
+                    end_date=original_end_date,
+                    is_active=rec_tx.is_active,
+                    payment_method=rec_tx.payment_method,
+                    notes=rec_tx.notes,
+                )
+                db.session.add(new_rec_tx)
+                db.session.flush()
+
+                # Migrar transações futuras já geradas para a nova recorrência
+                db.session.query(Transaction).filter(
+                    Transaction.user_id == int(user_id_int),
+                    Transaction.recurring_transaction_id == int(rec_id),
+                    Transaction.transaction_date >= next_month_first_day,
+                ).update(
+                    {Transaction.recurring_transaction_id: int(new_rec_tx.id)},
+                    synchronize_session=False,
+                )
+
             db.session.delete(target_tx)
             return
 
@@ -1645,6 +1711,15 @@ def api_dashboard():
         expense_paid_v = float(rows.expense_paid or 0)
         return income_paid_v, expense_paid_v
 
+    def _pending_expense_total(p_filters):
+        rows = db.session.query(
+            func.coalesce(func.sum(case(
+                ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
+                else_=0,
+            )), 0).label("expense_pending"),
+        ).filter(*p_filters).one()
+        return float(rows.expense_pending or 0)
+
     # Saldo acumulado (carrega sobra/falta de meses anteriores):
     # baseado apenas em transações pagas, respeitando as mesmas regras de workspace/permissões.
     acc_epoch_start = date(1900, 1, 1)
@@ -1656,6 +1731,11 @@ def api_dashboard():
     )
     opening_balance = opening_paid_income - opening_paid_expense
     balance_accumulated = closing_paid_income - closing_paid_expense
+
+    previous_expense_pending_total = _pending_expense_total(
+        _build_tx_filters_for_period(acc_epoch_start, start)
+    )
+    carryover_effective = opening_balance - previous_expense_pending_total
 
     goals = {
         "income_goal": month_income_f,
@@ -1761,6 +1841,8 @@ def api_dashboard():
         "balance": balance,
         "balance_accumulated": float(balance_accumulated),
         "opening_balance": float(opening_balance),
+        "previous_expense_pending_total": float(previous_expense_pending_total),
+        "carryover_effective": float(carryover_effective),
         "month": month,
         "year": year,
         "month_income": month_income_f,
@@ -2050,11 +2132,28 @@ def api_create_transaction():
 
         recurring_tx = None
         if is_recurring:
+            def _parse_bool(v, default: bool = True) -> bool:
+                if v is None:
+                    return default
+                if isinstance(v, bool):
+                    return v
+                if isinstance(v, (int, float)):
+                    return bool(v)
+                try:
+                    s = str(v).strip().lower()
+                except Exception:
+                    return default
+                if s in ("true", "1", "yes", "y", "sim"):
+                    return True
+                if s in ("false", "0", "no", "n", "nao", "não"):
+                    return False
+                return default
+
             # Null = sem fim
             unlimited_bool = True
             if recurring_unlimited is not None:
                 try:
-                    unlimited_bool = bool(recurring_unlimited)
+                    unlimited_bool = _parse_bool(recurring_unlimited, default=True)
                 except Exception:
                     unlimited_bool = True
 
