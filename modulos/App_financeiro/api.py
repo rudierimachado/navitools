@@ -1589,6 +1589,41 @@ def api_dashboard():
         *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
     ).scalar() or 0
 
+    credit_card_top_name = None
+    credit_card_top_amount = 0.0
+    try:
+        card_label = func.nullif(func.trim(func.coalesce(Transaction.subcategory_text, "")), "")
+        card_name_expr = func.coalesce(card_label, "Cartão")
+
+        top_row = (
+            db.session.query(
+                card_name_expr.label("card_name"),
+                func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+            )
+            .filter(
+                Transaction.type == "expense",
+                Transaction.transaction_date >= start,
+                Transaction.transaction_date < end,
+                Transaction.workspace_id == int(active_workspace_id),
+                credit_like,
+                *(
+                    [Transaction.user_id == int(user_id_int)]
+                    if share_prefs and not share_prefs.get("share_transactions", True)
+                    else []
+                ),
+            )
+            .group_by(card_name_expr)
+            .order_by(func.sum(Transaction.amount).desc())
+            .first()
+        )
+
+        if top_row:
+            credit_card_top_name = str(getattr(top_row, "card_name", "") or "")
+            credit_card_top_amount = float(getattr(top_row, "spent", 0) or 0)
+    except Exception:
+        credit_card_top_name = None
+        credit_card_top_amount = 0.0
+
     # 2. Quantidade de contas pendentes
     pending_bills_count = db.session.query(func.count(Transaction.id)).filter(
         Transaction.type == "expense",
@@ -1687,6 +1722,8 @@ def api_dashboard():
         "year": int(year),
         # NOVOS CAMPOS PARA CARDS OTIMIZADOS
         "credit_card_expense_month": float(credit_card_expense),
+        "credit_card_top_name": credit_card_top_name,
+        "credit_card_top_amount": float(credit_card_top_amount),
         "pending_bills_count": int(pending_bills_count),
         "overdue_bills_count": int(overdue_bills_count),
         "latest_transactions": latest_transactions,
