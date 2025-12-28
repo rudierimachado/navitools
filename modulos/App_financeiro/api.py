@@ -1696,7 +1696,40 @@ def api_dashboard():
     resp = jsonify(dashboard_data)
     return _cors_wrap(resp, origin), 200
 
-
+@api_financeiro_bp.route("/api/app-version", methods=["GET", "OPTIONS"])
+def api_app_version():
+    """Retorna a versão mais recente do app disponível para download."""
+    origin = request.headers.get("Origin", "*")
+    
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, OPTIONS")
+    
+    # Versão atual do app - você deve atualizar isso quando lançar nova versão
+    current_version = "1.2.0"  # ATUALIZE AQUI QUANDO GERAR NOVA VERSÃO
+    
+    # Opcional: ler versão de um arquivo ou banco de dados
+    try:
+        # Exemplo: ler de um arquivo version.txt
+        module_dir = os.path.dirname(__file__)
+        version_file = os.path.join(module_dir, "version.txt")
+        
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                file_version = f.read().strip()
+                if file_version:
+                    current_version = file_version
+    except Exception:
+        pass  # Usar versão padrão se falhar
+    
+    resp = jsonify({
+        "success": True,
+        "version": current_version,
+        "download_url": f"{request.scheme}://{request.host}/gerenciamento-financeiro/download/apk",
+        "release_notes": "Melhorias na interface e correções de bugs.",
+        "required_update": False  # True se for obrigatório atualizar
+    })
+    
+    return _cors_wrap(resp, origin), 200
 @api_financeiro_bp.route("/api/categories", methods=["GET", "OPTIONS"])
 def api_categories():
     origin = request.headers.get("Origin", "*")
