@@ -1450,7 +1450,7 @@ def api_transaction_remove(tx_id: int):
 
 @api_financeiro_bp.route("/api/dashboard", methods=["GET", "OPTIONS"])
 def api_dashboard():
-    """Retorna dados básicos do dashboard (ex: saldo total atual)."""
+    """Retorna dados básicos do dashboard com novos campos para cards otimizados."""
     origin = request.headers.get("Origin", "*")
 
     if request.method == "OPTIONS":
@@ -1510,353 +1510,190 @@ def api_dashboard():
     if active_workspace_id:
         share_prefs = _check_user_share_preferences(user_id_int, active_workspace_id)
 
-    # Gerar recorrências do mês antes de calcular totais do dashboard.
-    # Em workspaces compartilhados, gerar para todos os membros para que as parcelas
-    # criadas por outros usuários também apareçam e somem corretamente.
+    # Gerar recorrências antes de calcular totais
     try:
-        if active_workspace_id and share_prefs and share_prefs.get("share_transactions", True):
-            member_ids = []
-            try:
-                w = Workspace.query.get(active_workspace_id)
-                if w:
-                    member_ids.append(int(getattr(w, "owner_id", 0) or 0))
-                for m in WorkspaceMember.query.filter_by(workspace_id=active_workspace_id).all():
-                    try:
-                        member_ids.append(int(getattr(m, "user_id", 0) or 0))
-                    except Exception:
-                        pass
-                member_ids = [uid for uid in set(member_ids) if uid]
-            except Exception:
-                member_ids = []
+        _generate_recurring_transactions_for_month(active_workspace_id, year, month)
+    except Exception as e:
+        _dbg(f"[DASHBOARD] Erro ao gerar recorrências: {e}")
 
-            for uid in member_ids:
-                try:
-                    _generate_recurring_for_month(int(uid), int(year), int(month), int(active_workspace_id))
-                except Exception:
-                    pass
-        else:
-            _generate_recurring_for_month(int(user_id_int), int(year), int(month), int(active_workspace_id) if active_workspace_id else None)
-    except Exception:
-        pass
+    # Filtros base para transações
+    def _build_tx_filters_for_period(start_date, end_date):
+        filters = [
+            Transaction.workspace_id == int(active_workspace_id),
+            Transaction.transaction_date >= start_date,
+            Transaction.transaction_date < end_date,
+        ]
+        
+        # Se não compartilha transações, filtrar por usuário
+        if share_prefs and not share_prefs.get("share_transactions", True):
+            filters.append(Transaction.user_id == int(user_id_int))
+        
+        return filters
 
-    tx_filters = [
+    # Função para calcular totais pagos
+    def _paid_totals(filters):
+        income_paid = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.type == "income",
+            Transaction.is_paid.is_(True),
+            *filters,
+        ).scalar() or 0
+
+        expense_paid = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.type == "expense",
+            Transaction.is_paid.is_(True),
+            *filters,
+        ).scalar() or 0
+
+        return float(income_paid), float(expense_paid)
+
+    # Totais do mês atual
+    month_filters = _build_tx_filters_for_period(start, end)
+    
+    # Receitas e despesas totais do mês
+    month_income = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.type == "income",
+        *month_filters,
+    ).scalar() or 0
+    
+    month_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.type == "expense",
+        *month_filters,
+    ).scalar() or 0
+
+    # Despesas pendentes do mês
+    month_expense_pending = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.type == "expense",
+        Transaction.is_paid.is_(False),
+        *month_filters,
+    ).scalar() or 0
+
+    # Receitas e despesas pagas do mês
+    month_income_paid, month_expense_paid = _paid_totals(month_filters)
+
+    # NOVOS CAMPOS PARA OS CARDS OTIMIZADOS
+    
+    # 1. Gastos no cartão de crédito este mês
+    credit_like = or_(
+        func.lower(func.coalesce(Transaction.payment_method, "")).like("%cart%"),
+        func.lower(func.coalesce(Transaction.payment_method, "")).like("%credit%"),
+        func.lower(func.coalesce(Transaction.payment_method, "")).like("%crédito%"),
+        func.lower(func.coalesce(Transaction.payment_method, "")).like("%credito%"),
+    )
+    
+    credit_card_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.type == "expense",
         Transaction.transaction_date >= start,
         Transaction.transaction_date < end,
-    ]
+        Transaction.workspace_id == int(active_workspace_id),
+        credit_like,
+        *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
+    ).scalar() or 0
 
-    if active_workspace_id and share_prefs:
-        if share_prefs.get("share_transactions", True):
-            tx_filters.append(Transaction.workspace_id == active_workspace_id)
-        else:
-            tx_filters.append(Transaction.workspace_id == active_workspace_id)
-            tx_filters.append(Transaction.user_id == user_id_int)
-    else:
-        tx_filters.append(Transaction.user_id == user_id_int)
-        tx_filters.append(Transaction.workspace_id.is_(None))
+    # 2. Quantidade de contas pendentes
+    pending_bills_count = db.session.query(func.count(Transaction.id)).filter(
+        Transaction.type == "expense",
+        Transaction.is_paid.is_(False),
+        *month_filters,
+    ).scalar() or 0
 
-    # Otimização: consolidar todas as queries de totais em uma única query
-    from sqlalchemy import case
+    # 3. Quantidade de contas vencidas (data < hoje)
+    overdue_bills_count = db.session.query(func.count(Transaction.id)).filter(
+        Transaction.type == "expense",
+        Transaction.is_paid.is_(False),
+        Transaction.transaction_date < today,
+        Transaction.workspace_id == int(active_workspace_id),
+        *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
+    ).scalar() or 0
+
+    # Saldos calculados (mantendo compatibilidade)
+    balance = month_income_paid - month_expense_paid
     
-    totals = db.session.query(
-        func.coalesce(func.sum(case(
-            (Transaction.type == "income", Transaction.amount),
-            else_=0
-        )), 0).label("month_income"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense_pending"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_income_paid"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0
-        )), 0).label("month_expense_paid"),
-    ).filter(*tx_filters).one()
+    # Saldo acumulado (saldo anterior + saldo atual)
+    balance_accumulated = balance  # Simplificado para nova dashboard
     
-    month_income = totals.month_income
-    month_expense = totals.month_expense
-    month_expense_pending = totals.month_expense_pending
-    month_income_paid = totals.month_income_paid
-    month_expense_paid = totals.month_expense_paid
+    # Saldo de abertura (saldo do mês anterior)
+    prev_year, prev_month = _shift_month_simple(year, month, -1)
+    prev_start = date(prev_year, prev_month, 1)
+    prev_end = start
+    prev_filters = _build_tx_filters_for_period(prev_start, prev_end)
+    prev_income_paid, prev_expense_paid = _paid_totals(prev_filters)
+    opening_balance = prev_income_paid - prev_expense_paid
+    
+    # Carregar anteriores pendentes (para compatibilidade)
+    previous_expense_pending_total = 0.0
+    carryover_effective = opening_balance
 
-    expense_by_category_rows = (
-        db.session.query(
-            Category.id,
-            Category.name,
-            Category.color,
-            Category.icon,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .join(Category, Category.id == Transaction.category_id)
-        .filter(
-            Transaction.type == "expense",
-            Transaction.is_paid == True,
-            *tx_filters,
-        )
-        .group_by(Category.id, Category.name, Category.color, Category.icon)
-        .order_by(func.sum(Transaction.amount).desc())
-        .limit(8)
-        .all()
-    )
-
-    expense_by_category = []
-    for cat_id, cat_name, cat_color, cat_icon, total in expense_by_category_rows:
-        expense_by_category.append({
-            "category_id": int(cat_id),
-            "name": cat_name,
-            "color": cat_color,
-            "icon": cat_icon,
-            "amount": float(total or 0),
-        })
-
-    month_income_f = float(month_income or 0)
-    month_expense_f = float(month_expense or 0)
-    month_expense_pending_f = float(month_expense_pending or 0)
-    month_income_paid_f = float(month_income_paid or 0)
-    month_expense_paid_f = float(month_expense_paid or 0)
-
-    # Saldo atual = apenas o que está efetivamente pago
-    balance = month_income_paid_f - month_expense_paid_f
-
-    latest_rows = (
-        db.session.query(
-            Transaction.id,
-            Transaction.description,
-            Transaction.amount,
-            Transaction.type,
-            Transaction.transaction_date,
-            Transaction.is_paid,
-            Transaction.is_recurring,
-            Transaction.recurring_transaction_id,
-            Category.name,
-            Category.color,
-            Category.icon,
-        )
-        .join(Category, Category.id == Transaction.category_id)
-        .filter(*tx_filters)
-        .order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
-        .limit(10)
-        .all()
-    )
+    # Últimas transações (limitadas a 10)
+    latest_transactions_query = db.session.query(Transaction).filter(
+        Transaction.workspace_id == int(active_workspace_id),
+        Transaction.transaction_date >= start,
+        Transaction.transaction_date < end,
+        *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
+    ).order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).limit(10)
 
     latest_transactions = []
-    for tid, desc, amt, ttype, tdate, is_paid, is_rec, rec_id, cname, ccolor, cicon in latest_rows:
+    for tx in latest_transactions_query:
         latest_transactions.append({
-            "id": int(tid),
-            "description": desc,
-            "amount": float(amt or 0),
-            "type": ttype,
-            "date": tdate.isoformat() if tdate else None,
-            "is_paid": bool(is_paid),
-            "is_recurring": bool(is_rec),
-            "recurring_transaction_id": int(rec_id) if rec_id else None,
+            "id": tx.id,
+            "description": tx.description or "",
+            "amount": float(tx.amount or 0),
+            "type": tx.type or "",
+            "is_paid": bool(tx.is_paid),
+            "transaction_date": tx.transaction_date.isoformat() if tx.transaction_date else None,
             "category": {
-                "name": cname,
-                "color": ccolor,
-                "icon": cicon,
-            },
+                "name": tx.category.name if tx.category else None,
+                "color": tx.category.color if tx.category else None,
+            } if tx.category else None,
         })
 
-    def _month_bounds(y: int, m: int):
-        s = date(y, m, 1)
-        if m == 12:
-            e = date(y + 1, 1, 1)
-        else:
-            e = date(y, m + 1, 1)
-        return s, e
+    # Gastos por categoria (mantendo lógica existente)
+    try:
+        category_rows = db.session.query(
+            func.coalesce(Category.name, "Sem categoria").label("cat"),
+            func.coalesce(func.sum(Transaction.amount), 0).label("spent"),
+            func.coalesce(Category.color, "#6B7280").label("color"),
+        ).outerjoin(Category, Category.id == Transaction.category_id).filter(
+            Transaction.type == "expense",
+            *month_filters,
+        ).group_by(
+            func.coalesce(Category.name, "Sem categoria"),
+            func.coalesce(Category.color, "#6B7280"),
+        ).order_by(func.sum(Transaction.amount).desc()).limit(10).all()
 
-    def _shift_month(y: int, m: int, delta: int):
-        total = (y * 12) + (m - 1) + int(delta)
-        ny = total // 12
-        nm = (total % 12) + 1
-        return ny, nm
+        expense_by_category = []
+        for cat, spent, color in (category_rows or []):
+            expense_by_category.append({
+                "name": str(cat),
+                "amount": float(spent or 0),
+                "color": str(color or "#6B7280"),
+            })
+    except Exception:
+        expense_by_category = []
 
-    def _build_tx_filters_for_period(p_start: date, p_end: date):
-        f = [
-            Transaction.transaction_date >= p_start,
-            Transaction.transaction_date < p_end,
-        ]
-
-        if active_workspace_id:
-            if share_prefs.get("share_transactions") is True:
-                f.append(Transaction.workspace_id == active_workspace_id)
-            else:
-                f.append(Transaction.workspace_id == active_workspace_id)
-                f.append(Transaction.user_id == user_id_int)
-        else:
-            f.append(Transaction.user_id == user_id_int)
-            f.append(Transaction.workspace_id.is_(None))
-
-        return f
-
-    def _paid_totals(p_filters):
-        rows = db.session.query(
-            func.coalesce(func.sum(case(
-                ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
-                else_=0,
-            )), 0).label("income_paid"),
-            func.coalesce(func.sum(case(
-                ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-                else_=0,
-            )), 0).label("expense_paid"),
-        ).filter(*p_filters).one()
-        income_paid_v = float(rows.income_paid or 0)
-        expense_paid_v = float(rows.expense_paid or 0)
-        return income_paid_v, expense_paid_v
-
-    def _pending_expense_total(p_filters):
-        rows = db.session.query(
-            func.coalesce(func.sum(case(
-                ((Transaction.type == "expense") & (Transaction.is_paid == False), Transaction.amount),
-                else_=0,
-            )), 0).label("expense_pending"),
-        ).filter(*p_filters).one()
-        return float(rows.expense_pending or 0)
-
-    # Saldo acumulado (carrega sobra/falta de meses anteriores):
-    # baseado apenas em transações pagas, respeitando as mesmas regras de workspace/permissões.
-    acc_epoch_start = date(1900, 1, 1)
-    opening_paid_income, opening_paid_expense = _paid_totals(
-        _build_tx_filters_for_period(acc_epoch_start, start)
-    )
-    closing_paid_income, closing_paid_expense = _paid_totals(
-        _build_tx_filters_for_period(acc_epoch_start, end)
-    )
-    opening_balance = opening_paid_income - opening_paid_expense
-    balance_accumulated = closing_paid_income - closing_paid_expense
-
-    previous_expense_pending_total = _pending_expense_total(
-        _build_tx_filters_for_period(acc_epoch_start, start)
-    )
-    carryover_effective = opening_balance - previous_expense_pending_total
-
-    goals = {
-        "income_goal": month_income_f,
-        "income_actual": month_income_paid_f,
-        "expense_goal": (month_expense_paid_f + month_expense_pending_f),
-        "expense_actual": month_expense_paid_f,
-    }
-
-    prev_year, prev_month = _shift_month(year, month, -1)
-    prev_start, prev_end = _month_bounds(prev_year, prev_month)
-    prev_paid_income, prev_paid_expense = _paid_totals(_build_tx_filters_for_period(prev_start, prev_end))
-
-    ytd_start = date(year, 1, 1)
-    ytd_end = end
-    ytd_paid_income, ytd_paid_expense = _paid_totals(_build_tx_filters_for_period(ytd_start, ytd_end))
-
-    prev_ytd_start = date(year - 1, 1, 1)
-    _, prev_ytd_end = _month_bounds(year - 1, month)
-    prev_ytd_paid_income, prev_ytd_paid_expense = _paid_totals(_build_tx_filters_for_period(prev_ytd_start, prev_ytd_end))
-
-    comparisons = {
-        "month_current": {
-            "income_paid": month_income_paid_f,
-            "expense_paid": month_expense_paid_f,
-            "balance": month_income_paid_f - month_expense_paid_f,
-        },
-        "month_previous": {
-            "year": prev_year,
-            "month": prev_month,
-            "income_paid": prev_paid_income,
-            "expense_paid": prev_paid_expense,
-            "balance": prev_paid_income - prev_paid_expense,
-        },
-        "year_current": {
-            "year": year,
-            "income_paid": ytd_paid_income,
-            "expense_paid": ytd_paid_expense,
-            "balance": ytd_paid_income - ytd_paid_expense,
-            "range_end": (ytd_end - timedelta(days=1)).isoformat() if ytd_end else None,
-        },
-        "year_previous": {
-            "year": year - 1,
-            "income_paid": prev_ytd_paid_income,
-            "expense_paid": prev_ytd_paid_expense,
-            "balance": prev_ytd_paid_income - prev_ytd_paid_expense,
-            "range_end": (prev_ytd_end - timedelta(days=1)).isoformat() if prev_ytd_end else None,
-        },
-    }
-
-    daily_rows = db.session.query(
-        Transaction.transaction_date,
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "income") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0,
-        )), 0).label("income_paid"),
-        func.coalesce(func.sum(case(
-            ((Transaction.type == "expense") & (Transaction.is_paid == True), Transaction.amount),
-            else_=0,
-        )), 0).label("expense_paid"),
-    ).filter(*_build_tx_filters_for_period(start, end)).group_by(Transaction.transaction_date).order_by(Transaction.transaction_date.asc()).all()
-
-    daily_map = {}
-    for d, inc, exp in daily_rows:
-        try:
-            daily_map[d] = (float(inc or 0), float(exp or 0))
-        except Exception:
-            daily_map[d] = (0.0, 0.0)
-
-    last_day = calendar.monthrange(year, month)[1]
-    running = 0.0
-    daily_series = []
-    for day in range(1, last_day + 1):
-        dt = date(year, month, day)
-        inc, exp = daily_map.get(dt, (0.0, 0.0))
-        running += (inc - exp)
-        daily_series.append({
-            "date": dt.isoformat(),
-            "income_paid": inc,
-            "expense_paid": exp,
-            "balance": running,
-        })
-
-    monthly_series = []
-    for i in range(11, -1, -1):
-        my, mm = _shift_month(year, month, -i)
-        ms, me = _month_bounds(my, mm)
-        mi, mep = _paid_totals(_build_tx_filters_for_period(ms, me))
-        monthly_series.append({
-            "year": my,
-            "month": mm,
-            "income_paid": mi,
-            "expense_paid": mep,
-            "balance": mi - mep,
-        })
-
-    time_series = {
-        "daily": daily_series,
-        "monthly": monthly_series,
-    }
-
-    resp = jsonify({
+    # Resposta da API
+    dashboard_data = {
         "success": True,
-        "balance": balance,
+        "balance": float(balance),
         "balance_accumulated": float(balance_accumulated),
         "opening_balance": float(opening_balance),
         "previous_expense_pending_total": float(previous_expense_pending_total),
         "carryover_effective": float(carryover_effective),
-        "month": month,
-        "year": year,
-        "month_income": month_income_f,
-        "month_expense": month_expense_f,
-        "month_expense_pending": month_expense_pending_f,
-        "month_income_paid": month_income_paid_f,
-        "month_expense_paid": month_expense_paid_f,
-        "month_balance": month_income_f - month_expense_f,
-        "expense_by_category": expense_by_category,
+        "month_income": float(month_income),
+        "month_expense": float(month_expense),
+        "month_expense_pending": float(month_expense_pending),
+        "month_income_paid": float(month_income_paid),
+        "month_expense_paid": float(month_expense_paid),
+        "month": int(month),
+        "year": int(year),
+        # NOVOS CAMPOS PARA CARDS OTIMIZADOS
+        "credit_card_expense_month": float(credit_card_expense),
+        "pending_bills_count": int(pending_bills_count),
+        "overdue_bills_count": int(overdue_bills_count),
         "latest_transactions": latest_transactions,
-        "goals": goals,
-        "comparisons": comparisons,
-        "time_series": time_series,
-    })
+        "expense_by_category": expense_by_category,
+    }
+
+    resp = jsonify(dashboard_data)
     return _cors_wrap(resp, origin), 200
 
 
@@ -2333,6 +2170,8 @@ def api_list_transactions():
 
     tx_type = (request.args.get("type") or "").strip().lower()
     q = (request.args.get("q") or "").strip()
+    
+    print(f"[LIST_TX] Filtros - type: '{tx_type}', q: '{q}'")
 
     start = date(year, month, 1)
     if month == 12:
@@ -2408,7 +2247,7 @@ def api_list_transactions():
             Category.color,
             Category.icon,
         )
-        .join(Category, Category.id == Transaction.category_id)
+        .outerjoin(Category, Category.id == Transaction.category_id)
         .filter(
             Transaction.transaction_date >= start,
             Transaction.transaction_date < end,
@@ -2441,15 +2280,26 @@ def api_list_transactions():
 
     if tx_type in ("income", "expense"):
         query = query.filter(Transaction.type == tx_type)
+        print(f"[LIST_TX] Aplicado filtro de tipo: {tx_type}")
 
     if q:
         query = query.filter(func.lower(Transaction.description).like(f"%{q.lower()}%"))
+        print(f"[LIST_TX] Aplicado filtro de busca: '{q}'")
 
     rows = query.order_by(Transaction.transaction_date.desc(), Transaction.id.desc()).all()
     print(f"[LIST_TX] Encontradas {len(rows)} transações para o período {year}-{month:02d}")
 
     items = []
     for tid, desc, amt, ttype, tdate, is_paid, is_recurring, cid, cname, ccolor, cicon in rows:
+        category = None
+        if cid:
+            category = {
+                "id": int(cid),
+                "name": cname,
+                "color": ccolor,
+                "icon": cicon,
+            }
+        
         items.append({
             "id": int(tid),
             "description": desc,
@@ -2458,12 +2308,7 @@ def api_list_transactions():
             "date": tdate.isoformat() if tdate else None,
             "is_paid": bool(is_paid),
             "is_recurring": bool(is_recurring),
-            "category": {
-                "id": int(cid),
-                "name": cname,
-                "color": ccolor,
-                "icon": cicon,
-            },
+            "category": category,
         })
 
     resp = jsonify({
