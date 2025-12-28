@@ -1572,22 +1572,32 @@ def api_dashboard():
 
     # NOVOS CAMPOS PARA OS CARDS OTIMIZADOS
     
-    # 1. Gastos no cartão de crédito este mês
-    credit_like = or_(
-        func.lower(func.coalesce(Transaction.payment_method, "")).like("%cart%"),
-        func.lower(func.coalesce(Transaction.payment_method, "")).like("%credit%"),
-        func.lower(func.coalesce(Transaction.payment_method, "")).like("%crédito%"),
-        func.lower(func.coalesce(Transaction.payment_method, "")).like("%credito%"),
-    )
-    
-    credit_card_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-        Transaction.type == "expense",
-        Transaction.transaction_date >= start,
-        Transaction.transaction_date < end,
-        Transaction.workspace_id == int(active_workspace_id),
-        credit_like,
-        *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
-    ).scalar() or 0
+    # 1. Gastos no cartão de crédito este mês (detecção mais abrangente)
+    credit_card_expense = 0.0
+    try:
+        credit_like = or_(
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%cart%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%credit%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%crédito%"),
+            func.lower(func.coalesce(Transaction.payment_method, "")).like("%credito%"),
+            func.lower(func.coalesce(Transaction.subcategory_text, "")).like("%cart%"),
+            func.lower(func.coalesce(Transaction.subcategory_text, "")).like("%crédito%"),
+            func.lower(func.coalesce(Transaction.subcategory_text, "")).like("%credito%"),
+            func.lower(func.coalesce(Transaction.description, "")).like("%cart%"),
+            func.lower(func.coalesce(Transaction.description, "")).like("%crédito%"),
+            func.lower(func.coalesce(Transaction.description, "")).like("%credito%"),
+        )
+        
+        credit_card_expense = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+            Transaction.type == "expense",
+            Transaction.transaction_date >= start,
+            Transaction.transaction_date < end,
+            Transaction.workspace_id == int(active_workspace_id),
+            credit_like,
+            *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
+        ).scalar() or 0
+    except Exception:
+        credit_card_expense = 0.0
 
     credit_card_top_name = None
     credit_card_top_amount = 0.0
@@ -1741,22 +1751,23 @@ def api_app_version():
     if request.method == "OPTIONS":
         return _cors_preflight(origin, "GET, OPTIONS")
     
-    # Versão atual do app - você deve atualizar isso quando lançar nova versão
-    current_version = "1.2.0"  # ATUALIZE AQUI QUANDO GERAR NOVA VERSÃO
+    # Versão atual do app:
+    # 1) APP_VERSION (CI/ambiente) tem prioridade
+    # 2) version.txt gerado no build (ex: step de CI)
+    # 3) fallback fixo (mantenha atualizado no repo para dev local)
+    current_version = os.getenv("APP_VERSION", "0.0.0.11")
     
-    # Opcional: ler versão de um arquivo ou banco de dados
+    # Ler version.txt se existir (sobrescreve fallback e facilita builds automatizados)
     try:
-        # Exemplo: ler de um arquivo version.txt
         module_dir = os.path.dirname(__file__)
         version_file = os.path.join(module_dir, "version.txt")
-        
         if os.path.exists(version_file):
             with open(version_file, 'r') as f:
                 file_version = f.read().strip()
                 if file_version:
                     current_version = file_version
     except Exception:
-        pass  # Usar versão padrão se falhar
+        pass  # Se falhar, mantém current_version já definido
     
     resp = jsonify({
         "success": True,
