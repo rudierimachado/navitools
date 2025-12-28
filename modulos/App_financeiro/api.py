@@ -1653,20 +1653,33 @@ def api_dashboard():
     # Saldos calculados (mantendo compatibilidade)
     balance = month_income_paid - month_expense_paid
     
-    # Saldo acumulado (saldo anterior + saldo atual)
-    balance_accumulated = balance  # Simplificado para nova dashboard
-    
     # Saldo de abertura (saldo do mês anterior)
     prev_year, prev_month = _shift_month_simple(year, month, -1)
     prev_start = date(prev_year, prev_month, 1)
     prev_end = start
     prev_filters = _build_tx_filters_for_period(prev_start, prev_end)
     prev_income_paid, prev_expense_paid = _paid_totals(prev_filters)
-    opening_balance = prev_income_paid - prev_expense_paid
+    opening_balance = float(prev_income_paid) - float(prev_expense_paid)
     
-    # Carregar anteriores pendentes (para compatibilidade)
-    previous_expense_pending_total = 0.0
-    carryover_effective = opening_balance
+    # Pendências de meses anteriores (despesas não pagas antes do mês atual)
+    previous_expense_pending_total = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.type == "expense",
+        Transaction.is_paid.is_(False),
+        Transaction.transaction_date < start,
+        Transaction.workspace_id == int(active_workspace_id),
+        *([Transaction.user_id == int(user_id_int)] if share_prefs and not share_prefs.get("share_transactions", True) else []),
+    ).scalar() or 0.0
+    try:
+        previous_expense_pending_total = float(previous_expense_pending_total)
+    except Exception:
+        previous_expense_pending_total = 0.0
+    
+    # Saldo efetivo do mês anterior considerando pendências atrasadas
+    carryover_effective = float(opening_balance) - float(previous_expense_pending_total)
+    
+    # Saldo acumulado / disponível: saldo efetivo anterior + saldo pago do mês atual
+    available_balance = carryover_effective + balance
+    balance_accumulated = available_balance
 
     # Últimas transações (limitadas a 10)
     latest_transactions_query = db.session.query(Transaction).filter(
@@ -1720,6 +1733,7 @@ def api_dashboard():
         "success": True,
         "balance": float(balance),
         "balance_accumulated": float(balance_accumulated),
+        "available_balance": float(available_balance),
         "opening_balance": float(opening_balance),
         "previous_expense_pending_total": float(previous_expense_pending_total),
         "carryover_effective": float(carryover_effective),
