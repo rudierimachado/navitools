@@ -480,7 +480,7 @@ def send_password_reset(recipient_email: str, reset_link: str, app: Flask):
 
 
 def send_workspace_invitation(recipient_email: str, inviter_email: str, token: str, workspace_name: str, role: str, app: Flask):
-    print(f"[WORKSPACE_INVITE] Iniciando envio para {recipient_email} (workspace={workspace_name}, role={role})")
+    print(f"[WORKSPACE_INVITE] Iniciando envio para {recipient_email} (workspace={workspace_name})")
     try:
         with app.app_context():
             from flask import url_for
@@ -497,13 +497,6 @@ def send_workspace_invitation(recipient_email: str, inviter_email: str, token: s
             invite_path = url_for('gerenciamento_financeiro.accept_workspace_invite', token=token)
             accept_url = f"{base_url}{invite_path}" if base_url else invite_path
             print(f"[WORKSPACE_INVITE] URL do convite: {accept_url}")
-
-            role_labels = {
-                'viewer': 'Visualizador (apenas leitura)',
-                'editor': 'Editor (pode editar)',
-                'owner': 'Proprietário',
-            }
-            role_label = role_labels.get(role, role)
 
             email_template = """
             <html>
@@ -526,7 +519,7 @@ def send_workspace_invitation(recipient_email: str, inviter_email: str, token: s
                         <div class="content">
                             <p>Olá,</p>
                             <p><strong>{{ inviter_email }}</strong> convidou você para participar do workspace <strong>{{ workspace_name }}</strong>.</p>
-                            <p><strong>Permissão:</strong> {{ role_label }}</p>
+                            <p>Ao aceitar, você terá acesso completo às transações, categorias e anexos desse workspace.</p>
 
                             <p>Clique no botão abaixo para aceitar o convite:</p>
                             <a href="{{ accept_url }}" class="button">Aceitar Convite</a>
@@ -548,7 +541,6 @@ def send_workspace_invitation(recipient_email: str, inviter_email: str, token: s
                 email_template,
                 inviter_email=inviter_email,
                 workspace_name=workspace_name,
-                role_label=role_label,
                 accept_url=accept_url,
             )
 

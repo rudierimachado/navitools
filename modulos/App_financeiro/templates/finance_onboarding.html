@@ -59,27 +59,10 @@
         <h1>Bem-vindo ao workspace</h1>
         <p><strong>{{ workspace.name }}</strong></p>
         <form method="POST">
-            <div class="option">
-                <div>
-                    <label>Compartilhar transações</label><br>
-                    <small class="hint">Permite que membros vejam lançamentos.</small>
-                </div>
-                <input type="checkbox" name="share_transactions" value="1">
-            </div>
-            <div class="option">
-                <div>
-                    <label>Compartilhar categorias</label><br>
-                    <small class="hint">Usar categorias comuns do workspace.</small>
-                </div>
-                <input type="checkbox" name="share_categories" value="1" checked>
-            </div>
-            <div class="option">
-                <div>
-                    <label>Compartilhar anexos</label><br>
-                    <small class="hint">Permite anexos serem visíveis aos membros.</small>
-                </div>
-                <input type="checkbox" name="share_files" value="1">
-            </div>
+            <p><strong>Compartilhamento total ativado.</strong> Todos os membros poderão ver transações, categorias e anexos deste workspace.</p>
+            <input type="hidden" name="share_transactions" value="1">
+            <input type="hidden" name="share_categories" value="1">
+            <input type="hidden" name="share_files" value="1">
             <button type="submit">Concluir onboarding</button>
         </form>
     </div>

@@ -792,11 +792,10 @@ def _check_user_share_preferences(user_id: int, workspace_id: int):
     if not workspace:
         return None
     
-    # Se é owner, tem acesso total
+    # Acesso total para owner e membros (sem granularidade)
     if workspace.owner_id == user_id:
         return {'share_transactions': True, 'share_categories': True}
     
-    # Se é membro, verificar preferências
     member = WorkspaceMember.query.filter_by(
         workspace_id=workspace_id, user_id=user_id
     ).first()
@@ -804,12 +803,10 @@ def _check_user_share_preferences(user_id: int, workspace_id: int):
     if not member:
         return None
 
-    prefs = member.share_preferences or {}
-    # Retornar preferências com defaults (sempre dict truthy)
+    # Compartilhamento sempre total para membros
     return {
         'share_transactions': True,
         'share_categories': True,
-        **prefs,
     }
 
 
