@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Política de Cookies · NEXUSRDR{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .cookies-list {
+        padding-left: 1rem;
+    }
+
+    .cookies-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(99, 102, 241, 0.12);
+        color: var(--secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section style="padding: 3rem 0;">
+    <div class="site-container">
+        <div class="content-card">
+            <span class="cookies-badge"><i class="bi bi-cookie"></i> Preferências e anúncios</span>
+            <h1 class="page-title mt-3 mb-4">Política de Cookies</h1>
+            <p>
+                Esta página explica como o NEXUSRDR utiliza cookies e tecnologias semelhantes para oferecer funcionalidades,
+                analisar tráfego e, quando aplicável, exibir publicidade.
+            </p>
+
+            <h2 class="section-title mt-4">1. O que são cookies?</h2>
+            <p>
+                Cookies são pequenos arquivos de texto armazenados no seu navegador. Eles podem lembrar preferências,
+                manter sessões e ajudar a medir o desempenho do site.
+            </p>
+
+            <h2 class="section-title mt-4">2. Tipos de cookies que podemos usar</h2>
+            <ul class="cookies-list">
+                <li><strong>Essenciais:</strong> necessários para recursos básicos e segurança (por exemplo, sessão em áreas autenticadas).</li>
+                <li><strong>Desempenho/Analytics:</strong> usados para entender uso do site (ex.: páginas mais acessadas, tempo de navegação).</li>
+                <li><strong>Publicidade:</strong> usados por provedores de anúncios para exibir e medir anúncios, limitar frequência e combater fraude.</li>
+            </ul>
+
+            <h2 class="section-title mt-4">3. Cookies de terceiros (Google/AdSense)</h2>
+            <p>
+                Caso o NEXUSRDR exiba anúncios, provedores como o Google podem usar cookies e identificadores para personalizar anúncios,
+                medir performance e melhorar a relevância. Esses provedores podem atuar como controladores independentes dos dados coletados.
+            </p>
+
+            <h2 class="section-title mt-4">4. Como controlar cookies</h2>
+            <p>
+                Você pode bloquear ou apagar cookies no seu navegador. Note que desabilitar cookies essenciais pode impactar o funcionamento de algumas áreas.
+            </p>
+
+            <h2 class="section-title mt-4">5. Mais informações</h2>
+            <p class="mb-0">
+                Para detalhes sobre dados coletados e finalidades, consulte nossa <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>.
+                Em caso de dúvidas, utilize a página de <a href="{{ url_for('main.contact') }}">Contato</a>.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}

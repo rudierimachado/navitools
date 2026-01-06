@@ -28,6 +28,44 @@
         color: white;
     }
 
+    .detail-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1100px) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .detail-main {
+        grid-column: 2;
+        min-width: 0;
+    }
+
+    .detail-rail {
+        grid-column: 1;
+        justify-self: start;
+        padding: 0 0 0 1.25rem;
+        display: none;
+    }
+
+    .detail-rail .detail-tools {
+        width: 320px;
+    }
+
+    .ad-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: rgba(226, 232, 240, 0.9);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.85rem;
+        text-transform: uppercase;
+    }
+
     .detail-container {
         max-width: 1100px;
         margin: 0 auto;
@@ -81,6 +119,105 @@
         color: #f8fafc;
         box-shadow: 0 10px 40px rgba(5, 5, 16, 0.6);
         position: relative;
+    }
+
+    .detail-layout {
+        display: grid;
+        grid-template-columns: 380px minmax(0, 1fr);
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .detail-tools {
+        position: sticky;
+        top: 96px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.35);
+        padding: 1.75rem;
+        color: white;
+        backdrop-filter: blur(14px);
+    }
+
+    .detail-tools h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 800;
+    }
+
+    .detail-tools p {
+        margin: 0 0 1.25rem;
+        color: rgba(226, 232, 240, 0.8);
+        font-size: 0.95rem;
+        line-height: 1.55;
+    }
+
+    .detail-tools-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .detail-tool-card {
+        display: block;
+        padding: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: white;
+        text-decoration: none;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .detail-tool-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.8);
+        color: white;
+    }
+
+    .detail-tool-card-header {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        font-weight: 800;
+        margin-bottom: 0.35rem;
+    }
+
+    .detail-tool-card-header i {
+        color: rgba(165, 180, 252, 0.9);
+    }
+
+    .detail-tool-card-desc {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.75);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .inline-tools-cta {
+        margin-top: 2.5rem;
+        padding: 1.75rem;
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        background: radial-gradient(circle at top left, rgba(14,165,233,0.18), transparent 55%),
+                    rgba(15,23,42,0.9);
+    }
+
+    .inline-tools-cta h3 {
+        margin: 0 0 0.4rem;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #e5e7eb;
+    }
+
+    .inline-tools-cta p {
+        margin: 0 0 1rem;
+        color: rgba(148, 163, 184, 0.95);
+    }
+
+    .inline-tools-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
     }
 
     .detail-body h1,
@@ -227,6 +364,15 @@
             padding: 1.75rem;
         }
 
+        .detail-layout {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .detail-tools {
+            position: static;
+            order: -1;
+        }
+
         .cta-bar {
             flex-direction: column;
             text-align: center;
@@ -234,6 +380,20 @@
 
         .detail-newsletter {
             grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (min-width: 1500px) {
+        .detail-rail {
+            display: block;
+        }
+
+        .detail-layout {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .detail-layout .detail-tools {
+            display: none;
         }
     }
 </style>
@@ -267,50 +427,181 @@
     </div>
 </section>
 
-<section class="detail-container">
-    <article class="detail-body">
-        {{ render_markdown(post.content)|safe }}
-
-        {% if post.tags_list %}
-        <div class="detail-tags">
-            {% for tag in post.tags_list %}
-            <span class="detail-tag">#{{ tag }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if related_posts %}
-        <div class="related-section">
-            <h3>Você também pode gostar</h3>
-            <div class="related-grid">
-                {% for related in related_posts %}
-                <a class="related-card" href="{{ url_for('main.blog_detail', slug=related.slug) }}">
-                    <div style="font-weight:600; margin-bottom:0.5rem;">{{ related.title }}</div>
-                    <p style="color:rgba(255,255,255,0.7); margin:0;">{{ related.summary or related.content[:120] ~ ('…' if related.content|length > 120 else '') }}</p>
+<div class="detail-shell">
+    <aside class="detail-rail">
+        <div class="detail-tools">
+            <div class="ad-label"><i class="bi bi-badge-ad"></i> Publicidade</div>
+            <h3>Ferramentas do site</h3>
+            <p>Atalhos rápidos para suas ferramentas mais usadas.</p>
+            <div class="detail-tools-list">
+                {% for tool in site_tools %}
+                <a class="detail-tool-card" href="{{ tool.url }}">
+                    <div class="detail-tool-card-header">
+                        <i class="{{ tool.icon_class or ('bi bi-' ~ tool.icon) }}"></i>
+                        <span>{{ tool.name }}</span>
+                    </div>
+                    <p class="detail-tool-card-desc">{{ tool.description }}</p>
                 </a>
                 {% endfor %}
             </div>
         </div>
-        {% endif %}
+    </aside>
 
-        <div class="detail-newsletter">
-            <div>
-                <h3>Receba mais conteúdos como este</h3>
-                <p>Inscreva-se para receber tutoriais, dicas e novidades das ferramentas NEXUSRDR direto no seu e-mail.</p>
+    <div class="detail-main">
+        <section class="detail-container">
+            <div class="detail-layout">
+                <aside class="detail-tools">
+                    <div class="ad-label"><i class="bi bi-badge-ad"></i> Publicidade</div>
+                    <h3>Ferramentas do site</h3>
+                    <p>Atalhos rápidos para suas ferramentas mais usadas.</p>
+                    <div class="detail-tools-list">
+                        {% for tool in site_tools %}
+                        <a class="detail-tool-card" href="{{ tool.url }}">
+                            <div class="detail-tool-card-header">
+                                <i class="{{ tool.icon_class or ('bi bi-' ~ tool.icon) }}"></i>
+                                <span>{{ tool.name }}</span>
+                            </div>
+                            <p class="detail-tool-card-desc">{{ tool.description }}</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </aside>
+
+                <article class="detail-body">
+                    <div class="inline-tools-cta">
+                        <div class="ad-label"><i class="bi bi-badge-ad"></i> Publicidade</div>
+                        <h3>Ferramentas recomendadas</h3>
+                        <p>Atalhos rápidos para ferramentas gratuitas do NEXUSRDR.</p>
+                        <div class="inline-tools-grid">
+                            {% for tool in site_tools[:4] %}
+                            <a class="detail-tool-card" href="{{ tool.url }}">
+                                <div class="detail-tool-card-header">
+                                    <i class="{{ tool.icon_class or ('bi bi-' ~ tool.icon) }}"></i>
+                                    <span>{{ tool.name }}</span>
+                                </div>
+                                <p class="detail-tool-card-desc">{{ tool.description }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {{ render_markdown(post.content)|safe }}
+                    {% if post.tags_list %}
+                    <div class="detail-tags">
+                        {% for tag in post.tags_list %}
+                        <span class="detail-tag">#{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div id="comentarios" style="margin-top: 3.25rem;">
+                        <h3 style="margin: 0 0 0.75rem 0; font-weight: 800;">Comentários</h3>
+                        <p style="margin: 0 0 1.25rem 0; color: rgba(148,163,184,0.95);">
+                            Compartilhe sua dúvida ou feedback. {% if comments is defined %}{{ comments|length }} comentário(s) aprovado(s).{% endif %}
+                        </p>
+
+                        {% set status = request.args.get('comment') %}
+                        {% if status == 'ok' %}
+                            <div style="border: 1px solid rgba(34,197,94,0.35); background: rgba(34,197,94,0.12); border-radius: 14px; padding: 0.9rem 1rem; color: rgba(226,232,240,0.95); margin-bottom: 1rem;">
+                                Seu comentário foi enviado com sucesso.
+                            </div>
+                        {% elif status == 'pending' %}
+                            <div style="border: 1px solid rgba(251,191,36,0.35); background: rgba(251,191,36,0.12); border-radius: 14px; padding: 0.9rem 1rem; color: rgba(226,232,240,0.95); margin-bottom: 1rem;">
+                                Seu comentário foi enviado e está em análise.
+                            </div>
+                        {% elif status == 'error' %}
+                            <div style="border: 1px solid rgba(239,68,68,0.35); background: rgba(239,68,68,0.12); border-radius: 14px; padding: 0.9rem 1rem; color: rgba(226,232,240,0.95); margin-bottom: 1rem;">
+                                Não foi possível enviar seu comentário agora. Tente novamente.
+                            </div>
+                        {% endif %}
+
+                        <div style="display: grid; gap: 0.75rem; margin-bottom: 1.5rem;">
+                            {% if comments is defined and comments %}
+                                {% for c in comments %}
+                                <div style="border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); border-radius: 18px; padding: 1rem 1.1rem;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: baseline; margin-bottom: 0.4rem;">
+                                        <strong style="color: rgba(226,232,240,0.95);">{{ c.author_name }}</strong>
+                                        <span style="color: rgba(148,163,184,0.95); font-size: 0.9rem;">
+                                            {{ c.created_at.strftime('%d/%m/%Y %H:%M') if c.created_at else '' }}
+                                        </span>
+                                    </div>
+                                    <div style="color: rgba(226,232,240,0.88); line-height: 1.7;">
+                                        {{ c.content | e | replace('\n','<br>') | safe }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div style="border: 1px dashed rgba(255,255,255,0.12); border-radius: 18px; padding: 1rem 1.1rem; color: rgba(148,163,184,0.95);">
+                                    Ainda não há comentários. Seja o primeiro!
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <form method="POST" action="{{ url_for('main.blog_comment_submit', slug=post.slug) }}" style="border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); border-radius: 22px; padding: 1.25rem;">
+                            <div style="display:none;">
+                                <label>Website</label>
+                                <input type="text" name="website" autocomplete="off">
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                                <div>
+                                    <label style="display:block; font-weight: 700; margin-bottom: 0.35rem;">Nome</label>
+                                    <input type="text" name="author_name" required maxlength="120" placeholder="Seu nome" style="width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); padding: 0.75rem 0.9rem; background: rgba(15,23,42,0.9); color: #e5e7eb;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-weight: 700; margin-bottom: 0.35rem;">E-mail (opcional)</label>
+                                    <input type="email" name="author_email" maxlength="255" placeholder="voce@email.com" style="width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); padding: 0.75rem 0.9rem; background: rgba(15,23,42,0.9); color: #e5e7eb;">
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 0.75rem;">
+                                <label style="display:block; font-weight: 700; margin-bottom: 0.35rem;">Comentário</label>
+                                <textarea name="content" required maxlength="2000" rows="4" placeholder="Escreva seu comentário..." style="width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); padding: 0.75rem 0.9rem; background: rgba(15,23,42,0.9); color: #e5e7eb;"></textarea>
+                            </div>
+
+                            <div style="display:flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; margin-top: 0.9rem;">
+                                <small style="color: rgba(148,163,184,0.95);">Evite links. Comentários com links podem ficar em análise.</small>
+                                <button type="submit" style="border-radius: 999px; border: none; padding: 0.8rem 1.6rem; font-weight: 700; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; cursor: pointer;">
+                                    Enviar comentário
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {% if related_posts %}
+                    <div class="related-section">
+                        <h3>Você também pode gostar</h3>
+                        <div class="related-grid">
+                            {% for related in related_posts %}
+                            <a class="related-card" href="{{ url_for('main.blog_detail', slug=related.slug) }}">
+                                <div style="font-weight:600; margin-bottom:0.5rem;">{{ related.title }}</div>
+                                <p style="color:rgba(255,255,255,0.7); margin:0;">{{ related.summary or related.content[:120] ~ ('…' if related.content|length > 120 else '') }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="detail-newsletter">
+                        <div>
+                            <h3>Receba mais conteúdos como este</h3>
+                            <p>Inscreva-se para receber tutoriais, dicas e novidades das ferramentas NEXUSRDR direto no seu e-mail.</p>
+                        </div>
+                        <form method="POST" action="{{ url_for('main.newsletter_subscribe') }}">
+                            <input type="hidden" name="source" value="blog_detail">
+                            <input type="hidden" name="next" value="{{ request.url }}">
+                            <input type="email" name="email" placeholder="Seu melhor e-mail" required>
+                            <button type="submit">
+                                Quero receber
+                                <i class="bi bi-envelope-fill"></i>
+                            </button>
+                            <small>Você pode se descadastrar a qualquer momento. Nada de spam, só conteúdo útil.</small>
+                        </form>
+                    </div>
+                </article>
             </div>
-            <form method="POST" action="{{ url_for('main.newsletter_subscribe') }}">
-                <input type="hidden" name="source" value="blog_detail">
-                <input type="hidden" name="next" value="{{ request.url }}">
-                <input type="email" name="email" placeholder="Seu melhor e-mail" required>
-                <button type="submit">
-                    Quero receber
-                    <i class="bi bi-envelope-fill"></i>
-                </button>
-                <small>Você pode se descadastrar a qualquer momento. Nada de spam, só conteúdo útil.</small>
-            </form>
-        </div>
-    </article>
-</section>
+        </section>
+    </div>
+</div>
 
 <!-- Schema Markup para SEO -->
 <script type="application/ld+json">

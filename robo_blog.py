@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import base64
 import feedparser
@@ -33,10 +33,17 @@ class TechNewsBot:
     # ------------------------------------------------------------------
     # BUSCA DE NOTÍCIAS
     # ------------------------------------------------------------------
-    def buscar_noticias_de_hoje(self) -> list[dict]:
-        """Busca notícias do TechCrunch publicadas HOJE via RSS."""
+    def buscar_noticias(self, *, only_today: bool = True, max_entries: int = 50, days_back: int | None = None) -> list[dict]:
+        """Busca notícias do TechCrunch via RSS.
+
+        - only_today=True: retorna apenas itens publicados hoje
+        - only_today=False: retorna os últimos itens do feed (limitados por max_entries)
+        """
         try:
-            print("🔍 Buscando notícias de hoje no TechCrunch...")
+            if only_today:
+                print("🔍 Buscando notícias de hoje no TechCrunch...")
+            else:
+                print("🔍 Buscando últimas notícias no TechCrunch...")
 
             feed_url = "https://techcrunch.com/feed/"
             feed = feedparser.parse(feed_url)
@@ -46,21 +53,42 @@ class TechNewsBot:
                 return []
 
             hoje = date.today()
+            cutoff_date = None
+            if not only_today and days_back is not None and days_back > 0:
+                cutoff_date = hoje - timedelta(days=days_back)
             noticias_hoje: list[dict] = []
 
-            for entry in feed.entries:
+            entries = list(feed.entries or [])
+            if max_entries and max_entries > 0:
+                entries = entries[:max_entries]
+
+            for entry in entries:
                 published_parsed = getattr(entry, "published_parsed", None)
-                if not published_parsed:
-                    continue
+                if only_today:
+                    if not published_parsed:
+                        continue
 
-                published_date = date(
-                    published_parsed.tm_year,
-                    published_parsed.tm_mon,
-                    published_parsed.tm_mday,
-                )
+                    published_date = date(
+                        published_parsed.tm_year,
+                        published_parsed.tm_mon,
+                        published_parsed.tm_mday,
+                    )
 
-                if published_date != hoje:
-                    continue
+                    if published_date != hoje:
+                        continue
+
+                elif cutoff_date is not None:
+                    if not published_parsed:
+                        continue
+
+                    published_date = date(
+                        published_parsed.tm_year,
+                        published_parsed.tm_mon,
+                        published_parsed.tm_mday,
+                    )
+
+                    if published_date < cutoff_date:
+                        continue
 
                 noticias_hoje.append(
                     {
@@ -73,7 +101,10 @@ class TechNewsBot:
                     }
                 )
 
-            print(f"✅ Encontradas {len(noticias_hoje)} notícias de hoje")
+            if only_today:
+                print(f"✅ Encontradas {len(noticias_hoje)} notícias de hoje")
+            else:
+                print(f"✅ Encontradas {len(noticias_hoje)} notícias no feed")
             return noticias_hoje
 
         except Exception as e:
@@ -211,7 +242,53 @@ IMPORTANTE:
                     ch for ch in s if ord(ch) >= 32 or ch in "\n\r\t"
                 )
 
+            def _escape_control_chars_inside_strings(s: str) -> str:
+                """Escapa caracteres de controle dentro de strings JSON.
+
+                Groq às vezes retorna JSON com \n literal dentro de aspas, o que quebra json.loads
+                com 'Invalid control character'. Aqui trocamos esses controles por sequências
+                escapadas (\\n/\\r/\\t) apenas quando estamos dentro de string.
+                """
+                out: list[str] = []
+                in_string = False
+                escape = False
+
+                for ch in s:
+                    if escape:
+                        out.append(ch)
+                        escape = False
+                        continue
+
+                    if ch == "\\":
+                        out.append(ch)
+                        escape = True
+                        continue
+
+                    if ch == '"':
+                        out.append(ch)
+                        in_string = not in_string
+                        continue
+
+                    if in_string:
+                        if ch == "\n":
+                            out.append("\\n")
+                            continue
+                        if ch == "\r":
+                            out.append("\\r")
+                            continue
+                        if ch == "\t":
+                            out.append("\\t")
+                            continue
+                        if ord(ch) < 32:
+                            out.append("\\u%04x" % ord(ch))
+                            continue
+
+                    out.append(ch)
+
+                return "".join(out)
+
             cleaned = _clean_control_chars(content)
+            cleaned = _escape_control_chars_inside_strings(cleaned)
 
             try:
                 dados = json.loads(cleaned)
@@ -469,7 +546,15 @@ IMPORTANTE:
     # ------------------------------------------------------------------
     # EXECUÇÃO PRINCIPAL DO BOT
     # ------------------------------------------------------------------
-    def executar(self) -> int:
+    def executar(
+        self,
+        *,
+        only_today: bool | None = None,
+        days_back: int | None = None,
+        feed_max_entries: int | None = None,
+        max_posts: int | None = None,
+        max_failures: int | None = None,
+    ) -> int:
         """Executa o processo completo: buscar notícias de hoje e publicar no blog.
 
         Retorna a quantidade de posts criados nesta execução.
@@ -477,16 +562,69 @@ IMPORTANTE:
         print("🚀 Iniciando TechNews Bot...")
         print("=" * 50)
 
-        noticias = self.buscar_noticias_de_hoje()
+        if only_today is None:
+            only_today_raw = (os.getenv("ROBO_ONLY_TODAY", "1") or "1").strip().lower()
+            only_today = only_today_raw in {"1", "true", "yes", "sim"}
+
+        if feed_max_entries is None:
+            feed_max_entries = int(os.getenv("ROBO_FEED_MAX_ENTRIES", "50"))
+
+        noticias = self.buscar_noticias(
+            only_today=bool(only_today),
+            max_entries=int(feed_max_entries),
+            days_back=days_back,
+        )
         if not noticias:
-            print("Nenhuma notícia de hoje para processar.")
+            if only_today:
+                print("Nenhuma notícia de hoje para processar.")
+            else:
+                print("Nenhuma notícia do feed para processar.")
             return 0
 
-        max_posts = int(os.getenv("ROBO_MAX_POSTS", "1"))
+        if max_posts is None:
+            max_posts = int(os.getenv("ROBO_MAX_POSTS", "1"))
         processadas = 0
+
+        if max_failures is None:
+            max_failures = int(os.getenv("ROBO_MAX_FAILURES", "2"))
+        failures = 0
+
+        interactive_raw = (os.getenv("ROBO_INTERACTIVE", "0") or "0").strip().lower()
+        interactive = interactive_raw in {"1", "true", "yes", "sim"}
+
+        if interactive:
+            candidatas = []
+            for noticia in noticias:
+                link_original = noticia.get("link")
+                if self._post_com_link_ja_existe(link_original):
+                    continue
+                if self._post_ja_existe(noticia["titulo"]):
+                    continue
+                candidatas.append(noticia)
+
+            if not candidatas:
+                print("Nenhuma notícia nova para publicar (todas já existem no banco).")
+                return 0
+
+            print(f"✅ Notícias novas disponíveis para publicar: {len(candidatas)}")
+            try:
+                raw = input(f"Quantos posts deseja criar agora? (1-{len(candidatas)}): ").strip()
+                escolhido = int(raw)
+                if escolhido < 1:
+                    escolhido = 1
+                if escolhido > len(candidatas):
+                    escolhido = len(candidatas)
+                max_posts = escolhido
+                noticias = candidatas
+            except Exception:
+                noticias = candidatas
 
         for noticia in noticias:
             if processadas >= max_posts:
+                break
+
+            if max_failures >= 0 and failures >= max_failures:
+                print("⚠️ Número máximo de falhas atingido. Encerrando execução.")
                 break
 
             link_original = noticia.get("link")
@@ -500,8 +638,9 @@ IMPORTANTE:
 
             dados = self.processar_com_ia(noticia)
             if not dados:
-                print("⚠️ IA falhou para esta notícia. Encerrando execução para evitar estourar limites.")
-                break
+                failures += 1
+                print("⚠️ IA falhou para esta notícia. Pulando para a próxima.")
+                continue
 
             post = self.criar_post_no_blog(dados, noticia)
             if post:

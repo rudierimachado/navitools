@@ -528,6 +528,37 @@
             runBotForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
+                const modeRaw = (window.prompt('Como deseja rodar o robô?\n\n1 - Somente notícias novas de hoje\n2 - Buscar notícias dos últimos X dias', '1') || '').trim();
+                if (!modeRaw) {
+                    return;
+                }
+
+                const payload = {};
+
+                if (modeRaw === '1') {
+                    payload.only_today = true;
+                } else if (modeRaw === '2') {
+                    payload.only_today = false;
+                    const daysRaw = (window.prompt('Quantos dias para trás? (ex: 7)', '7') || '').trim();
+                    const daysBack = parseInt(daysRaw, 10);
+                    if (!Number.isFinite(daysBack) || daysBack < 1) {
+                        window.alert('Valor inválido para dias.');
+                        return;
+                    }
+                    payload.days_back = daysBack;
+                } else {
+                    window.alert('Opção inválida.');
+                    return;
+                }
+
+                const postsRaw = (window.prompt('Quantos posts deseja tentar criar nesta execução?', '3') || '').trim();
+                const maxPosts = parseInt(postsRaw, 10);
+                if (!Number.isFinite(maxPosts) || maxPosts < 1) {
+                    window.alert('Valor inválido para quantidade de posts.');
+                    return;
+                }
+                payload.max_posts = maxPosts;
+
                 runBotBtn.disabled = true;
                 const originalHtml = runBotBtn.innerHTML;
                 runBotBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Rodando...';
@@ -539,8 +570,10 @@
                     const response = await fetch(runBotForm.action, {
                         method: 'POST',
                         headers: {
+                            'Content-Type': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        body: JSON.stringify(payload)
                     });
 
                     const data = await response.json();

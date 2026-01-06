@@ -358,6 +358,32 @@ def run_blog_bot():
     try:
         from robo_blog import TechNewsBot
 
+        payload = {}
+        if request.is_json:
+            payload = request.get_json(silent=True) or {}
+
+        only_today = payload.get('only_today') if isinstance(payload, dict) else None
+        days_back = payload.get('days_back') if isinstance(payload, dict) else None
+        max_posts = payload.get('max_posts') if isinstance(payload, dict) else None
+
+        if days_back is not None:
+            try:
+                days_back = int(days_back)
+            except (TypeError, ValueError):
+                days_back = None
+
+        if max_posts is not None:
+            try:
+                max_posts = int(max_posts)
+            except (TypeError, ValueError):
+                max_posts = None
+
+        if only_today is not None:
+            try:
+                only_today = bool(only_today)
+            except Exception:
+                only_today = None
+
         api_key = (os.getenv('GEMINI_API_KEY') or '').strip()
         if not api_key:
             msg = 'GEMINI_API_KEY não configurada. Verifique as variáveis de ambiente.'
@@ -367,7 +393,7 @@ def run_blog_bot():
             return redirect(url_for('administrador.blog_manager'))
 
         bot = TechNewsBot(api_key)
-        created = bot.executar() or 0
+        created = bot.executar(only_today=only_today, days_back=days_back, max_posts=max_posts) or 0
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'created': int(created)})

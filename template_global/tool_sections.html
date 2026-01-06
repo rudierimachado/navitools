@@ -1,0 +1,81 @@
+{% set tool_data = (tool_pages or {}).get(tool_key) if tool_key else None %}
+
+{% if tool_data %}
+<div style="margin-top: 2.5rem; padding: 0 1rem; max-width: 1200px; margin-left: auto; margin-right: auto;">
+    <div style="background: var(--bg-elevated, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0,0,0,0.18));">
+        <h2 style="margin: 0 0 0.75rem 0; color: var(--text-primary, rgba(255, 255, 255, 0.95)); font-weight: 800; font-size: 1.4rem;">
+            O que é
+        </h2>
+        <div style="color: var(--text-secondary, rgba(255, 255, 255, 0.78)); line-height: 1.7; font-size: 1rem; white-space: pre-line;">
+            {{ tool_data.what_is }}
+        </div>
+    </div>
+
+    <div style="margin-top: 1.25rem; background: var(--bg-elevated, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0,0,0,0.18));">
+        <h2 style="margin: 0 0 0.75rem 0; color: var(--text-primary, rgba(255, 255, 255, 0.95)); font-weight: 800; font-size: 1.4rem;">
+            Como funciona
+        </h2>
+        <ol style="margin: 0; padding-left: 1.25rem; color: var(--text-secondary, rgba(255, 255, 255, 0.78)); line-height: 1.7;">
+            {% for step in tool_data.how_steps or [] %}
+            <li style="margin: 0.35rem 0;">
+                {{ step }}
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+
+    <div style="margin-top: 1.25rem; background: var(--bg-elevated, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0,0,0,0.18));">
+        <h2 style="margin: 0 0 0.75rem 0; color: var(--text-primary, rgba(255, 255, 255, 0.95)); font-weight: 800; font-size: 1.4rem;">
+            Vantagens vs concorrentes
+        </h2>
+        <ul style="margin: 0; padding-left: 1.25rem; color: var(--text-secondary, rgba(255, 255, 255, 0.78)); line-height: 1.7;">
+            {% for item in tool_data.advantages or [] %}
+            <li style="margin: 0.35rem 0;">
+                {{ item }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div style="margin-top: 1.25rem; background: var(--bg-elevated, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0,0,0,0.18));">
+        <h2 style="margin: 0 0 0.75rem 0; color: var(--text-primary, rgba(255, 255, 255, 0.95)); font-weight: 800; font-size: 1.4rem;">
+            Perguntas frequentes
+        </h2>
+        <div>
+            {% for item in tool_data.faq or [] %}
+            <details style="background: var(--bg-base, rgba(0, 0, 0, 0.14)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 12px; padding: 0.9rem 1rem; margin: 0.75rem 0;">
+                <summary style="cursor: pointer; font-weight: 700; color: var(--text-primary, rgba(255, 255, 255, 0.95));">
+                    {{ item.q }}
+                </summary>
+                <div style="margin-top: 0.5rem; color: var(--text-secondary, rgba(255, 255, 255, 0.78)); line-height: 1.65;">
+                    {{ item.a }}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if site_tools %}
+    <div style="margin-top: 1.25rem; background: var(--bg-elevated, rgba(255, 255, 255, 0.06)); border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow-elevated, 0 10px 30px rgba(0,0,0,0.18));">
+        <h2 style="margin: 0 0 0.75rem 0; color: var(--text-primary, rgba(255, 255, 255, 0.95)); font-weight: 800; font-size: 1.4rem;">
+            Outras ferramentas do NEXUSRDR
+        </h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+            {% for t in site_tools %}
+                {% if t.key != tool_key %}
+                <a href="{{ t.url }}" style="display: block; padding: 0.9rem 1rem; border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12)); border-radius: 12px; text-decoration: none; background: var(--bg-base, rgba(0, 0, 0, 0.14)); transition: var(--transition-base, all 0.2s ease);">
+                    <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+                        <i class="{{ t.icon_class }}" style="color: var(--primary, #0ea5e9);"></i>
+                        <strong style="color: var(--text-primary, rgba(255, 255, 255, 0.95));">{{ t.name }}</strong>
+                    </div>
+                    <div style="color: var(--text-secondary, rgba(255, 255, 255, 0.78)); font-size: 0.9rem; line-height: 1.4;">
+                        {{ t.description }}
+                    </div>
+                </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

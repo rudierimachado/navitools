@@ -38,12 +38,13 @@
     }
 
     .ocr-card {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-card);
         padding: 2rem 1.75rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(18px);
-        color: #fff;
+        border: 1px solid var(--border-glass);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        color: var(--text-primary);
     }
 
     .ocr-form-group {
@@ -67,12 +68,18 @@
 
     .ocr-input::file-selector-button {
         padding: 0.5rem 1rem;
-        border-radius: 999px;
-        border: none;
+        border-radius: 12px;
+        border: 1px solid var(--primary);
         margin-right: 1rem;
-        background: linear-gradient(135deg, #22c55e, #16a34a);
+        background: var(--primary);
         color: #fff;
         cursor: pointer;
+        transition: var(--transition-base);
+    }
+
+    .ocr-input::file-selector-button:hover {
+        background: var(--primary-dark);
+        border-color: var(--primary-dark);
     }
 
     .ocr-actions {
@@ -84,23 +91,24 @@
     }
 
     .btn-primary-ocr {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
+        background: var(--primary);
         color: #fff;
-        border: none;
-        border-radius: 999px;
+        border: 1px solid var(--primary);
+        border-radius: 14px;
         padding: 0.85rem 2.2rem;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        box-shadow: 0 12px 30px rgba(34, 197, 94, 0.5);
-        transition: all 0.25s ease;
+        box-shadow: var(--shadow-md);
+        transition: var(--transition-base);
+        text-decoration: none;
     }
 
     .btn-primary-ocr:hover {
         transform: translateY(-2px);
-        box-shadow: 0 16px 40px rgba(34, 197, 94, 0.7);
+        box-shadow: var(--shadow-lg);
     }
 
     .ocr-progress-wrapper {
@@ -127,7 +135,7 @@
         height: 100%;
         width: 0;
         border-radius: 999px;
-        background: linear-gradient(90deg, #22c55e, #4ade80);
+        background: var(--primary);
         transition: width 0.25s ease-out;
     }
 

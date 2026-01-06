@@ -1094,74 +1094,48 @@
                 </div>
                 
                 <div class="tools-grid">
-                    <a class="tool-card tool-card-finance tool-card-link" href="/gerenciamento-financeiro/apresentacao">
-                        <div class="tool-icon">
-                            <i class="bi bi-cash-stack"></i>
-                        </div>
-                        <div class="tool-badge tool-badge-finance">
-                            <i class="bi bi-stars"></i>
-                            SaaS principal
-                        </div>
-                        <h3 class="tool-title">Gerenciamento Financeiro</h3>
-                        <p class="tool-description">
-                            Controle receitas e despesas com dashboards, recorrências e workspaces.
-                            Organize sua vida financeira (pessoal ou empresa) em um só lugar.
-                        </p>
-                        <div class="tool-points">
-                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Dashboards e relatórios</span></div>
-                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Categorias, recorrências e lançamentos</span></div>
-                            <div class="tool-point"><i class="bi bi-check-circle"></i><span>Workspaces e compartilhamento</span></div>
-                        </div>
-                        <span class="tool-btn">
-                            Ver apresentação
-                            <i class="bi bi-arrow-right"></i>
-                        </span>
-                    </a>
-
-                    <div class="tool-card">
-                        <div class="tool-icon">
-                            <i class="bi bi-qr-code"></i>
-                        </div>
-                        <h3 class="tool-title">Gerador de QR Code</h3>
-                        <p class="tool-description">
-                            Crie QR Codes personalizados para links, WiFi, vCards e muito mais. 
-                            Interface full-screen com preview em tempo real.
-                        </p>
-                        <a href="/gerador-de-qr-code" class="tool-btn">
-                            Abrir Ferramenta
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
-                    
-                    <div class="tool-card">
-                        <div class="tool-icon">
-                            <i class="bi bi-image"></i>
-                        </div>
-                        <h3 class="tool-title">Conversor de Imagens</h3>
-                        <p class="tool-description">
-                            Converta entre JPG, PNG, WEBP, AVIF e PDF. 
-                            Processamento em lote com compressão inteligente.
-                        </p>
-                        <a href="/conversor-imagens" class="tool-btn">
-                            Abrir Ferramenta
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
-
-                    <div class="tool-card">
-                        <div class="tool-icon">
-                            <i class="fab fa-youtube"></i>
-                        </div>
-                        <h3 class="tool-title">YouTube Downloader</h3>
-                        <p class="tool-description">
-                            Baixe vídeos e áudios do YouTube em alta qualidade. 
-                            Suporte a MP3, MP4 e múltiplas resoluções.
-                        </p>
-                        <a href="/youtube-downloader" class="tool-btn">
-                            Abrir Ferramenta
-                            <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
+                    {% for tool in site_tools %}
+                        {% if tool.variant == 'featured' %}
+                            <a class="{{ tool.home.card_class or 'tool-card tool-card-link' }}" href="{{ tool.url }}">
+                                <div class="tool-icon">
+                                    <i class="{{ tool.icon_class }}"></i>
+                                </div>
+                                {% if tool.home.badge_text %}
+                                <div class="{{ tool.home.badge_class or 'tool-badge' }}">
+                                    {% if tool.home.badge_icon_class %}
+                                    <i class="{{ tool.home.badge_icon_class }}"></i>
+                                    {% endif %}
+                                    {{ tool.home.badge_text }}
+                                </div>
+                                {% endif %}
+                                <h3 class="tool-title">{{ tool.name }}</h3>
+                                <p class="tool-description">{{ tool.description }}</p>
+                                {% if tool.home.points %}
+                                <div class="tool-points">
+                                    {% for point in tool.home.points %}
+                                    <div class="tool-point"><i class="bi bi-check-circle"></i><span>{{ point }}</span></div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <span class="tool-btn">
+                                    {{ tool.home.button_text or 'Abrir' }}
+                                    <i class="bi bi-arrow-right"></i>
+                                </span>
+                            </a>
+                        {% else %}
+                            <div class="tool-card">
+                                <div class="tool-icon">
+                                    <i class="{{ tool.icon_class }}"></i>
+                                </div>
+                                <h3 class="tool-title">{{ tool.name }}</h3>
+                                <p class="tool-description">{{ tool.description }}</p>
+                                <a href="{{ tool.url }}" class="tool-btn">
+                                    {{ tool.home.button_text or 'Abrir Ferramenta' }}
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </section>
@@ -1199,6 +1173,48 @@
                         </a>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Novidades Section -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-badge">🆕 Novidades</div>
+                    <h2 class="section-title">Atualizações recentes</h2>
+                    <p class="section-subtitle">
+                        Veja o que saiu de novo no blog: novidades, melhorias e novos conteúdos.
+                    </p>
+                </div>
+
+                {% if novidades_posts %}
+                <div class="tools-grid">
+                    {% for post in novidades_posts[:6] %}
+                        <a class="tool-card tool-card-link" href="{{ url_for('main.blog_detail', slug=post.slug) }}">
+                            <div class="tool-icon">
+                                <i class="bi bi-newspaper"></i>
+                            </div>
+                            <h3 class="tool-title">{{ post.title }}</h3>
+                            <p class="tool-description">
+                                {{ post.summary or post.content[:140] ~ ('…' if post.content|length > 140 else '') }}
+                            </p>
+                            <span class="tool-btn">
+                                {{ post.created_at.strftime('%d/%m/%Y') if post.created_at else '' }}
+                                <i class="bi bi-arrow-right"></i>
+                            </span>
+                        </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="blog-card-main" style="margin-top: 1rem;">
+                    <h3 class="blog-title">Sem novidades por enquanto</h3>
+                    <p class="blog-description">Em breve vamos publicar atualizações e novos conteúdos.</p>
+                    <a href="/blog" class="blog-btn">
+                        <i class="bi bi-arrow-right"></i>
+                        Acessar Blog
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </section>
 

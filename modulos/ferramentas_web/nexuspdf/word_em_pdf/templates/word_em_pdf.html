@@ -22,11 +22,12 @@
     }
 
     .converter-card {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-card);
         padding: 2rem 1.75rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(18px);
+        border: 1px solid var(--border-glass);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
 
     .converter-header {
@@ -52,23 +53,41 @@
     }
 
     .btn-primary-converter {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: var(--primary);
         color: #fff;
-        border: none;
-        border-radius: 999px;
+        border: 1px solid var(--primary);
+        border-radius: 14px;
         padding: 0.85rem 2.4rem;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        box-shadow: 0 12px 30px rgba(249, 115, 22, 0.5);
+        box-shadow: var(--shadow-md);
         text-decoration: none;
+        transition: var(--transition-base);
     }
 
     .btn-primary-converter:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 40px rgba(249, 115, 22, 0.7);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .converter-alert {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        color: #fff;
+    }
+
+    .converter-alert.alert-danger {
+        border-color: rgba(239, 68, 68, 0.55);
+    }
+
+    .converter-alert.alert-success {
+        border-color: rgba(34, 197, 94, 0.55);
     }
 
     @media (max-width: 768px) {
@@ -101,7 +120,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                <div class="alert alert-{{ category }}" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; background: rgba({% if category == 'danger' %}220, 38, 38{% else %}34, 197, 94{% endif %}, 0.15); border: 1px solid rgba({% if category == 'danger' %}220, 38, 38{% else %}34, 197, 94{% endif %}, 0.3); color: #fff;">
+                <div class="alert alert-{{ category }} converter-alert">
                     {{ message }}
                 </div>
                 {% endfor %}

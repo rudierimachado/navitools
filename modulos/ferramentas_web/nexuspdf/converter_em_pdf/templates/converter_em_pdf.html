@@ -22,11 +22,12 @@
     }
 
     .converter-card {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-card);
         padding: 2rem 1.75rem;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(18px);
+        border: 1px solid var(--border-glass);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
 
     .converter-header {
@@ -52,23 +53,24 @@
     }
 
     .btn-primary-converter {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: var(--primary);
         color: #fff;
-        border: none;
-        border-radius: 999px;
+        border: 1px solid var(--primary);
+        border-radius: 14px;
         padding: 0.85rem 2.4rem;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        box-shadow: 0 12px 30px rgba(249, 115, 22, 0.5);
+        box-shadow: var(--shadow-md);
         text-decoration: none;
+        transition: var(--transition-base);
     }
 
     .btn-primary-converter:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 40px rgba(249, 115, 22, 0.7);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
     }
 
     @media (max-width: 768px) {

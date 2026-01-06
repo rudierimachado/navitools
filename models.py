@@ -619,6 +619,28 @@ class BlogPost(db.Model):
         return url_for('static', filename=self.cover)
 
 
+class BlogComment(db.Model):
+    __tablename__ = "blog_comments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("blog_posts.id"), nullable=False)
+
+    author_name = db.Column(db.String(120), nullable=False)
+    author_email = db.Column(db.String(255))
+    content = db.Column(db.Text, nullable=False)
+
+    approved = db.Column(db.Boolean, default=True, nullable=False)
+    ip_address = db.Column(db.String(64))
+    user_agent = db.Column(db.String(255))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    post = db.relationship("BlogPost", backref=db.backref("comments", lazy=True, cascade="all, delete-orphan"))
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<BlogComment {self.id} post={self.post_id}>"
+
+
 class NewsletterSubscriber(db.Model):
     """Assinantes da newsletter"""
     __tablename__ = "newsletter_subscribers"

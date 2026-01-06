@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="light" class="{{ device_classes }}">
+<html lang="pt-BR" data-theme="dark" class="{{ device_classes }}">
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-0M80JNBV7C"></script>
@@ -63,7 +63,7 @@
 
     <style>
         :root {
-            /* Light Theme */
+            /* Dark Theme (fixo) */
             --primary: #0ea5e9;
             --primary-dark: #0284c7;
             --primary-light: #38bdf8;
@@ -76,43 +76,40 @@
             --error: #ef4444;
             --info: #3b82f6;
             
-            --bg-base: #f1f5f9;
-            --bg-elevated: #ffffff;
-            --bg-muted: #f8fafc;
-            --bg-glass: rgba(255, 255, 255, 0.7);
-            --bg-glass-hover: rgba(255, 255, 255, 0.85);
+            --bg-base: #0b1220;
+            --bg-elevated: #0f172a;
+            --bg-muted: #0b1220;
+            --bg-glass: rgba(15, 23, 42, 0.72);
+            --bg-glass-hover: rgba(15, 23, 42, 0.85);
             
-            --text-primary: #0f172a;
-            --text-secondary: #475569;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
             --text-muted: #94a3b8;
             
-            --border-color: rgba(15, 23, 42, 0.08);
-            --border-glass: rgba(15, 23, 42, 0.12);
+            --border-color: rgba(248, 250, 252, 0.08);
+            --border-glass: rgba(248, 250, 252, 0.12);
             
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
-            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
-            
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+            --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.35);
+            --shadow-lg: 0 16px 60px rgba(0, 0, 0, 0.45);
+
+            --content-max-width: 1200px;
+            --radius-card: 18px;
+            --radius-card-sm: 16px;
+            --content-card-bg: var(--bg-elevated);
+            --content-border: var(--border-glass);
+            --content-card-shadow: var(--shadow-lg);
+
+            --space-card-lg: 2.5rem;
+            --space-card-sm: 1.5rem;
+            --space-grid-gap: 1.5rem;
+
             --header-height: 80px;
             --mobile-header-height: 70px;
             
             --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        [data-theme="dark"] {
-            --bg-base: #0f172a;
-            --bg-elevated: #1e293b;
-            --bg-glass: rgba(30, 41, 59, 0.7);
-            --bg-glass-hover: rgba(30, 41, 59, 0.85);
-            
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-muted: #64748b;
-            
-            --border-color: rgba(248, 250, 252, 0.08);
-            --border-glass: rgba(248, 250, 252, 0.12);
-        }
-        
         * {
             margin: 0;
             padding: 0;
@@ -357,28 +354,6 @@
             box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
         }
 
-        /* Theme Toggle */
-        .theme-toggle {
-            width: 44px;
-            height: 44px;
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: var(--transition-base);
-            color: var(--text-primary);
-            font-size: 1.1rem;
-        }
-
-        .theme-toggle:hover {
-            background: var(--primary);
-            color: white;
-            transform: rotate(180deg) scale(1.05);
-        }
-        
         /* ========================================
            MOBILE NAVIGATION - MELHORADO
         ======================================== */
@@ -591,33 +566,6 @@
             flex-shrink: 0;
         }
 
-        .theme-toggle-mobile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-glass);
-            border-radius: 8px;
-            padding: 12px 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            color: var(--text-primary);
-            width: 100%;
-            justify-content: center;
-            font-weight: 600;
-        }
-
-        .theme-toggle-mobile:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .theme-toggle-mobile i {
-            font-size: 1rem;
-        }
-
         .mobile-nav-version {
             margin-top: 12px;
             color: var(--text-muted);
@@ -645,6 +593,148 @@
             margin-top: 0;
         }
 
+        .site-container {
+            max-width: var(--content-max-width);
+            margin: 0 auto;
+            padding: 0 1.25rem;
+            width: 100%;
+        }
+
+        .content-card {
+            background: var(--content-card-bg);
+            border: 1px solid var(--content-border);
+            border-radius: var(--radius-card);
+            box-shadow: var(--content-card-shadow);
+            padding: var(--space-card-lg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: var(--transition-base);
+        }
+
+        .content-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .content-card-sm {
+            padding: var(--space-card-sm);
+            border-radius: var(--radius-card-sm);
+        }
+
+        .compress-card,
+        .ocr-card,
+        .edit-card,
+        .converter-card,
+        .nexuspdf-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: var(--transition-base);
+        }
+
+        .compress-card:hover,
+        .ocr-card:hover,
+        .edit-card:hover,
+        .converter-card:hover,
+        .nexuspdf-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-solid,
+        .btn-primary-compress,
+        .btn-primary-ocr,
+        .btn-primary-edit,
+        .btn-primary-converter {
+            background: var(--primary);
+            border: 1px solid var(--primary);
+            color: #fff;
+            border-radius: 14px;
+            padding: 0.85rem 1.4rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            text-decoration: none;
+            transition: var(--transition-base);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-solid:hover,
+        .btn-primary-compress:hover,
+        .btn-primary-ocr:hover,
+        .btn-primary-edit:hover,
+        .btn-primary-converter:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            color: #fff;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            border-radius: 14px;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .btn-outline-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+            border-radius: 14px;
+            font-weight: 700;
+        }
+
+        .btn-outline-primary:hover,
+        .btn-outline-primary:focus {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .card-glass {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-card);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: var(--transition-base);
+        }
+
+        .card-glass:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        input[type="file"]::file-selector-button {
+            background: var(--primary);
+            color: #fff;
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 0.55rem 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-base);
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .section-title {
+            font-weight: 700;
+            letter-spacing: -0.015em;
+        }
+
         /* ========================================
            FOOTER
         ======================================== */
@@ -653,10 +743,11 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--bg-glass);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.0), rgba(15, 23, 42, 0.10)),
+                        var(--bg-glass);
             backdrop-filter: blur(18px) saturate(140%);
             color: var(--text-primary);
-            padding: 0.75rem 1.5rem;
+            padding: 0.9rem 1.75rem;
             border-top: 1px solid var(--border-glass);
             z-index: 997;
             transition: var(--transition-base);
@@ -667,7 +758,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 1.5rem;
-            max-width: 1200px;
+            max-width: var(--content-max-width);
             margin: 0 auto;
             font-size: 0.9rem;
             line-height: 1.4;
@@ -696,10 +787,14 @@
             font-size: 0.85rem;
         }
 
+        .footer-brand span {
+            color: var(--text-muted);
+        }
+
         .footer-links {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.75rem;
+            gap: 0.6rem;
             align-items: center;
             justify-content: flex-end;
             font-size: 0.85rem;
@@ -709,6 +804,13 @@
             color: inherit;
             text-decoration: none;
             opacity: 0.75;
+        }
+
+        .footer-links a + a::before {
+            content: "·";
+            display: inline-block;
+            margin: 0 0.6rem 0 0.15rem;
+            opacity: 0.35;
         }
 
         .footer-links a:hover {
@@ -752,12 +854,6 @@
                 width: 40px;
                 height: 40px;
                 font-size: 1.2rem;
-            }
-
-            .theme-toggle {
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
             }
 
             .app-footer-inner {
@@ -849,282 +945,420 @@
         .mobile-nav-item:nth-child(4) { animation-delay: 0.2s; }
         .mobile-nav-item:nth-child(5) { animation-delay: 0.25s; }
 
-        /* Back Button */
+        .page-top-actions {
+            max-width: var(--content-max-width);
+            margin: 0 auto 1rem auto;
+            padding: 0 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.75rem;
+        }
+
         .back-button {
-            position: fixed;
-            top: 90px;
-            left: 20px;
-            z-index: 999;
+            position: relative;
             background: var(--bg-glass);
             backdrop-filter: blur(10px);
             border: 1px solid var(--border-glass);
             border-radius: 12px;
-            padding: 0.75rem 1.25rem;
+            padding: 0.7rem 1.05rem;
             color: var(--text-primary);
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.55rem;
             transition: var(--transition-base);
             box-shadow: var(--shadow-md);
-            cursor: pointer;
         }
 
         .back-button:hover {
             background: var(--primary);
             border-color: var(--primary);
             color: white;
-            transform: translateX(-3px);
-            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 26px rgba(14, 165, 233, 0.28);
         }
 
         .back-button i {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
         }
 
         @media (max-width: 768px) {
+            .page-top-actions {
+                padding: 0 1rem;
+            }
             .back-button {
-                top: 80px;
-                left: 10px;
-                padding: 0.6rem 1rem;
+                padding: 0.6rem 0.95rem;
                 font-size: 0.85rem;
             }
         }
-    </style>
-    
-    {% block extra_styles %}{% endblock %}
-    {% block styles %}{% endblock %}
-</head>
-<body>
-    {% set menu_data = sidebar_menu or {} %}
-    {% set top_menu = menu_data.get('top_menu', []) %}
-    {% set side_groups = menu_data.get('side_groups', []) %}
 
-    <div class="app-container">
-        <!-- HEADER -->
-        <header class="app-header">
-            <div class="header-container">
-                <a href="/" class="app-logo">
-                    <div class="logo-icon">NR</div>
-                    <span class="logo-text">NEXUSRDR</span>
-                </a>
+        .breadcrumbs {
+            max-width: var(--content-max-width);
+            margin: 0 auto 1rem auto;
+            padding: 0 1.25rem;
+        }
 
-                <!-- Mobile Menu Button -->
-                <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                </button>
+        .breadcrumbs-list {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin: 0;
+            padding: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
 
-                <!-- Navigation Menu - Desktop -->
-                <nav class="header-nav">
-                    {% if side_groups %}
-                        {% for group in side_groups %}
-                            {% if group.children %}
-                                <div class="nav-dropdown">
-                                    <div class="nav-dropdown-toggle">
+        .breadcrumbs-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .breadcrumbs-item::after {
+            content: '/';
+            opacity: 0.6;
+        }
+
+        .breadcrumbs-item:last-child::after {
+            content: '';
+        }
+
+        .breadcrumbs a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition-base);
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumbs [aria-current="page"] {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .breadcrumbs {
+                padding: 0 1rem;
+            }
+            .breadcrumbs-list {
+                font-size: 0.85rem;
+            }
+        }
+        </style>
+
+        {% block extra_styles %}{% endblock %}
+        {% block styles %}{% endblock %}
+    </head>
+    <body>
+        {% set menu_data = sidebar_menu or {} %}
+        {% set top_menu = menu_data.get('top_menu', []) %}
+        {% set side_groups = menu_data.get('side_groups', []) %}
+
+        <div class="app-container">
+            <!-- HEADER -->
+            <header class="app-header">
+                <div class="header-container">
+                    <a href="/" class="app-logo">
+                        <div class="logo-icon">NR</div>
+                        <span class="logo-text">NEXUSRDR</span>
+                    </a>
+
+                    <!-- Mobile Menu Button -->
+                    <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Menu">
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                    </button>
+
+                    <!-- Navigation Menu - Desktop -->
+                    <nav class="header-nav">
+                        {% if side_groups %}
+                            {% for group in side_groups %}
+                                {% if group.children %}
+                                    <div class="nav-dropdown">
+                                        <div class="nav-dropdown-toggle">
+                                            <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                            <span>{{ group.display_name }}</span>
+                                            <i class="bi bi-chevron-down"></i>
+                                        </div>
+                                        <div class="nav-dropdown-menu">
+                                            {% for module in group.children %}
+                                            <a href="{{ module.url }}" class="nav-dropdown-item">
+                                                <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                                <span>{{ module.display_name }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <a href="{{ group.url }}" class="nav-dropdown-toggle">
                                         <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
                                         <span>{{ group.display_name }}</span>
-                                        <i class="bi bi-chevron-down"></i>
-                                    </div>
-                                    <div class="nav-dropdown-menu">
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </nav>
+
+                    <div class="header-actions">
+                        {% if top_menu %}
+                            {% for module in top_menu %}
+                            <a href="{{ module.url }}" class="header-btn">
+                                <i class="bi bi-{{ module.icon or 'app-indicator' }}"></i>
+                                <span>{{ module.display_name }}</span>
+                            </a>
+                            {% endfor %}
+                        {% endif %}
+
+                        <a href="/sobre" class="header-btn">
+                            <i class="bi bi-info-circle"></i>
+                            <span>Sobre</span>
+                        </a>
+
+                        <a href="/contact" class="header-btn">
+                            <i class="bi bi-envelope"></i>
+                            <span>Contato</span>
+                        </a>
+
+                        <a href="/blog" class="header-btn">
+                            <i class="bi bi-journal-richtext"></i>
+                            <span>Blog</span>
+                        </a>
+
+                        <a href="/administrador" class="header-btn">
+                            <i class="bi bi-shield-lock"></i>
+                            <span>Admin</span>
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Mobile Navigation Backdrop -->
+            <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
+
+            <!-- Mobile Navigation -->
+            <nav class="mobile-nav" id="mobileNav">
+                <div class="mobile-nav-header">
+                    <div class="mobile-nav-logo">
+                        <div class="logo-icon">NR</div>
+                        <span class="logo-text">NEXUSRDR</span>
+                    </div>
+                    <button class="mobile-nav-close" id="mobileNavClose" aria-label="Fechar menu">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="mobile-nav-content">
+                    {% if side_groups %}
+                        {% for group in side_groups %}
+                            <div class="mobile-nav-section">
+                                <div class="mobile-nav-title">
+                                    <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                    {{ group.display_name }}
+                                </div>
+                                {% if group.children %}
+                                    <div class="mobile-nav-items">
                                         {% for module in group.children %}
-                                        <a href="{{ module.url }}" class="nav-dropdown-item">
-                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                            <span>{{ module.display_name }}</span>
+                                        <a href="{{ module.url }}" class="mobile-nav-item">
+                                            <span>
+                                                <i class="bi bi-{{ module.icon or 'gear' }}"></i>
+                                                {{ module.display_name }}
+                                            </span>
+                                            <i class="bi bi-chevron-right item-arrow"></i>
                                         </a>
                                         {% endfor %}
                                     </div>
-                                </div>
-                            {% else %}
-                                <a href="{{ group.url }}" class="nav-dropdown-toggle">
-                                    <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
-                                    <span>{{ group.display_name }}</span>
-                                </a>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
-                </nav>
-
-                <div class="header-actions">
-                    {% if top_menu %}
-                        {% for module in top_menu %}
-                        <a href="{{ module.url }}" class="header-btn">
-                            <i class="bi bi-{{ module.icon or 'app-indicator' }}"></i>
-                            <span>{{ module.display_name }}</span>
-                        </a>
-                        {% endfor %}
-                    {% endif %}
-
-                    <a href="/blog" class="header-btn">
-                        <i class="bi bi-journal-richtext"></i>
-                        <span>Blog</span>
-                    </a>
-
-                    <a href="/administrador" class="header-btn">
-                        <i class="bi bi-shield-lock"></i>
-                        <span>Admin</span>
-                    </a>
-
-                    <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">
-                        <i class="bi bi-moon-stars"></i>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Mobile Navigation Backdrop -->
-        <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
-
-        <!-- Mobile Navigation -->
-        <nav class="mobile-nav" id="mobileNav">
-            <div class="mobile-nav-header">
-                <div class="mobile-nav-logo">
-                    <div class="logo-icon">NR</div>
-                    <span class="logo-text">NEXUSRDR</span>
-                </div>
-                <button class="mobile-nav-close" id="mobileNavClose" aria-label="Fechar menu">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-
-            <div class="mobile-nav-content">
-                {% if side_groups %}
-                    {% for group in side_groups %}
-                        <div class="mobile-nav-section">
-                            <div class="mobile-nav-title">
-                                <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
-                                {{ group.display_name }}
+                                {% else %}
+                                    <div class="mobile-nav-items">
+                                        <a href="{{ group.url }}" class="mobile-nav-item">
+                                            <span>
+                                                <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
+                                                {{ group.display_name }}
+                                            </span>
+                                            <i class="bi bi-chevron-right item-arrow"></i>
+                                        </a>
+                                    </div>
+                                {% endif %}
                             </div>
-                            {% if group.children %}
-                                <div class="mobile-nav-items">
-                                    {% for module in group.children %}
-                                    <a href="{{ module.url }}" class="mobile-nav-item">
-                                        <span>
-                                            <i class="bi bi-{{ module.icon or 'gear' }}"></i>
-                                            {{ module.display_name }}
-                                        </span>
-                                        <i class="bi bi-chevron-right item-arrow"></i>
-                                    </a>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="mobile-nav-items">
-                                    <a href="{{ group.url }}" class="mobile-nav-item">
-                                        <span>
-                                            <i class="bi bi-{{ group.icon or 'grid-3x3-gap' }}"></i>
-                                            {{ group.display_name }}
-                                        </span>
-                                        <i class="bi bi-chevron-right item-arrow"></i>
-                                    </a>
-                                </div>
-                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="mobile-nav-section">
+                        <div class="mobile-nav-title">
+                            <i class="bi bi-three-dots"></i>
+                            Outros
                         </div>
-                    {% endfor %}
+                        <div class="mobile-nav-items">
+                            <a href="/sobre" class="mobile-nav-item">
+                                <span>
+                                    <i class="bi bi-info-circle"></i>
+                                    Sobre
+                                </span>
+                                <i class="bi bi-chevron-right item-arrow"></i>
+                            </a>
+                            <a href="/contact" class="mobile-nav-item">
+                                <span>
+                                    <i class="bi bi-envelope"></i>
+                                    Contato
+                                </span>
+                                <i class="bi bi-chevron-right item-arrow"></i>
+                            </a>
+                            <a href="/blog" class="mobile-nav-item">
+                                <span>
+                                    <i class="bi bi-journal-richtext"></i>
+                                    Blog
+                                </span>
+                                <i class="bi bi-chevron-right item-arrow"></i>
+                            </a>
+                            <a href="/cookies" class="mobile-nav-item">
+                                <span>
+                                    <i class="bi bi-cookie"></i>
+                                    Cookies
+                                </span>
+                                <i class="bi bi-chevron-right item-arrow"></i>
+                            </a>
+                            <a href="/administrador" class="mobile-nav-item">
+                                <span>
+                                    <i class="bi bi-shield-lock"></i>
+                                    Admin
+                                </span>
+                                <i class="bi bi-chevron-right item-arrow"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mobile-nav-footer"></div>
+            </nav>
+
+            <!-- MAIN -->
+            <main class="app-main" id="appMain">
+                <!-- Back Button -->
+                {% if not hide_back_button %}
+                <div class="page-top-actions">
+                    <a href="javascript:history.back()" class="back-button" id="backButton">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Voltar</span>
+                    </a>
+                </div>
                 {% endif %}
 
-                <div class="mobile-nav-section">
-                    <div class="mobile-nav-title">
-                        <i class="bi bi-three-dots"></i>
-                        Outros
-                    </div>
-                    <div class="mobile-nav-items">
-                        <a href="/blog" class="mobile-nav-item">
-                            <span>
-                                <i class="bi bi-journal-richtext"></i>
-                                Blog
-                            </span>
-                            <i class="bi bi-chevron-right item-arrow"></i>
-                        </a>
-                        <a href="/contact" class="mobile-nav-item">
-                            <span>
-                                <i class="bi bi-envelope"></i>
-                                Contato
-                            </span>
-                            <i class="bi bi-chevron-right item-arrow"></i>
-                        </a>
-                        <a href="/administrador" class="mobile-nav-item">
-                            <span>
-                                <i class="bi bi-shield-lock"></i>
-                                Admin
-                            </span>
-                            <i class="bi bi-chevron-right item-arrow"></i>
-                        </a>
-                    </div>
+                <div class="main-content" id="mainContent">
+                    {% set _crumbs = breadcrumbs if breadcrumbs is defined else none %}
+                    {% if _crumbs is none %}
+                        {% set _path = request.path or '/' %}
+                        {% set _ns = namespace(group=none, page=none) %}
+                        {% if _path.startswith('/blog') %}
+                            {% set _ns.page = 'Blog' %}
+                        {% elif _path == '/contact' %}
+                            {% set _ns.page = 'Contato' %}
+                        {% elif _path == '/privacy' %}
+                            {% set _ns.page = 'Política de Privacidade' %}
+                        {% elif _path == '/cookies' %}
+                            {% set _ns.page = 'Política de Cookies' %}
+                        {% elif _path == '/terms' %}
+                            {% set _ns.page = 'Termos de Uso' %}
+                        {% elif _path == '/sobre' %}
+                            {% set _ns.page = 'Sobre' %}
+                        {% else %}
+                            {% for group in side_groups %}
+                                {% if group.url and group.url == _path %}
+                                    {% set _ns.page = group.display_name %}
+
+                                {% endif %}
+                                {% if group.children %}
+                                    {% for module in group.children %}
+                                        {% if module.url and module.url == _path %}
+                                            {% set _ns.group = group.display_name %}
+                                            {% set _ns.page = module.display_name %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if _ns.page is none and top_menu %}
+                                {% for module in top_menu %}
+                                    {% if module.url and module.url == _path %}
+                                        {% set _ns.page = module.display_name %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                        {% if _path == '/' %}
+                            {% set _crumbs = [] %}
+                        {% elif _ns.group and _ns.page %}
+                            {% set _crumbs = [ {'label':'Início','url':'/'}, {'label':_ns.group,'url':none}, {'label':_ns.page,'url':none} ] %}
+                        {% elif _ns.page %}
+                            {% set _crumbs = [ {'label':'Início','url':'/'}, {'label':_ns.page,'url':none} ] %}
+                        {% else %}
+                            {% set _crumbs = [] %}
+                        {% endif %}
+                    {% endif %}
+                    {% if _crumbs and _crumbs|length > 1 %}
+                    <nav class="breadcrumbs" aria-label="breadcrumb">
+                        <ol class="breadcrumbs-list">
+                            {% for item in _crumbs %}
+                            <li class="breadcrumbs-item">
+                                {% if item.url and not loop.last %}
+                                    <a href="{{ item.url }}">{{ item.label }}</a>
+                                {% else %}
+                                    <span aria-current="page">{{ item.label }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </nav>
+                    {% endif %}
+                    {% block top_banner %}{% endblock %}
+                    {% block content %}{% endblock %}
+                    {% block bottom_banner %}{% endblock %}
                 </div>
-            </div>
 
-            <div class="mobile-nav-footer">
-                <button class="theme-toggle-mobile" id="themeToggleMobile">
-                    <i class="bi bi-moon-stars"></i>
-                    <span>Tema</span>
-                </button>
-                <div class="mobile-nav-version">
-                    <small>v3.0.0</small>
-                </div>
-            </div>
-        </nav>
-
-        <!-- MAIN -->
-        <main class="app-main" id="appMain">
-            <!-- Back Button -->
-            <a href="javascript:history.back()" class="back-button" id="backButton">
-                <i class="bi bi-arrow-left"></i>
-                <span>Voltar</span>
-            </a>
-
-            <div class="main-content" id="mainContent">
-                {% block top_banner %}{% endblock %}
-                {% block content %}{% endblock %}
-                {% block bottom_banner %}{% endblock %}
-            </div>
-            
-            <!-- FOOTER -->
-            <footer class="app-footer">
-                <div class="app-footer-inner">
-                    <div class="footer-content">
-                        <div class="footer-brand">
-                            <strong>NEXUSRDR</strong> v3.0.0 · Sistema de Ferramentas Web
-                            <span>Desenvolvido por Rudieri Machado · 2025</span>
+                <!-- FOOTER -->
+                <footer class="app-footer">
+                    <div class="app-footer-inner">
+                        <div class="footer-content">
+                            <div class="footer-brand">
+                                <strong>NEXUSRDR</strong> v3.0.0 · Sistema de Ferramentas Web
+                                <span>Desenvolvido por Rudieri Machado · 2025</span>
+                            </div>
+                            <nav class="footer-links">
+                                <a href="{{ url_for('main.about') }}">Sobre</a>
+                                <a href="{{ url_for('main.contact') }}">Contato</a>
+                                <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>
+                                <a href="{{ url_for('main.cookies') }}">Cookies</a>
+                                <a href="{{ url_for('main.terms') }}">Termos de Uso</a>
+                                <a href="{{ url_for('main.blog_list') }}">Blog</a>
+                            </nav>
                         </div>
-                        <nav class="footer-links">
-                            <a href="{{ url_for('main.contact') }}">Contato</a>
-                            <span>&bull;</span>
-                            <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>
-                            <span>&bull;</span>
-                            <a href="{{ url_for('main.terms') }}">Termos de Uso</a>
-                            <span>&bull;</span>
-                            <a href="{{ url_for('main.blog_list') }}">Blog</a>
-                        </nav>
                     </div>
-                </div>
-            </footer>
-        </main>
-    </div>
+                </footer>
+            </main>
+        </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    {% block extra_scripts %}{% endblock %}
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        
+        {% block extra_scripts %}{% endblock %}
 
-    <script>
+        <script>
         // ========================================
-        // MOBILE NAVIGATION & THEME SYSTEM - MELHORADO
+        // MOBILE NAVIGATION
         // ========================================
 
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Sistema de navegação mobile iniciado');
             
             // Elementos
-            const themeToggle = document.getElementById('themeToggle');
-            const html = document.documentElement;
             const mobileMenuBtn = document.getElementById('mobileMenuBtn');
             const mobileNav = document.getElementById('mobileNav');
             const mobileNavBackdrop = document.getElementById('mobileNavBackdrop');
             const mobileNavClose = document.getElementById('mobileNavClose');
-            const themeToggleMobile = document.getElementById('themeToggleMobile');
 
             // ========================================
             // FUNÇÕES
@@ -1147,20 +1381,6 @@
                     mobileMenuBtn.classList.remove('active');
                     if (mobileNavBackdrop) mobileNavBackdrop.classList.remove('show');
                     document.body.classList.remove('mobile-nav-open');
-                }
-            }
-
-            function updateThemeIcons(theme) {
-                // Desktop
-                const themeIcon = themeToggle?.querySelector('i');
-                if (themeIcon) {
-                    themeIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
-                }
-
-                // Mobile
-                const mobileIcon = themeToggleMobile?.querySelector('i');
-                if (mobileIcon) {
-                    mobileIcon.className = theme === 'light' ? 'bi bi-moon-stars' : 'bi bi-sun';
                 }
             }
 
@@ -1208,30 +1428,6 @@
                 mobileNavBackdrop.addEventListener('click', closeMobileMenu);
             }
 
-            // Theme toggle desktop
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    const currentTheme = html.getAttribute('data-theme');
-                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                    
-                    html.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('theme', newTheme);
-                    updateThemeIcons(newTheme);
-                });
-            }
-
-            // Theme toggle mobile
-            if (themeToggleMobile) {
-                themeToggleMobile.addEventListener('click', function() {
-                    const currentTheme = html.getAttribute('data-theme');
-                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-
-                    html.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('theme', newTheme);
-                    updateThemeIcons(newTheme);
-                });
-            }
-
             // Fechar menu ao redimensionar
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 768) {
@@ -1257,11 +1453,6 @@
             // ========================================
             // INICIALIZAÇÃO
             // ========================================
-            
-            // Carregar tema salvo
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            html.setAttribute('data-theme', savedTheme);
-            updateThemeIcons(savedTheme);
             
             console.log('✅ Sistema inicializado com sucesso');
             console.log(`📱 Dispositivo: ${window.innerWidth}px`);

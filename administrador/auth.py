@@ -1,4 +1,6 @@
 from functools import wraps
+import hmac
+import os
 from flask import session, redirect, url_for, request
 from sqlalchemy import func
 from werkzeug.security import check_password_hash
@@ -21,6 +23,14 @@ def check_credentials(username, password):
 
     if not username or not password:
         return False
+
+    env_username = (os.getenv('ADMIN_USERNAME') or '').strip().lower()
+    env_password = os.getenv('ADMIN_PASSWORD') or ''
+
+    # Se credenciais estiverem definidas no ambiente, elas são a fonte de verdade
+    # para login do painel admin (sem depender do banco).
+    if env_username and env_password:
+        return hmac.compare_digest(username, env_username) and hmac.compare_digest(password, env_password)
 
     admin = AdminUser.query.filter(
         func.lower(AdminUser.username) == username,

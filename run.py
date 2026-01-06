@@ -22,6 +22,8 @@ build_sidebar_menu = None
 db = migrate = get_current_db_url = init_database = None
 init_mail = None
 ChoiceLoader = FileSystemLoader = None
+SITE_TOOLS = None
+TOOL_PAGES = None
 
 try:
     import click
@@ -46,7 +48,7 @@ try:
         log_debug(f"Traceback Config: {traceback.format_exc()}")
     
     try:
-        from global_blueprints import register_blueprints
+        from global_blueprints import register_blueprints, SITE_TOOLS, TOOL_PAGES
     except Exception as e:
         log_debug(f" ERRO ao importar global_blueprints: {e}")
         log_debug(f"Traceback blueprints: {traceback.format_exc()}")
@@ -195,6 +197,13 @@ def create_app():
                     return {'sidebar_menu': []}
 
             return {'sidebar_menu': []}
+
+        @app.context_processor
+        def inject_tool_pages():
+            return {
+                'site_tools': SITE_TOOLS or [],
+                'tool_pages': TOOL_PAGES or {},
+            }
         
         @app.context_processor
         def inject_device_info():
@@ -268,7 +277,36 @@ def create_app():
                     with app.app_context():
                         init_database()
                     click.echo(' Banco inicializado com sucesso!')
-                    click.echo(' Admin: admin@nexusrdr.com / admin123')
+
+                    admin_username = (os.getenv('ADMIN_USERNAME') or '').strip()
+                    admin_password = os.getenv('ADMIN_PASSWORD') or ''
+
+                    if admin_username and admin_password:
+                        try:
+                            from sqlalchemy import func
+                            from models import AdminUser
+
+                            existing = AdminUser.query.filter(
+                                func.lower(AdminUser.username) == admin_username.lower()
+                            ).first()
+
+                            if existing:
+                                existing.username = admin_username
+                                existing.set_password(admin_password)
+                                existing.is_active = True
+                                db.session.commit()
+                                click.echo(f' Admin atualizado: {admin_username} (senha via ADMIN_PASSWORD)')
+                            else:
+                                admin = AdminUser(username=admin_username, email=None, is_active=True)
+                                admin.set_password(admin_password)
+                                db.session.add(admin)
+                                db.session.commit()
+                                click.echo(f' Admin criado: {admin_username} (senha via ADMIN_PASSWORD)')
+                        except Exception as exc:
+                            db.session.rollback()
+                            click.echo(f' ⚠️  Erro ao criar/atualizar admin: {exc}')
+                    else:
+                        click.echo(' Admin não configurado. Defina ADMIN_USERNAME e ADMIN_PASSWORD no ambiente e rode init-db novamente.')
                 except Exception as e:
                     click.echo(f' Erro: {e}')
             else:

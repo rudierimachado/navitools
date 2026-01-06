@@ -45,40 +45,22 @@
 
     .nexuspdf-card {
         display: block;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        background: var(--bg-elevated);
+        border-radius: var(--radius-card);
         padding: 1.75rem 1.5rem;
         text-decoration: none;
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(18px);
+        color: var(--text-primary);
+        border: 1px solid var(--border-glass);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
     }
 
-    .nexuspdf-card::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.18), rgba(167, 139, 250, 0.15));
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .nexuspdf-card:hover::before {
-        opacity: 1;
-    }
-
     .nexuspdf-card:hover {
-        transform: translateY(-6px);
-        border-color: rgba(167, 139, 250, 0.5);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
-    }
-
-    .nexuspdf-card > * {
-        position: relative;
-        z-index: 1;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
     }
 
     .nexuspdf-card-icon {
@@ -89,8 +71,8 @@
         align-items: center;
         justify-content: center;
         margin-bottom: 1rem;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        background: var(--primary);
+        box-shadow: var(--shadow-md);
         font-size: 1.6rem;
     }
 

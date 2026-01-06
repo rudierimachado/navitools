@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Sobre · NEXUSRDR{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .about-list {
+        padding-left: 1rem;
+    }
+
+    .about-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(14, 165, 233, 0.12);
+        color: var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section style="padding: 3rem 0;">
+    <div class="site-container">
+        <div class="content-card">
+            <span class="about-badge"><i class="bi bi-info-circle"></i> Quem somos</span>
+            <h1 class="page-title mt-3 mb-4">Sobre o NEXUSRDR</h1>
+            <p>
+                O NEXUSRDR é um conjunto de ferramentas web pensado para ajudar pessoas e pequenos negócios a resolver tarefas do dia a dia com rapidez,
+                segurança e sem complicação. A proposta é simples: disponibilizar utilidades práticas (como conversões, geração de QR Code, automações e conteúdo educativo)
+                em um site leve, acessível e com foco em boa experiência no celular e no computador.
+            </p>
+
+            <h2 class="section-title mt-4">1. Missão</h2>
+            <p>
+                Facilitar tarefas digitais comuns com ferramentas confiáveis, gratuitas e fáceis de usar, mantendo transparência sobre como o site funciona
+                e como os dados são tratados.
+            </p>
+
+            <h2 class="section-title mt-4">2. Para quem é</h2>
+            <ul class="about-list">
+                <li><strong>Usuários comuns:</strong> que precisam resolver algo rápido sem instalar programas.</li>
+                <li><strong>Profissionais e empreendedores:</strong> que usam ferramentas de produtividade e conversão no trabalho.</li>
+                <li><strong>Criadores de conteúdo:</strong> que buscam recursos simples para otimizar rotina e materiais.</li>
+            </ul>
+
+            <h2 class="section-title mt-4">3. O que oferecemos</h2>
+            <ul class="about-list">
+                <li><strong>Ferramentas online:</strong> utilidades práticas, com foco em performance e simplicidade.</li>
+                <li><strong>Blog e guias:</strong> tutoriais, dicas e atualizações para ajudar você a usar melhor cada recurso.</li>
+                <li><strong>Novidades:</strong> melhorias e lançamentos comunicados diretamente no site.</li>
+            </ul>
+
+            <h2 class="section-title mt-4">4. Monetização e transparência</h2>
+            <p>
+                Para manter o projeto no ar, podemos exibir anúncios (por exemplo, via Google AdSense). Quando isso acontece, provedores de publicidade podem usar cookies
+                e tecnologias similares para medir desempenho e personalizar anúncios. Você pode ler mais em nossa
+                <a href="{{ url_for('main.cookies') }}">Política de Cookies</a> e na <a href="{{ url_for('main.privacy') }}">Política de Privacidade</a>.
+            </p>
+
+            <h2 class="section-title mt-4">5. Contato</h2>
+            <p class="mb-0">
+                Se você tiver dúvidas, sugestões ou quiser reportar problemas, fale com a gente pela página de
+                <a href="{{ url_for('main.contact') }}">Contato</a>.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
