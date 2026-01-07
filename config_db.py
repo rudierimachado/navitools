@@ -269,7 +269,7 @@ def _seed_initial_data_direct(engine, db_type):
         if session.query(MenuItem).count() == 0:
             menu_items = [
                 MenuItem(nome="Ferramentas Web", nivel=1, ordem=1, ativo=True, icone="tools", url="/"),
-                MenuItem(nome="Sistemas", nivel=1, ordem=2, ativo=True, icone="server", url="/"),
+                MenuItem(nome="Aplicativos", nivel=1, ordem=2, ativo=True, icone="server", url="/"),
                 MenuItem(nome="Conversor de Imagens", nivel=2, ordem=1, ativo=True, icone="image", url="/conversor-imagens", parent_id=1),
                 MenuItem(nome="Removedor de Fundo", nivel=2, ordem=2, ativo=True, icone="image", url="/removedor-de-fundo", parent_id=1),
                 MenuItem(nome="Gerador de QR Code", nivel=2, ordem=3, ativo=True, icone="qr-code", url="/gerador-de-qr-code", parent_id=1),
@@ -306,7 +306,7 @@ def _seed_initial_data(engine):
         if session.query(MenuItem).count() == 0:
             menu_items = [
                 MenuItem(nome="Ferramentas Web", nivel=1, ordem=1, ativo=True, icone="tools", url="/"),
-                MenuItem(nome="Sistemas", nivel=1, ordem=2, ativo=True, icone="server", url="/"),
+                MenuItem(nome="Aplicativos", nivel=1, ordem=2, ativo=True, icone="server", url="/"),
                 MenuItem(nome="Conversor de Imagens", nivel=2, ordem=1, ativo=True, icone="image", url="/conversor-imagens", parent_id=1),
                 MenuItem(nome="Removedor de Fundo", nivel=2, ordem=2, ativo=True, icone="image", url="/removedor-de-fundo", parent_id=1),
                 MenuItem(nome="Gerador de QR Code", nivel=2, ordem=3, ativo=True, icone="qr-code", url="/gerador-de-qr-code", parent_id=1),

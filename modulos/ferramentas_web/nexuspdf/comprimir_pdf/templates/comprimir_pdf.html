@@ -1,293 +1,132 @@
-{% extends 'base.html' %}
+{% extends 'nexuspdf_base.html' %}
 
 {% block title %}Comprimir PDF - NexusPDF{% endblock %}
 
 {% block meta_description %}Compressor de PDF online NexusPDF: reduza o tamanho de arquivos PDF mantendo a legibilidade, com resumo de compressão e diferentes níveis de qualidade para compartilhamento em e-mail, WhatsApp e armazenamento.{% endblock %}
 {% block meta_keywords %}comprimir pdf, compressor pdf online, reduzir tamanho pdf, otimizar pdf, pdf menor para email, pdf whatsapp, compactar pdf, nexuspdf compressor{% endblock %}
 
-{% block styles %}
-<style>
-    .compress-wrapper {
-        padding: 1rem;
-        width: 100%;
-        margin: 0;
-        min-height: calc(100vh - var(--header-height));
-    }
-
-    .compress-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 3rem 1.5rem 4rem;
-    }
-
-    .compress-header {
-        text-align: center;
-        margin-bottom: 2.5rem;
-        color: #fff;
-    }
-
-    .compress-header h1 {
-        font-size: clamp(2rem, 3.2vw, 2.6rem);
-        font-weight: 800;
-        margin-bottom: 0.75rem;
-    }
-
-    .compress-header p {
-        font-size: 1rem;
-        opacity: 0.85;
-    }
-
-    .compress-card {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-card);
-        padding: 2rem 1.75rem;
-        border: 1px solid var(--border-glass);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        color: var(--text-primary);
-    }
-
-    .compress-form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .compress-label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .compress-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: rgba(15, 23, 42, 0.7);
-        color: #fff;
-    }
-
-    .compress-input::file-selector-button {
-        padding: 0.5rem 1rem;
-        border-radius: 12px;
-        border: 1px solid var(--primary);
-        margin-right: 1rem;
-        background: var(--primary);
-        color: #fff;
-        cursor: pointer;
-        transition: var(--transition-base);
-    }
-
-    .compress-input::file-selector-button:hover {
-        background: var(--primary-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .compress-levels {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .compress-level {
-        cursor: pointer;
-        flex: 1 1 120px;
-    }
-
-    .compress-level input {
-        display: none;
-    }
-
-    .compress-level span {
-        display: block;
-        padding: 0.6rem 0.9rem;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.6);
-        text-align: center;
-        font-size: 0.9rem;
-        transition: all 0.25s ease;
-    }
-
-    .compress-level input:checked + span {
-        background: var(--primary);
-        border-color: transparent;
-        color: #fff;
-        box-shadow: var(--shadow-md);
-    }
-
-    .compress-actions {
-        margin-top: 2rem;
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-primary-compress {
-        background: var(--primary);
-        color: #fff;
-        border: 1px solid var(--primary);
-        border-radius: 14px;
-        padding: 0.85rem 2.2rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: var(--shadow-md);
-        transition: var(--transition-base);
-        text-decoration: none;
-    }
-
-    .btn-primary-compress:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    @media (max-width: 768px) {
-        .compress-wrapper {
-            padding: 0.75rem;
+{% block extra_styles %}
+    {{ super() }}
+    <style>
+        .pdf-suite-choice-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
         }
 
-        .compress-container {
-            padding: 2.5rem 1.25rem 3.25rem;
+        .pdf-suite-choice {
+            cursor: pointer;
         }
 
-        .compress-card {
-            padding: 1.75rem 1.5rem;
+        .pdf-suite-choice input {
+            display: none;
         }
 
-        .compress-header h1 {
-            font-size: 2.1rem;
+        .pdf-suite-choice span {
+            display: block;
+            padding: 0.65rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: rgba(2, 6, 23, 0.35);
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: rgba(226, 232, 240, 0.9);
+            transition: var(--transition-base);
         }
 
-        .compress-header p {
-            font-size: 0.95rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .compress-wrapper {
-            padding: 0.5rem;
+        .pdf-suite-choice input:checked + span {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(99, 102, 241, 0.95));
+            border-color: transparent;
+            box-shadow: 0 14px 40px rgba(14, 165, 233, 0.25);
+            color: #fff;
         }
 
-        .compress-container {
-            padding: 2.25rem 1rem 3rem;
+        @media (max-width: 640px) {
+            .pdf-suite-choice-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
-
-        .compress-card {
-            padding: 1.5rem 1.25rem;
-        }
-
-        .compress-actions {
-            justify-content: center;
-        }
-    }
-</style>
+    </style>
 {% endblock %}
 
-{% block content %}
-<div class="compress-wrapper">
-    <div class="compress-container">
-        <div class="compress-header">
-            <h1>Comprimir PDF</h1>
-            <p>Envie um arquivo PDF e escolha o nível de compressão para reduzir o tamanho mantendo a legibilidade.</p>
-        </div>
+{% block pdf_suite_title %}Comprimir PDF{% endblock %}
 
-        <!-- Slot para Google AdSense (topo Comprimir PDF) -->
-        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
-            <!-- Insira aqui o bloco responsivo do Google AdSense -->
-        </div>
+{% block pdf_suite_subtitle %}Envie um PDF e escolha o nível de compressão para reduzir o tamanho mantendo a legibilidade.{% endblock %}
 
-        <div class="compress-card">
+{% block pdf_suite_content %}
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-sliders"></i> Configurações</div>
+
         <form action="{{ url_for('nexuspdf_comprimir_pdf.comprimir_pdf') }}" method="post" enctype="multipart/form-data">
-            <div class="compress-form-group">
-                <label class="compress-label">Arquivo PDF</label>
-                <input type="file" name="pdf_file" accept="application/pdf" required class="compress-input" />
+            <div class="pdf-suite-field">
+                <label class="pdf-suite-label">Arquivo PDF</label>
+                <input type="file" name="pdf_file" accept="application/pdf" required class="pdf-suite-input" />
+                <div class="pdf-suite-hint">Dica: PDFs com muitas imagens escaneadas tendem a comprimir mais.</div>
+                <div class="pdf-suite-file-summary" data-file-summary></div>
             </div>
 
-            <div class="compress-form-group">
-                <label class="compress-label">Nível de compressão</label>
-                <div class="compress-levels">
-                    <label class="compress-level">
+            <div class="pdf-suite-field">
+                <label class="pdf-suite-label">Nível de compressão</label>
+                <div class="pdf-suite-choice-grid">
+                    <label class="pdf-suite-choice">
                         <input type="radio" name="quality" value="baixa">
-                        <span>Baixa compressão (melhor qualidade)</span>
+                        <span>Baixa</span>
                     </label>
-                    <label class="compress-level">
+                    <label class="pdf-suite-choice">
                         <input type="radio" name="quality" value="media" checked>
-                        <span>Média compressão (equilíbrio)</span>
+                        <span>Média</span>
                     </label>
-                    <label class="compress-level">
+                    <label class="pdf-suite-choice">
                         <input type="radio" name="quality" value="alta">
-                        <span>Alta compressão (maior redução)</span>
+                        <span>Alta</span>
                     </label>
                 </div>
             </div>
 
-            <div class="compress-actions">
+            <div class="pdf-suite-actions">
                 <button type="submit" class="btn-primary-compress">
                     <i class="bi bi-file-earmark-zip"></i>
                     Comprimir PDF
                 </button>
             </div>
         </form>
+    </section>
+
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-graph-up"></i> Resultado</div>
 
         {% if result %}
-        <hr class="mt-4 mb-3" style="border-color: rgba(148, 163, 184, 0.3);">
-        <div class="mt-3" style="font-size: 0.95rem;">
-            <p style="margin-bottom: 0.5rem;"><strong>Resumo da compressão</strong></p>
-            <p style="margin-bottom: 0.25rem;">
-                Tamanho original: {{ (result.original_size / 1024 / 1024)|round(2) }} MB
-            </p>
-            <p style="margin-bottom: 0.25rem;">
-                Tamanho comprimido: {{ (result.compressed_size / 1024 / 1024)|round(2) }} MB
-            </p>
-            <p style="margin-bottom: 0.5rem;">
-                Redução: {{ result.reduction_percent }}%
-                {% if result.reduction_percent < 0 %}
-                    (o arquivo ficou maior que o original para manter a integridade)
-                {% endif %}
-            </p>
-            <p style="margin-bottom: 0.75rem;">
-                Perfil usado: {{ result.quality|capitalize }}
-            </p>
-
-            <a href="{{ url_for('nexuspdf_comprimir_pdf.comprimir_pdf_download', filename=result.filename) }}" class="btn-primary-compress" style="text-decoration: none;">
-                <i class="bi bi-download"></i>
-                Baixar PDF comprimido
-            </a>
+        <div class="pdf-suite-result">
+            <div class="pdf-suite-hint">
+                <div><strong>Tamanho original:</strong> {{ (result.original_size / 1024 / 1024)|round(2) }} MB</div>
+                <div><strong>Tamanho comprimido:</strong> {{ (result.compressed_size / 1024 / 1024)|round(2) }} MB</div>
+                <div><strong>Redução:</strong> {{ result.reduction_percent }}%</div>
+                <div><strong>Perfil:</strong> {{ result.quality|capitalize }}</div>
+            </div>
+            <div class="pdf-suite-actions" style="margin-top: 0;">
+                <a href="{{ url_for('nexuspdf_comprimir_pdf.comprimir_pdf_download', filename=result.filename) }}" class="btn-primary-compress" style="text-decoration: none;">
+                    <i class="bi bi-download"></i>
+                    Baixar PDF
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="pdf-suite-hint">
+            Faça upload de um PDF para ver o resumo da compressão e liberar o download.
         </div>
         {% endif %}
 
-        <!-- Texto explicativo para SEO -->
-        <section style="margin-top: 2.25rem; color: rgba(255,255,255,0.9); font-size: 0.96rem; line-height: 1.7;">
-            <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">Por que comprimir um arquivo PDF?</h2>
-            <p style="margin-bottom: 0.75rem;">
-                Arquivos PDF podem ficar muito pesados quando contêm muitas imagens ou digitalizações em alta
-                resolução. Com a ferramenta <strong>Comprimir PDF</strong> do NexusPDF você reduz o tamanho do arquivo
-                para facilitar o envio por e-mail, WhatsApp ou plataformas que limitam o tamanho do anexo.
-            </p>
-            <p style="margin-bottom: 1.1rem;">
-                O processo de compressão atua na estrutura interna do documento, otimizando streams e tornando o PDF
-                mais leve para download e visualização, preservando o conteúdo original.
-            </p>
-
-            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Vantagens do compressor NexusPDF</h3>
-            <ul style="padding-left: 1.1rem; margin-bottom: 0.75rem;">
-                <li style="margin-bottom: 0.35rem;">Resumo de compressão mostrando tamanho original, tamanho final e porcentagem de redução.</li>
-                <li style="margin-bottom: 0.35rem;">Perfis de compressão configuráveis (baixa, média e alta) para equilibrar qualidade e tamanho.</li>
-                <li style="margin-bottom: 0.35rem;">Arquivos otimizados para compartilhamento em e-mail e redes sociais.</li>
-            </ul>
-
-            <p style="margin-bottom: 0;">
-                Use esta ferramenta sempre que precisar <strong>reduzir o tamanho de um PDF</strong> sem precisar
-                reinstalar programas ou plug-ins no seu computador.
-            </p>
-        </section>
-
-        <!-- Slot para Google AdSense (rodapé Comprimir PDF) -->
-        <div class="adsense-slot" style="margin-top: 2rem; text-align: center;">
-            <!-- Bloco adicional de anúncio ou destaque SEO para a ferramenta de compressão de PDF -->
-        </div>
-    </div>
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
 </div>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-lightbulb"></i> Por que comprimir um PDF?</div>
+    <div class="pdf-suite-hint">
+        PDFs ficam pesados quando contêm imagens ou digitalizações. Aqui você reduz o tamanho para facilitar envio por e-mail, WhatsApp e plataformas que limitam anexos.
+        A compressão otimiza a estrutura interna do documento para downloads e visualização mais rápidos.
+    </div>
+</section>
 {% endblock %}

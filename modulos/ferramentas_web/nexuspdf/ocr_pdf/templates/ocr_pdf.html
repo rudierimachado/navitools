@@ -1,290 +1,76 @@
-{% extends 'base.html' %}
+{% extends 'nexuspdf_base.html' %}
 
 {% block title %}OCR em PDF Online | Converter PDF Escaneado em Texto - NexusPDF{% endblock %}
 
 {% block meta_description %}Use o OCR em PDF online do NexusPDF para converter PDFs escaneados e imagens em texto pesquisável. Extraia texto de boletos, contratos, relatórios e documentos digitalizados em português de forma rápida e segura.{% endblock %}
 {% block meta_keywords %}ocr pdf online, ocr em pdf, converter pdf escaneado em texto, extrair texto de pdf, reconhecimento de texto em pdf, pdf imagem para texto, ocr portugues, nexuspdf ocr{% endblock %}
 
-{% block styles %}
-<style>
-    .ocr-wrapper {
-        padding: 1rem;
-        width: 100%;
-        margin: 0;
-        min-height: calc(100vh - var(--header-height));
-    }
-
-    .ocr-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 3rem 1.5rem 4rem;
-    }
-
-    .ocr-header {
-        text-align: center;
-        margin-bottom: 2.5rem;
-        color: #fff;
-    }
-
-    .ocr-header h1 {
-        font-size: clamp(2rem, 3.2vw, 2.6rem);
-        font-weight: 800;
-        margin-bottom: 0.75rem;
-    }
-
-    .ocr-header p {
-        font-size: 1rem;
-        opacity: 0.85;
-    }
-
-    .ocr-card {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-card);
-        padding: 2rem 1.75rem;
-        border: 1px solid var(--border-glass);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        color: var(--text-primary);
-    }
-
-    .ocr-form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .ocr-label {
-        display: block;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .ocr-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: rgba(15, 23, 42, 0.7);
-        color: #fff;
-    }
-
-    .ocr-input::file-selector-button {
-        padding: 0.5rem 1rem;
-        border-radius: 12px;
-        border: 1px solid var(--primary);
-        margin-right: 1rem;
-        background: var(--primary);
-        color: #fff;
-        cursor: pointer;
-        transition: var(--transition-base);
-    }
-
-    .ocr-input::file-selector-button:hover {
-        background: var(--primary-dark);
-        border-color: var(--primary-dark);
-    }
-
-    .ocr-actions {
-        margin-top: 2rem;
-        display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-primary-ocr {
-        background: var(--primary);
-        color: #fff;
-        border: 1px solid var(--primary);
-        border-radius: 14px;
-        padding: 0.85rem 2.2rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: var(--shadow-md);
-        transition: var(--transition-base);
-        text-decoration: none;
-    }
-
-    .btn-primary-ocr:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .ocr-progress-wrapper {
-        margin-top: 1.5rem;
-        width: 100%;
-    }
-
-    .ocr-progress-label {
-        font-size: 0.85rem;
-        color: rgba(226, 232, 240, 0.9);
-        margin-bottom: 0.35rem;
-    }
-
-    .ocr-progress-bar-bg {
-        width: 100%;
-        height: 8px;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.8);
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.4);
-    }
-
-    .ocr-progress-bar-fill {
-        height: 100%;
-        width: 0;
-        border-radius: 999px;
-        background: var(--primary);
-        transition: width 0.25s ease-out;
-    }
-
-    .ocr-result {
-        margin-top: 2.5rem;
-        padding: 1.5rem;
-        border-radius: 16px;
-        background: rgba(15, 23, 42, 0.7);
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        color: #e5e7eb;
-        font-size: 0.95rem;
-        max-height: 420px;
-        overflow: auto;
-        white-space: pre-wrap;
-    }
-
-    @media (max-width: 768px) {
-        .ocr-wrapper {
-            padding: 0.75rem;
-        }
-
-        .ocr-container {
-            padding: 2.5rem 1.25rem 3.25rem;
-        }
-
-        .ocr-card {
-            padding: 1.75rem 1.5rem;
-        }
-
-        .ocr-header h1 {
-            font-size: 2.1rem;
-        }
-
-        .ocr-header p {
-            font-size: 0.95rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .ocr-wrapper {
-            padding: 0.5rem;
-        }
-
-        .ocr-container {
-            padding: 2.25rem 1rem 3rem;
-        }
-
-        .ocr-card {
-            padding: 1.5rem 1.25rem;
-        }
-
-        .ocr-actions {
-            justify-content: center;
-        }
-    }
-</style>
+{% block extra_styles %}
+    {{ super() }}
 {% endblock %}
+{% block pdf_suite_title %}OCR em PDF{% endblock %}
 
-{% block content %}
-<div class="ocr-wrapper">
-    <div class="ocr-container">
-        <div class="ocr-header">
-            <h1>OCR em PDF online: transforme PDFs escaneados em texto</h1>
-            <p>Envie um arquivo PDF comum ou escaneado e extraia texto pesquisável com reconhecimento de caracteres em português e outros idiomas.</p>
-        </div>
+{% block pdf_suite_subtitle %}Envie um PDF escaneado e extraia texto pesquisável com reconhecimento de caracteres (português e outros idiomas).{% endblock %}
 
-        <!-- Slot para Google AdSense (topo OCR PDF) -->
-        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
-            <!-- Insira aqui o bloco responsivo do Google AdSense -->
-        </div>
+{% block pdf_suite_content %}
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-cloud-upload"></i> Enviar arquivo</div>
 
-        <div class="ocr-card">
-            <form id="ocr-form" action="{{ url_for('nexuspdf_ocr_pdf.ocr_pdf') }}" method="post" enctype="multipart/form-data">
-                <div class="ocr-form-group">
-                    <label class="ocr-label">Arquivo PDF</label>
-                    <input type="file" name="pdf_file" accept="application/pdf" required class="ocr-input" />
-                </div>
-
-                <div class="ocr-actions">
-                    <button type="submit" class="btn-primary-ocr" id="ocr-submit-btn">
-                        <i class="bi bi-file-earmark-text"></i>
-                        Executar OCR
-                    </button>
-                </div>
-
-                <div class="ocr-progress-wrapper" id="ocr-progress" style="display: none;">
-                    <div class="ocr-progress-label">
-                        Processando PDF... isso pode levar alguns segundos para documentos maiores.
-                        <span id="ocr-progress-percent" style="margin-left: 0.35rem;">0%</span>
-                    </div>
-                    <div class="ocr-progress-bar-bg">
-                        <div class="ocr-progress-bar-fill" id="ocr-progress-bar"></div>
-                    </div>
-                </div>
-            </form>
-
-            {% if extracted_text %}
-            <div class="ocr-result mt-4">
-                {{ extracted_text }}
+        <form id="ocr-form" action="{{ url_for('nexuspdf_ocr_pdf.ocr_pdf') }}" method="post" enctype="multipart/form-data">
+            <div class="pdf-suite-field">
+                <label class="pdf-suite-label">Arquivo PDF</label>
+                <input type="file" name="pdf_file" accept="application/pdf" required class="pdf-suite-input" />
+                <div class="pdf-suite-hint">Documentos grandes podem levar alguns minutos. Se travar, tente um PDF menor.</div>
+                <div class="pdf-suite-file-summary" data-file-summary></div>
             </div>
 
+            <div class="pdf-suite-actions">
+                <button type="submit" class="btn-primary-ocr" id="ocr-submit-btn">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Executar OCR
+                </button>
+            </div>
+
+            <div class="pdf-suite-progress" id="ocr-progress">
+                <div class="pdf-suite-progress-label">
+                    Processando PDF... <span id="ocr-progress-percent" style="margin-left: 0.35rem;">0%</span>
+                </div>
+                <div class="pdf-suite-progress-track">
+                    <div class="pdf-suite-progress-bar" id="ocr-progress-bar"></div>
+                </div>
+            </div>
+        </form>
+
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
+
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-file-earmark-font"></i> Texto extraído</div>
+
+        {% if extracted_text %}
+            <pre class="pdf-suite-pre">{{ extracted_text }}</pre>
             {% if txt_filename %}
-            <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+            <div class="pdf-suite-actions" style="margin-top: 0.9rem;">
                 <a href="{{ url_for('nexuspdf_ocr_pdf.ocr_pdf_download', txt_filename=txt_filename) }}" class="btn-primary-ocr" style="text-decoration: none;">
                     <i class="bi bi-download"></i>
-                    Baixar texto em .txt
+                    Baixar .txt
                 </a>
             </div>
             {% endif %}
-            {% endif %}
-        </div>
-
-        <!-- Texto explicativo para SEO -->
-        <section style="margin-top: 2.25rem; color: rgba(255,255,255,0.9); font-size: 0.96rem; line-height: 1.7;">
-            <h2 style="font-size: 1.45rem; font-weight: 700; margin-bottom: 0.9rem;">O que é OCR em PDF e para que serve?</h2>
-            <p style="margin-bottom: 0.75rem;">
-                OCR (Optical Character Recognition) é a tecnologia que permite reconhecer texto dentro de imagens ou
-                documentos escaneados. Com o módulo de <strong>OCR em PDF online</strong> do NexusPDF, você pode transformar
-                PDFs que são apenas imagens em conteúdo de texto pesquisável, copiável e editável.
-            </p>
-            <p style="margin-bottom: 1.1rem;">
-                Essa ferramenta de <strong>conversão de PDF escaneado em texto</strong> é ideal para digitalizar contratos antigos,
-                boletos, notas fiscais, relatórios e qualquer documento impresso que foi apenas escaneado sem camada de texto.
-            </p>
-
-            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Como o OCR em PDF ajuda no dia a dia</h3>
-            <ul style="padding-left: 1.1rem; margin-bottom: 0.75rem;">
-                <li style="margin-bottom: 0.35rem;">Permite copiar e colar trechos de documentos físicos digitalizados diretamente do PDF.</li>
-                <li style="margin-bottom: 0.35rem;">Facilita buscas por palavras-chave dentro de grandes arquivos PDF.</li>
-                <li style="margin-bottom: 0.35rem;">Ajuda na organização de arquivos, automação de rotinas e arquivamento digital.</li>
-            </ul>
-
-            <p style="margin-bottom: 0;">
-                O processamento de OCR do NexusPDF está em constante evolução. Nosso mecanismo de
-                <strong>OCR em PDF online</strong> utiliza reconhecimento de texto para transformar PDFs escaneados em
-                arquivos pesquisáveis e editáveis, sem necessidade de instalar programas no computador.
-            </p>
-            <p style="margin-top: 0.9rem; margin-bottom: 0;">
-                Use o <strong>OCR em PDF online grátis</strong> para testar agora mesmo e, se precisar de mais performance
-                ou automação, este módulo pode ser integrado ao restante do ecossistema de ferramentas do NEXUSRDR.
-            </p>
-        </section>
-
-        <!-- Slot para Google AdSense (rodapé OCR PDF) -->
-        <div class="adsense-slot" style="margin-top: 2rem; text-align: center;">
-            <!-- Bloco adicional de anúncio ou destaque SEO para OCR em PDF -->
-        </div>
-    </div>
+        {% else %}
+            <div class="pdf-suite-hint">O texto extraído vai aparecer aqui após o processamento.</div>
+        {% endif %}
+    </section>
 </div>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Sobre o OCR</div>
+    <div class="pdf-suite-hint">
+        OCR (Reconhecimento Óptico de Caracteres) transforma PDFs que são apenas imagens em texto copiável e pesquisável.
+        É ideal para contratos, boletos, relatórios e documentos digitalizados.
+    </div>
+</section>
 {% endblock %}
 
 {% block scripts %}
@@ -312,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
         submitBtn.style.cursor = 'not-allowed';
         submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
 
-        progressWrapper.style.display = 'block';
+        progressWrapper.classList.add('active');
 
         let current = 0;
         const maxBeforeFinish = 90; // deixa 10% para o carregamento final da página

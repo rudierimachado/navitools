@@ -1,118 +1,35 @@
-{% extends 'base.html' %}
+{% extends 'nexuspdf_base.html' %}
 
 {% block title %}Converter em PDF - NexusPDF{% endblock %}
 
 {% block meta_description %}Ferramenta Converter em PDF do NexusPDF: acesse rapidamente o conversor online para transformar documentos e imagens em PDF.{% endblock %}
 {% block meta_keywords %}converter em pdf, documentos para pdf, imagens em pdf, nexuspdf converter, criar pdf online{% endblock %}
 
-{% block styles %}
-<style>
-    .converter-wrapper {
-        padding: 1rem;
-        width: 100%;
-        margin: 0;
-        min-height: calc(100vh - var(--header-height));
-    }
+{% block pdf_suite_title %}Converter em PDF{% endblock %}
 
-    .converter-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 3rem 1.5rem 4rem;
-        color: #fff;
-    }
+{% block pdf_suite_subtitle %}Acesse o conversor para transformar documentos e imagens em PDF.{% endblock %}
 
-    .converter-card {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-card);
-        padding: 2rem 1.75rem;
-        border: 1px solid var(--border-glass);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-    }
-
-    .converter-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .converter-header h1 {
-        font-size: clamp(2rem, 3.2vw, 2.6rem);
-        font-weight: 800;
-        margin-bottom: 0.75rem;
-    }
-
-    .converter-header p {
-        font-size: 1rem;
-        opacity: 0.85;
-    }
-
-    .converter-actions {
-        margin-top: 1.75rem;
-        display: flex;
-        justify-content: center;
-    }
-
-    .btn-primary-converter {
-        background: var(--primary);
-        color: #fff;
-        border: 1px solid var(--primary);
-        border-radius: 14px;
-        padding: 0.85rem 2.4rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: var(--shadow-md);
-        text-decoration: none;
-        transition: var(--transition-base);
-    }
-
-    .btn-primary-converter:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    @media (max-width: 768px) {
-        .converter-wrapper {
-            padding: 0.75rem;
-        }
-
-        .converter-container {
-            padding: 2.5rem 1.25rem 3.25rem;
-        }
-
-        .converter-card {
-            padding: 1.75rem 1.5rem;
-        }
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="converter-wrapper">
-    <div class="converter-container">
-        <div class="converter-header">
-            <h1>Converter em PDF</h1>
-            <p>Acesse o conversor oficial do NexusPDF para transformar documentos e imagens em arquivos PDF.</p>
+{% block pdf_suite_content %}
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-box-arrow-up-right"></i> Abrir ferramenta</div>
+        <div class="pdf-suite-hint">
+            Clique no botão abaixo para abrir o conversor em uma nova aba.
         </div>
-
-        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
+        <div class="pdf-suite-actions">
+            <a href="https://nexusrdr.com.br/nexuspdf/converter-em-pdf" target="_blank" rel="noopener noreferrer" class="btn-primary-converter" style="text-decoration: none; width: 100%;">
+                <i class="bi bi-box-arrow-up-right"></i>
+                Abrir conversor
+            </a>
         </div>
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
 
-        <div class="converter-card">
-            <p style="margin-bottom: 1rem; font-size: 0.98rem; line-height: 1.7;">
-                Clique no botão abaixo para abrir o conversor em PDF em uma nova aba. Lá você poderá enviar
-                documentos, imagens e outros formatos compatíveis e gerar seu PDF final.
-            </p>
-
-            <div class="converter-actions">
-                <a href="https://nexusrdr.com.br/nexuspdf/converter-em-pdf" target="_blank" rel="noopener noreferrer" class="btn-primary-converter">
-                    <i class="bi bi-box-arrow-up-right"></i>
-                    Abrir conversor em PDF
-                </a>
-            </div>
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Observação</div>
+        <div class="pdf-suite-hint">
+            Essa página serve como atalho rápido. Se preferir, use o módulo “Documentos para PDF”, que converte arquivos diretamente aqui.
         </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

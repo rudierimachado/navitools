@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block extra_styles %}
+<style>
+    .pdf-suite-shell {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        padding: clamp(1rem, 2.2vw, 2.5rem);
+        min-height: calc(100vh - var(--header-height));
+        background:
+            radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.18), transparent 45%),
+            radial-gradient(circle at 85% 10%, rgba(99, 102, 241, 0.18), transparent 50%),
+            radial-gradient(circle at 70% 80%, rgba(139, 92, 246, 0.14), transparent 55%),
+            linear-gradient(180deg, rgba(2, 6, 23, 0.0), rgba(2, 6, 23, 0.35));
+    }
+
+    .pdf-suite-surface {
+        max-width: 1600px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .pdf-suite-hero {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .pdf-suite-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        align-self: flex-start;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(226, 232, 240, 0.92);
+        font-weight: 800;
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
+    }
+
+    .pdf-suite-title {
+        margin: 0;
+        font-size: clamp(2.1rem, 3vw, 3.1rem);
+        line-height: 1.05;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, rgba(248,250,252,1), rgba(165,180,252,1), rgba(56,189,248,1));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .pdf-suite-subtitle {
+        margin: 0;
+        max-width: 85ch;
+        color: rgba(226, 232, 240, 0.88);
+        font-size: 1.05rem;
+        line-height: 1.65;
+    }
+
+    .pdf-suite-grid {
+        display: grid;
+        grid-template-columns: minmax(400px, 500px) minmax(0, 1fr);
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .pdf-suite-panel {
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(248, 250, 252, 0.12);
+        border-radius: 22px;
+        padding: 1.5rem;
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(18px) saturate(140%);
+        -webkit-backdrop-filter: blur(18px) saturate(140%);
+    }
+
+    .pdf-suite-panel-title {
+        margin: 0 0 1rem 0;
+        font-size: 1.05rem;
+        font-weight: 900;
+        letter-spacing: -0.01em;
+        color: rgba(248, 250, 252, 0.95);
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .pdf-suite-panel-title i {
+        color: var(--primary);
+    }
+
+    .pdf-suite-field {
+        display: grid;
+        gap: 0.5rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .pdf-suite-label {
+        font-weight: 800;
+        color: rgba(248, 250, 252, 0.92);
+    }
+
+    .pdf-suite-input,
+    .pdf-suite-select,
+    .pdf-suite-textarea {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(2, 6, 23, 0.55);
+        color: rgba(248, 250, 252, 0.95);
+        padding: 0.82rem 0.95rem;
+        outline: none;
+    }
+
+    .pdf-suite-input:focus,
+    .pdf-suite-select:focus,
+    .pdf-suite-textarea:focus {
+        border-color: rgba(56, 189, 248, 0.85);
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.18);
+    }
+
+    .pdf-suite-hint {
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+
+    .pdf-suite-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1.25rem;
+    }
+
+    .pdf-suite-actions .btn-solid,
+    .pdf-suite-actions .btn-primary-compress,
+    .pdf-suite-actions .btn-primary-ocr,
+    .pdf-suite-actions .btn-primary-edit,
+    .pdf-suite-actions .btn-primary-converter {
+        padding-left: 1.3rem;
+        padding-right: 1.3rem;
+    }
+
+    .pdf-suite-chips {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin: 0.25rem 0 1.25rem;
+    }
+
+    .pdf-suite-chip {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.9);
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: var(--transition-base);
+    }
+
+    .pdf-suite-chip.active {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(99, 102, 241, 0.95));
+        border-color: transparent;
+        box-shadow: 0 14px 40px rgba(14, 165, 233, 0.25);
+        color: #fff;
+    }
+
+    .pdf-suite-result {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .pdf-suite-pre {
+        margin: 0;
+        max-height: 440px;
+        overflow: auto;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(2, 6, 23, 0.6);
+        padding: 1rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: rgba(226, 232, 240, 0.95);
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .pdf-suite-progress {
+        display: none;
+        margin-top: 1.25rem;
+        gap: 0.55rem;
+    }
+
+    .pdf-suite-progress.active {
+        display: grid;
+    }
+
+    .pdf-suite-progress-label {
+        font-size: 0.85rem;
+        color: rgba(226, 232, 240, 0.9);
+    }
+
+    .pdf-suite-progress-track {
+        width: 100%;
+        height: 9px;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.55);
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .pdf-suite-progress-bar {
+        height: 100%;
+        width: 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(14, 165, 233, 1), rgba(99, 102, 241, 1));
+        transition: width 0.25s ease-out;
+    }
+
+    .pdf-suite-file-summary {
+        display: none;
+        margin-top: 0.85rem;
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.92);
+        gap: 0.35rem;
+    }
+
+    .pdf-suite-file-summary.active {
+        display: grid;
+    }
+
+    .pdf-suite-file-summary-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: baseline;
+        line-height: 1.4;
+        font-size: 0.92rem;
+    }
+
+    .pdf-suite-file-summary-label {
+        color: rgba(148, 163, 184, 0.98);
+        font-weight: 800;
+        letter-spacing: 0.01em;
+    }
+
+    @media (max-width: 1200px) {
+        .pdf-suite-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .pdf-suite-shell {
+            padding: 1.5rem;
+        }
+        
+        .pdf-suite-panel {
+            padding: 1.25rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .pdf-suite-shell {
+            padding: 1rem;
+        }
+
+        .pdf-suite-kicker {
+            font-size: 0.8rem;
+        }
+    }
+
+    @media print {
+        .app-header,
+        .mobile-nav,
+        .mobile-nav-backdrop,
+        .page-top-actions,
+        .breadcrumbs,
+        .app-footer,
+        .adsense-slot {
+            display: none !important;
+        }
+
+        html,
+        body {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        .app-main {
+            margin-top: 0 !important;
+            padding: 0 !important;
+        }
+
+        .pdf-suite-shell {
+            width: auto;
+            margin: 0;
+            padding: 0;
+            min-height: auto;
+            background: transparent;
+        }
+
+        .pdf-suite-panel {
+            box-shadow: none;
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb !important;
+            color: #000000 !important;
+        }
+
+        .pdf-suite-title {
+            -webkit-text-fill-color: #000000;
+        }
+
+        .pdf-suite-pre {
+            max-height: none;
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #e5e7eb !important;
+        }
+
+        a {
+            color: #000000 !important;
+            text-decoration: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdf-suite-shell">
+    <div class="pdf-suite-surface">
+        <div class="pdf-suite-hero">
+            <div class="pdf-suite-kicker">
+                <i class="bi bi-file-earmark-pdf"></i>
+                NexusPDF
+            </div>
+            <h1 class="pdf-suite-title">{% block pdf_suite_title %}{% endblock %}</h1>
+            <p class="pdf-suite-subtitle">{% block pdf_suite_subtitle %}{% endblock %}</p>
+        </div>
+
+        {% block pdf_suite_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function humanFileSize(bytes) {
+        if (!Number.isFinite(bytes)) return '';
+        const thresh = 1024;
+        if (Math.abs(bytes) < thresh) return bytes + ' B';
+        const units = ['KB', 'MB', 'GB', 'TB'];
+        let u = -1;
+        let b = bytes;
+        do {
+            b /= thresh;
+            ++u;
+        } while (Math.abs(b) >= thresh && u < units.length - 1);
+        return b.toFixed(2) + ' ' + units[u];
+    }
+
+    function formatDate(d) {
+        try {
+            return new Intl.DateTimeFormat('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            }).format(d);
+        } catch {
+            return d.toLocaleString();
+        }
+    }
+
+    function getFileSummaryEl(form, input) {
+        const inputId = input.getAttribute('id');
+        if (inputId) {
+            const elById = form.querySelector('[data-file-summary-for="' + inputId + '"]');
+            if (elById) return elById;
+        }
+        const elGeneric = form.querySelector('[data-file-summary]');
+        if (elGeneric) return elGeneric;
+        return null;
+    }
+
+    function setButtonsEnabled(form, enabled) {
+        const buttons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+        buttons.forEach(btn => {
+            btn.disabled = !enabled;
+            btn.style.opacity = enabled ? '' : '0.65';
+            btn.style.cursor = enabled ? '' : 'not-allowed';
+        });
+    }
+
+    const suiteRoot = document.querySelector('.pdf-suite-shell');
+    if (!suiteRoot) return;
+
+    const fileInputs = suiteRoot.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+        const form = input.closest('form');
+        if (!form) return;
+
+        // Se quiser que algum formulário fique sempre habilitado, adicione data-keep-enabled="true"
+        if (!form.hasAttribute('data-keep-enabled')) {
+            setButtonsEnabled(form, false);
+        }
+
+        input.addEventListener('change', function () {
+            const file = input.files && input.files[0] ? input.files[0] : null;
+            const summaryEl = getFileSummaryEl(form, input);
+            if (!summaryEl) {
+                if (file && !form.hasAttribute('data-keep-enabled')) setButtonsEnabled(form, true);
+                if (!file && !form.hasAttribute('data-keep-enabled')) setButtonsEnabled(form, false);
+                return;
+            }
+
+            if (!file) {
+                summaryEl.classList.remove('active');
+                summaryEl.innerHTML = '';
+                if (!form.hasAttribute('data-keep-enabled')) setButtonsEnabled(form, false);
+                return;
+            }
+
+            const name = file.name || 'arquivo';
+            const size = humanFileSize(file.size);
+            const lastModified = file.lastModified ? formatDate(new Date(file.lastModified)) : '—';
+
+            summaryEl.innerHTML =
+                '<div class="pdf-suite-file-summary-row">' +
+                    '<span class="pdf-suite-file-summary-label">Arquivo:</span> ' +
+                    '<span>' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>' +
+                '</div>' +
+                '<div class="pdf-suite-file-summary-row">' +
+                    '<span class="pdf-suite-file-summary-label">Tamanho:</span> ' +
+                    '<span>' + size + '</span>' +
+                '</div>' +
+                '<div class="pdf-suite-file-summary-row">' +
+                    '<span class="pdf-suite-file-summary-label">Modificado:</span> ' +
+                    '<span>' + lastModified + '</span>' +
+                '</div>';
+
+            summaryEl.classList.add('active');
+
+            if (!form.hasAttribute('data-keep-enabled')) {
+                setButtonsEnabled(form, true);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

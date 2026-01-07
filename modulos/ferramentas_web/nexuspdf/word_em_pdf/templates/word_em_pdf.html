@@ -1,247 +1,96 @@
-{% extends 'base.html' %}
+{% extends 'nexuspdf_base.html' %}
 
 {% block title %}Converter Documentos para PDF Online Grátis - NexusPDF{% endblock %}
 
 {% block meta_description %}Converta documentos Word (.doc, .docx), Excel (.xlsx), PowerPoint (.pptx), TXT e RTF para PDF online grátis. Conversor rápido e seguro sem instalação. Suporta múltiplos formatos de documentos.{% endblock %}
 {% block meta_keywords %}converter para pdf, documentos para pdf, word em pdf, excel para pdf, powerpoint para pdf, docx para pdf, xlsx para pdf, pptx para pdf, conversor pdf online grátis, transformar documentos em pdf{% endblock %}
 
-{% block styles %}
-<style>
-    .converter-wrapper {
-        padding: 1rem;
-        width: 100%;
-        margin: 0;
-        min-height: calc(100vh - var(--header-height));
-    }
-
-    .converter-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 3rem 2rem 4rem;
-        color: #fff;
-    }
-
-    .converter-card {
-        background: var(--bg-elevated);
-        border-radius: var(--radius-card);
-        padding: 2rem 1.75rem;
-        border: 1px solid var(--border-glass);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-    }
-
-    .converter-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .converter-header h1 {
-        font-size: clamp(2rem, 3.2vw, 2.6rem);
-        font-weight: 800;
-        margin-bottom: 0.75rem;
-    }
-
-    .converter-header p {
-        font-size: 1rem;
-        opacity: 0.85;
-    }
-
-    .converter-actions {
-        margin-top: 1.75rem;
-        display: flex;
-        justify-content: center;
-    }
-
-    .btn-primary-converter {
-        background: var(--primary);
-        color: #fff;
-        border: 1px solid var(--primary);
-        border-radius: 14px;
-        padding: 0.85rem 2.4rem;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: var(--shadow-md);
-        text-decoration: none;
-        transition: var(--transition-base);
-    }
-
-    .btn-primary-converter:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .converter-alert {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        border-radius: 12px;
-        background: rgba(15, 23, 42, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        color: #fff;
-    }
-
-    .converter-alert.alert-danger {
-        border-color: rgba(239, 68, 68, 0.55);
-    }
-
-    .converter-alert.alert-success {
-        border-color: rgba(34, 197, 94, 0.55);
-    }
-
-    @media (max-width: 768px) {
-        .converter-wrapper {
-            padding: 0.75rem;
+{% block extra_styles %}
+    {{ super() }}
+    <style>
+        .pdf-suite-alert {
+            padding: 0.95rem 1rem;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(2, 6, 23, 0.35);
+            color: rgba(226, 232, 240, 0.95);
         }
 
-        .converter-container {
-            padding: 2.5rem 1.25rem 3.25rem;
+        .pdf-suite-alert.alert-danger {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: rgba(239, 68, 68, 0.10);
         }
 
-        .converter-card {
-            padding: 1.75rem 1.5rem;
+        .pdf-suite-alert.alert-success {
+            border-color: rgba(34, 197, 94, 0.55);
+            background: rgba(34, 197, 94, 0.10);
         }
-    }
-</style>
+    </style>
 {% endblock %}
 
-{% block content %}
-<div class="converter-wrapper">
-    <div class="converter-container">
-        <div class="converter-header">
-            <h1>Documentos para PDF</h1>
-            <p>Converta Word, Excel, PowerPoint, TXT e RTF para PDF rapidamente.</p>
-        </div>
+{% block pdf_suite_title %}Documentos para PDF{% endblock %}
 
-        <div class="adsense-slot" style="margin-bottom: 1.75rem; text-align: center;">
-        </div>
+{% block pdf_suite_subtitle %}Converta Word, Excel, PowerPoint, TXT e RTF para PDF rapidamente — o download inicia automaticamente.{% endblock %}
+
+{% block pdf_suite_content %}
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-upload"></i> Enviar documento</div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                <div class="alert alert-{{ category }} converter-alert">
-                    {{ message }}
+                <div style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} pdf-suite-alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <div class="converter-card">
-            <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                <div style="margin-bottom: 1.5rem;">
-                    <label for="doc_file" style="display: block; margin-bottom: 0.75rem; font-weight: 600; font-size: 1rem;">
-                        Selecione o arquivo para converter
-                    </label>
-                    <input 
-                        type="file" 
-                        name="doc_file" 
-                        id="doc_file" 
-                        accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf"
-                        required
-                        style="width: 100%; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.95rem;"
-                    >
-                    <small style="display: block; margin-top: 0.5rem; opacity: 0.75; font-size: 0.88rem;">
-                        Formatos aceitos: Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx), TXT, RTF
-                    </small>
-                </div>
-
-                <button 
-                    type="submit" 
-                    class="btn-primary-converter"
-                    style="width: 100%; justify-content: center;"
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="pdf-suite-field">
+                <label for="doc_file" class="pdf-suite-label">Selecione o arquivo</label>
+                <input
+                    type="file"
+                    name="doc_file"
+                    id="doc_file"
+                    accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf"
+                    required
+                    class="pdf-suite-input"
                 >
+                <div class="pdf-suite-hint">Formatos aceitos: Word, Excel, PowerPoint, TXT e RTF.</div>
+                <div class="pdf-suite-file-summary" data-file-summary-for="doc_file"></div>
+            </div>
+
+            <div class="pdf-suite-actions">
+                <button type="submit" class="btn-primary-converter" style="width: 100%;">
                     <i class="bi bi-file-earmark-pdf"></i>
                     Converter para PDF
                 </button>
-            </form>
-
-            <div style="margin-top: 1.75rem; padding-top: 1.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem;">Como funciona?</h3>
-                <ol style="padding-left: 1.25rem; margin: 0; font-size: 0.95rem; line-height: 1.7; opacity: 0.9;">
-                    <li style="margin-bottom: 0.5rem;">Selecione o arquivo Word, Excel, PowerPoint ou texto que deseja converter</li>
-                    <li style="margin-bottom: 0.5rem;">Clique em "Converter para PDF"</li>
-                    <li style="margin-bottom: 0.5rem;">Aguarde o processamento e o download será iniciado automaticamente</li>
-                </ol>
             </div>
+        </form>
+
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
+
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-list-check"></i> Como funciona</div>
+        <div class="pdf-suite-hint">
+            <ol style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+                <li>Selecione o documento que deseja converter.</li>
+                <li>Clique em “Converter para PDF”.</li>
+                <li>Aguarde o processamento: o download do PDF inicia automaticamente.</li>
+            </ol>
         </div>
-
-        <!-- Conteúdo SEO -->
-        <section style="margin-top: 3rem; color: rgba(255,255,255,0.9); font-size: 0.98rem; line-height: 1.7;">
-            <h2 style="font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem;">Conversor de Documentos para PDF Online Grátis</h2>
-            <p style="margin-bottom: 0.75rem;">
-                O <strong>conversor de documentos para PDF do NexusPDF</strong> é uma ferramenta online gratuita que permite transformar 
-                documentos Word (.doc, .docx), Excel (.xls, .xlsx), PowerPoint (.ppt, .pptx) e arquivos de texto em PDF de alta qualidade. 
-                Sem necessidade de instalação de software adicional.
-            </p>
-            <p style="margin-bottom: 1.25rem;">
-                Nossa ferramenta mantém a formatação original do documento, incluindo fontes, imagens, tabelas e layout, 
-                garantindo que seu PDF final seja idêntico ao documento original.
-            </p>
-
-            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.75rem;">Formatos suportados</h3>
-            <ul style="padding-left: 1.1rem; margin-bottom: 1.25rem;">
-                <li style="margin-bottom: 0.35rem;"><strong>Word:</strong> .doc, .docx (Microsoft Word)</li>
-                <li style="margin-bottom: 0.35rem;"><strong>Excel:</strong> .xls, .xlsx (Microsoft Excel)</li>
-                <li style="margin-bottom: 0.35rem;"><strong>PowerPoint:</strong> .ppt, .pptx (Microsoft PowerPoint)</li>
-                <li style="margin-bottom: 0.35rem;"><strong>Texto:</strong> .txt, .rtf (arquivos de texto)</li>
-            </ul>
-
-            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.75rem;">Vantagens do conversor</h3>
-            <ul style="padding-left: 1.1rem; margin-bottom: 1.25rem;">
-                <li style="margin-bottom: 0.35rem;">✓ Conversão rápida e de alta qualidade</li>
-                <li style="margin-bottom: 0.35rem;">✓ Mantém formatação original do documento</li>
-                <li style="margin-bottom: 0.35rem;">✓ Suporta múltiplos formatos de arquivo</li>
-                <li style="margin-bottom: 0.35rem;">✓ Processamento seguro e privado</li>
-                <li style="margin-bottom: 0.35rem;">✓ Sem limite de tamanho de arquivo</li>
-                <li style="margin-bottom: 0.35rem;">✓ 100% gratuito, sem cadastro necessário</li>
-            </ul>
-
-            <p style="margin-bottom: 0;">
-                Ideal para estudantes, profissionais e empresas que precisam converter documentos para PDF 
-                para compartilhamento, impressão ou arquivamento. O formato PDF garante que o documento será 
-                visualizado da mesma forma em qualquer dispositivo.
-            </p>
-        </section>
-    </div>
+    </section>
 </div>
 
-<script>
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    const submitBtn = document.getElementById('submitBtn');
-    
-    // Mostra barra de progresso
-    progressContainer.classList.add('active');
-    submitBtn.disabled = true;
-    submitBtn.style.opacity = '0.6';
-    submitBtn.style.cursor = 'not-allowed';
-    
-    // Simula progresso (já que não temos feedback real do servidor)
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress > 90) progress = 90;
-        
-        progressBar.style.width = progress + '%';
-        
-        if (progress < 30) {
-            progressText.textContent = 'Enviando arquivo...';
-        } else if (progress < 70) {
-            progressText.textContent = 'Convertendo para PDF...';
-        } else {
-            progressText.textContent = 'Finalizando conversão...';
-        }
-    }, 300);
-    
-    // Limpa intervalo após 30 segundos (timeout)
-    setTimeout(() => {
-        clearInterval(interval);
-        progressBar.style.width = '100%';
-        progressText.textContent = 'Concluído! Baixando arquivo...';
-    }, 30000);
-});
-</script>
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Dica</div>
+    <div class="pdf-suite-hint">
+        Para arquivos do Office, o servidor pode usar conversão via Microsoft Office (Windows) quando disponível. Caso contrário, pode tentar via Pandoc.
+    </div>
+</section>
 {% endblock %}

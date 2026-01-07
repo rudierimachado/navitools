@@ -72,7 +72,7 @@ SITE_TOOLS = [
             "card_class": "tool-card tool-card-finance tool-card-link",
             "badge_class": "tool-badge tool-badge-finance",
             "badge_icon_class": "bi bi-stars",
-            "badge_text": "SaaS principal",
+            "badge_text": "App Android",
             "button_text": "Ver apresentação",
             "points": [
                 "Dashboards e relatórios",
