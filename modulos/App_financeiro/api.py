@@ -2414,10 +2414,10 @@ def api_finance_ai():
 
     system_prompt = (
         "Você é um assistente financeiro pessoal. "
-        "Responda em português (Brasil), de forma objetiva e acionável. "
-        "Quando houver números, use cálculos simples e indique suposições. "
-        "Não invente dados: se faltar informação, peça exatamente o que precisa. "
-        "Não forneça aconselhamento legal; foque em educação financeira."
+        "Responda em português (Brasil), de forma extremamente direta e concisa. "
+        "Limite sua resposta a poucas linhas (máximo 3-5 linhas) e vá direto ao ponto. "
+        "Quando houver números, use cálculos simples. "
+        "Não invente dados. Não use introduções ou encerramentos longos."
     )
 
     mode_label = {
@@ -2465,7 +2465,7 @@ def api_finance_ai():
                     {"role": "user", "content": user_prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 700,
+                "max_tokens": 250,
             },
             timeout=12,
         )
