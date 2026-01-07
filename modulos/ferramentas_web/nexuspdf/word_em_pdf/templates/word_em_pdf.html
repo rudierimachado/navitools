@@ -1,96 +1,245 @@
 {% extends 'nexuspdf_base.html' %}
 
-{% block title %}Converter Documentos para PDF Online Grátis - NexusPDF{% endblock %}
+{% block title %}Documentos para PDF - NexusPDF{% endblock %}
 
-{% block meta_description %}Converta documentos Word (.doc, .docx), Excel (.xlsx), PowerPoint (.pptx), TXT e RTF para PDF online grátis. Conversor rápido e seguro sem instalação. Suporta múltiplos formatos de documentos.{% endblock %}
-{% block meta_keywords %}converter para pdf, documentos para pdf, word em pdf, excel para pdf, powerpoint para pdf, docx para pdf, xlsx para pdf, pptx para pdf, conversor pdf online grátis, transformar documentos em pdf{% endblock %}
+{% block meta_description %}Converta documentos para PDF online: Word, Excel, PowerPoint, TXT, RTF e mais. Escolha o formato e converta rapidamente com o NexusPDF.{% endblock %}
+
+{% block meta_keywords %}documentos para pdf, converter word pdf, converter excel pdf, converter powerpoint pdf, conversor documentos pdf, transformar documentos em pdf{% endblock %}
 
 {% block extra_styles %}
     {{ super() }}
     <style>
-        .pdf-suite-alert {
-            padding: 0.95rem 1rem;
-            border-radius: 16px;
-            border: 1px solid rgba(148, 163, 184, 0.35);
+        .pdf-suite-format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .pdf-suite-format-card {
+            display: grid;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-radius: 20px;
+            border: 1px solid rgba(248, 250, 252, 0.12);
             background: rgba(2, 6, 23, 0.35);
-            color: rgba(226, 232, 240, 0.95);
+            text-decoration: none;
+            color: rgba(248, 250, 252, 0.95);
+            transition: var(--transition-base);
+            cursor: pointer;
         }
 
-        .pdf-suite-alert.alert-danger {
-            border-color: rgba(239, 68, 68, 0.55);
-            background: rgba(239, 68, 68, 0.10);
+        .pdf-suite-format-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 70px rgba(0, 0, 0, 0.42);
+            border-color: rgba(56, 189, 248, 0.35);
         }
 
-        .pdf-suite-alert.alert-success {
-            border-color: rgba(34, 197, 94, 0.55);
-            background: rgba(34, 197, 94, 0.10);
+        .pdf-suite-format-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 1), rgba(99, 102, 241, 1));
+            box-shadow: 0 14px 40px rgba(14, 165, 233, 0.25);
+            font-size: 1.5rem;
+            margin: 0 auto;
+        }
+
+        .pdf-suite-format-title {
+            font-size: 1.3rem;
+            font-weight: 900;
+            letter-spacing: -0.01em;
+            margin: 0;
+            text-align: center;
+        }
+
+        .pdf-suite-format-desc {
+            margin: 0;
+            color: rgba(226, 232, 240, 0.85);
+            font-size: 0.95rem;
+            line-height: 1.55;
+            text-align: center;
+        }
+
+        .pdf-suite-format-formats {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+
+        .pdf-suite-format-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(2, 6, 23, 0.55);
+            color: rgba(226, 232, 240, 0.9);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .pdf-suite-format-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 {% endblock %}
 
 {% block pdf_suite_title %}Documentos para PDF{% endblock %}
 
-{% block pdf_suite_subtitle %}Converta Word, Excel, PowerPoint, TXT e RTF para PDF rapidamente — o download inicia automaticamente.{% endblock %}
+{% block pdf_suite_subtitle %}Escolha o tipo de documento que deseja converter para PDF{% endblock %}
 
 {% block pdf_suite_content %}
-<div class="pdf-suite-grid">
-    <section class="pdf-suite-panel">
-        <div class="pdf-suite-panel-title"><i class="bi bi-upload"></i> Enviar documento</div>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} pdf-suite-alert">
-                        {{ message }}
-                    </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <form method="POST" enctype="multipart/form-data" id="uploadForm">
-            <div class="pdf-suite-field">
-                <label for="doc_file" class="pdf-suite-label">Selecione o arquivo</label>
-                <input
-                    type="file"
-                    name="doc_file"
-                    id="doc_file"
-                    accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf"
-                    required
-                    class="pdf-suite-input"
-                >
-                <div class="pdf-suite-hint">Formatos aceitos: Word, Excel, PowerPoint, TXT e RTF.</div>
-                <div class="pdf-suite-file-summary" data-file-summary-for="doc_file"></div>
-            </div>
-
-            <div class="pdf-suite-actions">
-                <button type="submit" class="btn-primary-converter" style="width: 100%;">
-                    <i class="bi bi-file-earmark-pdf"></i>
-                    Converter para PDF
-                </button>
-            </div>
-        </form>
-
-        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
-    </section>
-
-    <section class="pdf-suite-panel">
-        <div class="pdf-suite-panel-title"><i class="bi bi-list-check"></i> Como funciona</div>
-        <div class="pdf-suite-hint">
-            <ol style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
-                <li>Selecione o documento que deseja converter.</li>
-                <li>Clique em “Converter para PDF”.</li>
-                <li>Aguarde o processamento: o download do PDF inicia automaticamente.</li>
-            </ol>
+<div class="pdf-suite-format-grid">
+    <a href="/nexuspdf/documentos-para-pdf/word" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-word"></i>
         </div>
-    </section>
+        <h3 class="pdf-suite-format-title">Word para PDF</h3>
+        <p class="pdf-suite-format-desc">Converta documentos Word mantendo formatação e estilos</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.doc</span>
+            <span class="pdf-suite-format-badge">.docx</span>
+            <span class="pdf-suite-format-badge">.rtf</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/excel" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-excel"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">Excel para PDF</h3>
+        <p class="pdf-suite-format-desc">Transforme planilhas em PDF preservando tabelas e gráficos</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.xls</span>
+            <span class="pdf-suite-format-badge">.xlsx</span>
+            <span class="pdf-suite-format-badge">.csv</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/powerpoint" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-slides"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">PowerPoint para PDF</h3>
+        <p class="pdf-suite-format-desc">Converta apresentações mantendo slides e animações</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.ppt</span>
+            <span class="pdf-suite-format-badge">.pptx</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/texto" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">Texto para PDF</h3>
+        <p class="pdf-suite-format-desc">Transforme arquivos de texto em PDF organizado</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.txt</span>
+            <span class="pdf-suite-format-badge">.md</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/imagens" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-image"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">Imagens para PDF</h3>
+        <p class="pdf-suite-format-desc">Combine múltiplas imagens em um único PDF</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.jpg</span>
+            <span class="pdf-suite-format-badge">.png</span>
+            <span class="pdf-suite-format-badge">.webp</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/odt" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">ODT para PDF</h3>
+        <p class="pdf-suite-format-desc">Converta documentos OpenDocument Text para PDF</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.odt</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/ods" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">ODS para PDF</h3>
+        <p class="pdf-suite-format-desc">Transforme planilhas OpenDocument Spreadsheet em PDF</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.ods</span>
+        </div>
+    </a>
+
+    <a href="/nexuspdf/documentos-para-pdf/html" class="pdf-suite-format-card">
+        <div class="pdf-suite-format-icon">
+            <i class="bi bi-file-earmark-code"></i>
+        </div>
+        <h3 class="pdf-suite-format-title">HTML para PDF</h3>
+        <p class="pdf-suite-format-desc">Converta páginas HTML e documentos web para PDF</p>
+        <div class="pdf-suite-format-formats">
+            <span class="pdf-suite-format-badge">.html</span>
+            <span class="pdf-suite-format-badge">.htm</span>
+        </div>
+    </a>
 </div>
 
-<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
-    <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Dica</div>
+<section class="pdf-suite-panel" style="margin-top: 2rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Como funciona?</div>
     <div class="pdf-suite-hint">
-        Para arquivos do Office, o servidor pode usar conversão via Microsoft Office (Windows) quando disponível. Caso contrário, pode tentar via Pandoc.
+        <ol style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+            <li>Escolha o tipo de documento que deseja converter</li>
+            <li>Na página específica, faça upload do seu arquivo</li>
+            <li>Aguarde o processamento e baixe o PDF gerado</li>
+        </ol>
+        <p style="margin-top: 1rem; margin-bottom: 0;">
+            <strong>Segurança:</strong> Seus arquivos são processados localmente no navegador quando possível, garantindo privacidade.
+        </p>
+    </div>
+</section>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-shield-check"></i> Vantagens</div>
+    <div class="pdf-suite-hint">
+        <div style="display: grid; gap: 1rem; margin-top: 1rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: start;">
+                <i class="bi bi-lightning-fill" style="color: var(--primary); font-size: 1.2rem; margin-top: 0.1rem;"></i>
+                <div>
+                    <strong>Processamento Rápido</strong><br>
+                    <span style="color: rgba(226, 232, 240, 0.85);">Conversão em segundos dependendo do tamanho do arquivo</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: start;">
+                <i class="bi bi-palette-fill" style="color: var(--primary); font-size: 1.2rem; margin-top: 0.1rem;"></i>
+                <div>
+                    <strong>Preserva Formatação</strong><br>
+                    <span style="color: rgba(226, 232, 240, 0.85);">Mantém estilos, fontes e layout original</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: start;">
+                <i class="bi bi-lock-fill" style="color: var(--primary); font-size: 1.2rem; margin-top: 0.1rem;"></i>
+                <div>
+                    <strong>100% Seguro</strong><br>
+                    <span style="color: rgba(226, 232, 240, 0.85);">Seus arquivos não são armazenados em nossos servidores</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: start;">
+                <i class="bi bi-gift-fill" style="color: var(--primary); font-size: 1.2rem; margin-top: 0.1rem;"></i>
+                <div>
+                    <strong>Totalmente Grátis</strong><br>
+                    <span style="color: rgba(226, 232, 240, 0.85);">Sem limites de uso ou taxas ocultas</span>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 {% endblock %}

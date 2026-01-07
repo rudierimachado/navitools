@@ -1,0 +1,131 @@
+{% extends 'nexuspdf_base.html' %}
+
+{% block title %}{{ title }} - NexusPDF{% endblock %}
+
+{% block meta_description %}{{ description }} online grátis com o NexusPDF. Conversão rápida e segura sem instalação.{% endblock %}
+
+{% block meta_keywords %}{{ title|lower }}, converter {{ title|lower }}, {{ formats }} para pdf, nexuspdf conversor{% endblock %}
+
+{% block extra_styles %}
+    {{ super() }}
+    <style>
+        .pdf-suite-alert {
+            padding: 0.95rem 1rem;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(2, 6, 23, 0.35);
+            color: rgba(226, 232, 240, 0.95);
+        }
+
+        .pdf-suite-alert.alert-danger {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: rgba(239, 68, 68, 0.10);
+        }
+
+        .pdf-suite-alert.alert-success {
+            border-color: rgba(34, 197, 94, 0.55);
+            background: rgba(34, 197, 94, 0.10);
+        }
+
+        .pdf-suite-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .pdf-suite-breadcrumb a {
+            color: rgba(226, 232, 240, 0.7);
+            text-decoration: none;
+            transition: var(--transition-base);
+        }
+
+        .pdf-suite-breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        .pdf-suite-breadcrumb .separator {
+            color: rgba(226, 232, 240, 0.5);
+        }
+    </style>
+{% endblock %}
+
+{% block pdf_suite_title %}{{ title }}{% endblock %}
+
+{% block pdf_suite_subtitle %}{{ description }}{% endblock %}
+
+{% block pdf_suite_content %}
+<div class="pdf-suite-breadcrumb">
+    <a href="/nexuspdf/documentos-para-pdf">
+        <i class="bi bi-arrow-left"></i>
+        Voltar para Documentos para PDF
+    </a>
+</div>
+
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-upload"></i> Enviar arquivo</div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} pdf-suite-alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="pdf-suite-field">
+                <label for="doc_file" class="pdf-suite-label">Selecione o arquivo</label>
+                <input
+                    type="file"
+                    name="doc_file"
+                    id="doc_file"
+                    accept="{{ accept }}"
+                    required
+                    class="pdf-suite-input"
+                >
+                <div class="pdf-suite-hint">Formatos aceitos: {{ formats }}.</div>
+                <div class="pdf-suite-file-summary" data-file-summary-for="doc_file"></div>
+            </div>
+
+            <div class="pdf-suite-actions">
+                <button type="submit" class="btn-primary-converter" style="width: 100%;">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                    Converter para PDF
+                </button>
+            </div>
+        </form>
+
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
+
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-list-check"></i> Como funciona?</div>
+        <div class="pdf-suite-hint">
+            <ol style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+                <li>Selecione o arquivo que deseja converter</li>
+                <li>Clique em "Converter para PDF"</li>
+                <li>Aguarde o processamento e o download começará automaticamente</li>
+            </ol>
+        </div>
+    </section>
+</div>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Dicas</div>
+    <div class="pdf-suite-hint">
+        <ul style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+            <li>Use arquivos com tamanho máximo de 50MB para melhor performance</li>
+            <li>A formatação original será preservada na conversão</li>
+            <li>Para arquivos grandes, o processamento pode levar alguns segundos</li>
+            <li>Seus arquivos são processados com segurança e não armazenados</li>
+        </ul>
+    </div>
+</section>
+{% endblock %}

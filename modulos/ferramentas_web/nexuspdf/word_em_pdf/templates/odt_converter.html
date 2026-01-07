@@ -1,0 +1,148 @@
+{% extends 'nexuspdf_base.html' %}
+
+{% block title %}ODT para PDF - NexusPDF{% endblock %}
+
+{% block meta_description %}Converta documentos OpenDocument Text (.odt) para PDF online grátis com o NexusPDF. Conversão rápida e segura mantendo formatação original.{% endblock %}
+
+{% block meta_keywords %}odt para pdf, converter odt, opendocument para pdf, libreoffice writer pdf, nexuspdf odt{% endblock %}
+
+{% block extra_styles %}
+    {{ super() }}
+    <style>
+        .pdf-suite-alert {
+            padding: 0.95rem 1rem;
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(2, 6, 23, 0.35);
+            color: rgba(226, 232, 240, 0.95);
+        }
+
+        .pdf-suite-alert.alert-danger {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: rgba(239, 68, 68, 0.10);
+        }
+
+        .pdf-suite-alert.alert-success {
+            border-color: rgba(34, 197, 94, 0.55);
+            background: rgba(34, 197, 94, 0.10);
+        }
+
+        .pdf-suite-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .pdf-suite-breadcrumb a {
+            color: rgba(226, 232, 240, 0.7);
+            text-decoration: none;
+            transition: var(--transition-base);
+        }
+
+        .pdf-suite-breadcrumb a:hover {
+            color: var(--primary);
+        }
+
+        .pdf-suite-breadcrumb .separator {
+            color: rgba(226, 232, 240, 0.5);
+        }
+    </style>
+{% endblock %}
+
+{% block pdf_suite_title %}ODT para PDF{% endblock %}
+
+{% block pdf_suite_subtitle %}Converta documentos OpenDocument Text (.odt) para PDF mantendo formatação e estilos{% endblock %}
+
+{% block pdf_suite_content %}
+<div class="pdf-suite-breadcrumb">
+    <a href="/nexuspdf/documentos-para-pdf">
+        <i class="bi bi-arrow-left"></i>
+        Voltar para Documentos para PDF
+    </a>
+</div>
+
+<div class="pdf-suite-grid">
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-upload"></i> Enviar arquivo ODT</div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div style="display: grid; gap: 0.75rem; margin-bottom: 1rem;">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} pdf-suite-alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            <div class="pdf-suite-field">
+                <label for="doc_file" class="pdf-suite-label">Selecione o arquivo ODT</label>
+                <input
+                    type="file"
+                    name="doc_file"
+                    id="doc_file"
+                    accept=".odt"
+                    required
+                    class="pdf-suite-input"
+                >
+                <div class="pdf-suite-hint">Formato aceito: .odt (OpenDocument Text).</div>
+                <div class="pdf-suite-file-summary" data-file-summary-for="doc_file"></div>
+            </div>
+
+            <div class="pdf-suite-actions">
+                <button type="submit" class="btn-primary-converter" style="width: 100%;">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                    Converter ODT para PDF
+                </button>
+            </div>
+        </form>
+
+        <div class="adsense-slot" style="margin-top: 1.25rem; text-align: center;"></div>
+    </section>
+
+    <section class="pdf-suite-panel">
+        <div class="pdf-suite-panel-title"><i class="bi bi-info-circle"></i> Sobre ODT</div>
+        <div class="pdf-suite-hint">
+            <p><strong>ODT (OpenDocument Text)</strong> é o formato padrão usado pelo LibreOffice Writer e Apache OpenOffice.</p>
+            <ul style="margin: 1rem 0; padding-left: 1.25rem; line-height: 1.7;">
+                <li>Formato aberto e livre de royalties</li>
+                <li>Mantém formatação, estilos e imagens</li>
+                <li>Compatível com diversas suítes de escritório</li>
+                <li>Padrão ISO/IEC 26300</li>
+            </ul>
+        </div>
+    </section>
+</div>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-list-check"></i> Como funciona?</div>
+    <div class="pdf-suite-hint">
+        <ol style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+            <li>Selecione seu arquivo .odt</li>
+            <li>Clique em "Converter ODT para PDF"</li>
+            <li>Aguarde o processamento</li>
+            <li>Baixe seu PDF automaticamente</li>
+        </ol>
+        <p style="margin-top: 1rem; margin-bottom: 0;">
+            <strong>Segurança:</strong> Seus arquivos são processados com segurança e não armazenados em nossos servidores.
+        </p>
+    </div>
+</section>
+
+<section class="pdf-suite-panel" style="margin-top: 1.25rem;">
+    <div class="pdf-suite-panel-title"><i class="bi bi-lightbulb"></i> Dicas</div>
+    <div class="pdf-suite-hint">
+        <ul style="margin: 0; padding-left: 1.25rem; line-height: 1.7;">
+            <li>Verifique se seu arquivo ODT não está corrompido</li>
+            <li>Imagens e tabelas complexas podem demorar mais para processar</li>
+            <li>Fontes personalizadas podem ser substituídas por padrão</li>
+            <li>Use arquivos com até 50MB para melhor performance</li>
+        </ul>
+    </div>
+</section>
+{% endblock %}
