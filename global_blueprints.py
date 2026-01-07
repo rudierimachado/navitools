@@ -125,6 +125,17 @@ SITE_TOOLS = [
             "button_text": "Abrir Ferramenta",
         },
     },
+    {
+        "key": "nexuspdf",
+        "name": "NexusPDF",
+        "url": "/nexuspdf",
+        "icon_class": "bi bi-file-pdf",
+        "description": "Suíte completa de ferramentas para PDF: comprimir, converter, OCR e editar.",
+        "variant": "simple",
+        "home": {
+            "button_text": "Abrir NexusPDF",
+        },
+    },
 ]
 
 TOOL_PAGES = {
@@ -503,16 +514,6 @@ def serve_logo(filename):
     logos_dir = os.path.join(os.path.dirname(__file__), 'logos')
     return send_from_directory(logos_dir, filename)
 
-@main_bp.route("/robots.txt")
-def robots_txt():
-    base_url = os.getenv("APP_BASE_URL", "https://nexusrdr.com.br").rstrip("/")
-    lines = [
-        "User-agent: *",
-        "Allow: /",
-        f"Sitemap: {base_url}/sitemap.xml",
-    ]
-    return Response("\n".join(lines) + "\n", mimetype="text/plain")
-
 @main_bp.route("/")
 def index():
     priority_order = _priority_order()
@@ -770,6 +771,17 @@ def newsletter_subscribe():
 
     return redirect(next_url)
 
+@main_bp.route("/robots.txt")
+def robots_txt():
+    """Servir o arquivo robots.txt dinamicamente."""
+    base_url = os.getenv("APP_BASE_URL", "https://nexusrdr.com.br").rstrip("/")
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        f"Sitemap: {base_url}/sitemap.xml",
+    ]
+    return Response("\n".join(lines) + "\n", mimetype="text/plain")
+
 @main_bp.route("/sitemap.xml")
 def sitemap():
     """Gera sitemap.xml dinâmico e otimizado para SEO."""
@@ -788,21 +800,29 @@ def sitemap():
         "priority": "1.0",
     })
 
-    # Ferramentas web e módulos principais
-    tools = [
-        ("/gerador-de-qr-code", "0.9", "daily"),
-        ("/conversor-imagens", "0.9", "daily"),
-        ("/youtube-downloader", "0.9", "daily"),
-        ("/removedor-de-fundo", "0.9", "daily"),
-        ("/gerenciamento-financeiro/apresentacao", "0.9", "weekly"),
-    ]
+    # Ferramentas do SITE_TOOLS (Dinâmico)
+    for tool in SITE_TOOLS:
+        pages.append({
+            "loc": f"{base_url}{tool['url']}",
+            "lastmod": now_iso,
+            "changefreq": "daily" if tool.get("variant") == "featured" else "weekly",
+            "priority": "0.9",
+        })
 
-    for path, priority, changefreq in tools:
+    # Sub-ferramentas NexusPDF
+    nexuspdf_tools = [
+        "/nexuspdf/comprimir-pdf",
+        "/nexuspdf/converter-em-pdf",
+        "/nexuspdf/ocr-pdf",
+        "/nexuspdf/editar-pdf",
+        "/nexuspdf/documentos-para-pdf",
+    ]
+    for path in nexuspdf_tools:
         pages.append({
             "loc": f"{base_url}{path}",
             "lastmod": now_iso,
-            "changefreq": changefreq,
-            "priority": priority,
+            "changefreq": "weekly",
+            "priority": "0.8",
         })
 
     # Páginas estáticas importantes
@@ -813,6 +833,7 @@ def sitemap():
         ("/privacy", "0.5", "yearly"),
         ("/cookies", "0.5", "yearly"),
         ("/terms", "0.5", "yearly"),
+        ("/ia-hub", "0.8", "weekly"),
     ]
 
     for path, priority, changefreq in static_pages:
