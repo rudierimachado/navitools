@@ -898,7 +898,7 @@ def api_app_version():
     # 1) APP_VERSION (CI/ambiente) tem prioridade
     # 2) version.txt gerado no build (ex: step de CI)
     # 3) fallback fixo (mantenha atualizado no repo para dev local)
-    current_version = os.getenv("APP_VERSION", "0.0.0.11")
+    current_version = os.getenv("APP_VERSION", "2.0.0.2")
     
     # Ler version.txt se existir (sobrescreve fallback e facilita builds automatizados)
     try:
