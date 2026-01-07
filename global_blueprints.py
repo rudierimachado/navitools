@@ -66,7 +66,7 @@ SITE_TOOLS = [
         "name": "Gerenciamento Financeiro",
         "url": "/gerenciamento-financeiro/apresentacao",
         "icon_class": "bi bi-cash-stack",
-        "description": "Controle receitas e despesas com dashboards, recorrências e workspaces.",
+        "description": "Controle receitas e despesas com recorrências, workspaces e inteligência artificial.",
         "variant": "featured",
         "home": {
             "card_class": "tool-card tool-card-finance tool-card-link",
@@ -75,7 +75,7 @@ SITE_TOOLS = [
             "badge_text": "App Android",
             "button_text": "Ver apresentação",
             "points": [
-                "Dashboards e relatórios",
+                "Relatórios detalhados",
                 "Categorias, recorrências e lançamentos",
                 "Workspaces e compartilhamento",
             ],
