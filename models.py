@@ -231,6 +231,34 @@ class SubCategory(db.Model):
         return f"<SubCategory {self.name}>"
 
 
+class CreditCard(db.Model):
+    """Cartões de crédito cadastrados pelos usuários"""
+    __tablename__ = "credit_cards"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=True)
+    
+    name = db.Column(db.String(100), nullable=False)  # Ex: Nubank, Inter
+    last_digits = db.Column(db.String(4))  # Opcional: 4 últimos dígitos
+    brand = db.Column(db.String(50))  # Visa, Mastercard, etc.
+    limit = db.Column(db.Numeric(15, 2))  # Limite total do cartão
+    closing_day = db.Column(db.Integer)  # Dia de fechamento da fatura
+    due_day = db.Column(db.Integer)  # Dia de vencimento da fatura
+    
+    color = db.Column(db.String(7), default="#3b82f6")  # Cor para identificação visual
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    transactions = db.relationship("Transaction", backref="credit_card", lazy="dynamic")
+
+    def __repr__(self) -> str:
+        return f"<CreditCard {self.name}>"
+
+
 class Transaction(db.Model):
     """Transações financeiras (receitas e despesas)"""
     __tablename__ = "transactions"
@@ -254,6 +282,7 @@ class Transaction(db.Model):
     
     # Método de pagamento
     payment_method = db.Column(db.String(50))  # dinheiro, cartão, pix, etc.
+    credit_card_id = db.Column(db.Integer, db.ForeignKey("credit_cards.id"), nullable=True)
     
     # Observações
     notes = db.Column(db.Text)
@@ -319,7 +348,11 @@ class RecurringTransaction(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)  # Null = sem fim
     
-    # Status
+    # Pagamento
+    payment_method = db.Column(db.String(50))
+    credit_card_id = db.Column(db.Integer, db.ForeignKey("credit_cards.id"), nullable=True)
+    
+    # Status e Observações
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Método de pagamento padrão

@@ -19,7 +19,7 @@ import re
 import secrets
 
 from extensions import db
-from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment
+from models import User, Workspace, WorkspaceMember, WorkspaceInvite, EmailVerification, LoginAudit, Transaction, Category, FinanceConfig, RecurringTransaction, TransactionAttachment, CreditCard
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from email_service import send_workspace_invitation
@@ -921,6 +921,105 @@ def api_app_version():
     })
     
     return _cors_wrap(resp, origin), 200
+@api_financeiro_bp.route("/api/credit-cards", methods=["GET", "POST", "OPTIONS"])
+def api_credit_cards():
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "GET, POST, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    workspace_id = request.args.get("workspace_id") or request.json.get("workspace_id") if request.is_json else None
+    
+    if request.method == "GET":
+        try:
+            query = CreditCard.query.filter(CreditCard.is_active == True)
+            if workspace_id:
+                query = query.filter(CreditCard.workspace_id == int(workspace_id))
+            else:
+                query = query.filter(CreditCard.user_id == user_id_int)
+            
+            cards = query.all()
+            return _cors_wrap(jsonify({
+                "success": True,
+                "cards": [{
+                    "id": c.id,
+                    "name": c.name,
+                    "last_digits": c.last_digits,
+                    "brand": c.brand,
+                    "limit": float(c.limit or 0),
+                    "closing_day": c.closing_day,
+                    "due_day": c.due_day,
+                    "color": c.color
+                } for c in cards]
+            }), origin), 200
+        except Exception as e:
+            return _cors_wrap(jsonify({"success": False, "message": str(e)}), origin), 500
+
+    if request.method == "POST":
+        data = request.json
+        try:
+            new_card = CreditCard(
+                user_id=user_id_int,
+                workspace_id=int(data["workspace_id"]) if data.get("workspace_id") else None,
+                name=data["name"],
+                last_digits=data.get("last_digits"),
+                brand=data.get("brand"),
+                limit=data.get("limit"),
+                closing_day=data.get("closing_day"),
+                due_day=data.get("due_day"),
+                color=data.get("color", "#3b82f6")
+            )
+            db.session.add(new_card)
+            db.session.commit()
+            return _cors_wrap(jsonify({
+                "success": True, 
+                "message": "Cartão cadastrado com sucesso",
+                "card": {
+                    "id": new_card.id,
+                    "name": new_card.name
+                }
+            }), origin), 201
+        except Exception as e:
+            db.session.rollback()
+            return _cors_wrap(jsonify({"success": False, "message": str(e)}), origin), 500
+
+@api_financeiro_bp.route("/api/credit-cards/<int:card_id>", methods=["DELETE", "OPTIONS"])
+def api_delete_credit_card(card_id):
+    origin = request.headers.get("Origin", "*")
+    if request.method == "OPTIONS":
+        return _cors_preflight(origin, "DELETE, OPTIONS")
+
+    user_id_int = _get_user_id_from_request()
+    if not user_id_int:
+        resp = jsonify({"success": False, "message": "Não autenticado"})
+        return _cors_wrap(resp, origin), 401
+
+    try:
+        card = CreditCard.query.filter_by(id=card_id).first()
+        if not card:
+            return _cors_wrap(jsonify({"success": False, "message": "Cartão não encontrado"}), origin), 404
+        
+        # Verificar permissão
+        if card.user_id != user_id_int:
+            if card.workspace_id:
+                role = _get_workspace_role(user_id_int, card.workspace_id)
+                if not role or role not in ("owner", "editor"):
+                    return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+            else:
+                return _cors_wrap(jsonify({"success": False, "message": "Sem permissão"}), origin), 403
+
+        db.session.delete(card)
+        db.session.commit()
+        return _cors_wrap(jsonify({"success": True, "message": "Cartão excluído com sucesso"}), origin), 200
+    except Exception as e:
+        db.session.rollback()
+        return _cors_wrap(jsonify({"success": False, "message": str(e)}), origin), 500
+
+
 @api_financeiro_bp.route("/api/categories", methods=["GET", "OPTIONS"])
 def api_categories():
     origin = request.headers.get("Origin", "*")
@@ -1069,6 +1168,7 @@ def api_create_transaction():
         
         # Campos adicionais
         payment_method = str(data.get("payment_method", "")).strip() or None
+        credit_card_id = data.get("credit_card_id")
         notes = str(data.get("notes", "")).strip() or None
         is_paid = bool(data.get("is_paid", True))
         subcategory_text = str(data.get("subcategory_text", "")).strip() or None
@@ -1265,6 +1365,7 @@ def api_create_transaction():
                 end_date=end_date,
                 is_active=True,
                 payment_method=payment_method,
+                credit_card_id=credit_card_id,
                 notes=notes,
             )
             db.session.add(recurring_tx)
@@ -1297,6 +1398,7 @@ def api_create_transaction():
             paid_date=tx_date_final if is_paid else None,
             workspace_id=workspace_id,
             payment_method=payment_method,
+            credit_card_id=credit_card_id,
             notes=notes,
             subcategory_text=subcategory_text,
             is_recurring=is_recurring,
@@ -1706,6 +1808,7 @@ def api_transaction_detail(tx_id: int):
                 "transaction_date": tx.transaction_date.isoformat() if tx.transaction_date else None,
                 "is_paid": bool(tx.is_paid),
                 "payment_method": tx.payment_method if tx.payment_method else None,
+                "credit_card_id": int(tx.credit_card_id) if tx.credit_card_id else None,
                 "notes": tx.notes if tx.notes else None,
                 "subcategory_text": tx.subcategory_text if tx.subcategory_text else None,
                 "category_text": category.name if category else None,
@@ -1762,6 +1865,7 @@ def api_transaction_detail(tx_id: int):
     category_text = str(data.get("category_text", "")).strip() or None
     date_raw = str(data.get("transaction_date", "")).strip() or None
     payment_method = str(data.get("payment_method", "")).strip() or None
+    credit_card_id = data.get("credit_card_id")
     notes = str(data.get("notes", "")).strip() or None
     is_paid = bool(data.get("is_paid", tx.is_paid))
     subcategory_text = str(data.get("subcategory_text", "")).strip() or None
@@ -1961,6 +2065,7 @@ def api_transaction_detail(tx_id: int):
     tx.is_paid = is_paid
     tx.paid_date = tx_date_final if is_paid else None
     tx.payment_method = payment_method
+    tx.credit_card_id = credit_card_id
     tx.notes = notes
     tx.subcategory_text = subcategory_text
     tx.is_recurring = is_recurring
