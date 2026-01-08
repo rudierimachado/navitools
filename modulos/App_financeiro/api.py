@@ -895,22 +895,23 @@ def api_app_version():
         return _cors_preflight(origin, "GET, OPTIONS")
     
     # Versão atual do app:
-    # 1) APP_VERSION (CI/ambiente) tem prioridade
-    # 2) version.txt gerado no build (ex: step de CI)
-    # 3) fallback fixo (mantenha atualizado no repo para dev local)
-    current_version = os.getenv("APP_VERSION", "2.0.0.2")
-    
-    # Ler version.txt se existir (sobrescreve fallback e facilita builds automatizados)
+    # Lemos diretamente do pubspec.yaml do Flutter para centralizar
+    current_version = "2.0.0"
     try:
+        # Caminho relativo para chegar no pubspec do flutter
         module_dir = os.path.dirname(__file__)
-        version_file = os.path.join(module_dir, "version.txt")
-        if os.path.exists(version_file):
-            with open(version_file, 'r') as f:
-                file_version = f.read().strip()
-                if file_version:
-                    current_version = file_version
-    except Exception:
-        pass  # Se falhar, mantém current_version já definido
+        pubspec_path = os.path.abspath(os.path.join(module_dir, "..", "..", "..", "finance_app", "pubspec.yaml"))
+        
+        if os.path.exists(pubspec_path):
+            with open(pubspec_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Procura a linha version: x.x.x+x
+                import re
+                match = re.search(r'^version:\s*([^\s+]+)', content, re.MULTILINE)
+                if match:
+                    current_version = match.group(1).strip()
+    except Exception as e:
+        print(f"Erro ao ler pubspec: {e}")
     
     resp = jsonify({
         "success": True,
