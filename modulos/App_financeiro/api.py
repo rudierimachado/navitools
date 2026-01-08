@@ -30,12 +30,24 @@ api_financeiro_bp = Blueprint(
     __name__,
 )
 
-_DEBUG = False
+_DEBUG = True
+
+
+import unicodedata
+
+def _normalize_str(s: str) -> str:
+    """Remove acentos e converte para minúsculas para comparação."""
+    if not s:
+        return ""
+    s = str(s).strip().lower()
+    # Remove acentos
+    s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+    return s
 
 
 def _dbg(msg: str):
     if _DEBUG:
-        print(msg)
+        print(f"[DEBUG] {msg}")
 
 
 def _strip_installment_suffix(desc: str | None) -> str:
@@ -2147,7 +2159,7 @@ def api_suggest_category():
             return _cors_wrap(resp, origin), 200
     
     # Se não encontrou no histórico, usar IA
-    categories = Category.query.filter_by(config_id=cfg.id, type=transaction_type).all()
+    categories = Category.query.filter_by(config_id=cfg.id, type=transaction_type, is_active=True).all()
     category_names = [c.name for c in categories]
 
     def _fallback_category_name() -> str:
@@ -2158,34 +2170,46 @@ def api_suggest_category():
 
     # Chamar Groq API
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
-    _dbg(f"[GROQ] API Key presente: {bool(groq_api_key)}")
+    key_preview = f"{groq_api_key[:6]}...{groq_api_key[-4:]}" if groq_api_key else "AUSENTE"
+    _dbg(f"[GROQ] API Key: {key_preview}")
     _dbg(f"[GROQ] Descrição: {description}")
     _dbg(f"[GROQ] Tipo: {transaction_type}")
     
     if not groq_api_key:
-        _dbg("[GROQ] ERRO: API Key não encontrada")
+        print("[GROQ] ERRO: GROQ_API_KEY não encontrada no ambiente.")
         resp = jsonify({
             "success": False,
-            "message": "IA não configurada (GROQ_API_KEY ausente). Preencha manualmente.",
+            "message": "IA não configurada (GROQ_API_KEY ausente).",
         })
-        return _cors_wrap(resp, origin), 503
+        return _cors_wrap(resp, origin), 200 # Retornar 200 para não estourar erro no app
+
+    if not category_names:
+        _dbg("[GROQ] Nenhuma categoria encontrada para o usuário.")
+        resp = jsonify({
+            "success": False,
+            "message": "Nenhuma categoria cadastrada para este tipo.",
+        })
+        return _cors_wrap(resp, origin), 200
 
     try:
-        prompt = f"""Analise esta transação e retorne JSON:
+        # Envolver nomes em aspas para evitar problemas com vírgulas nos nomes
+        cat_list_str = ", ".join([f'"{name}"' for name in category_names])
+        
+        prompt = f"""Analise esta transação financeira e sugira a melhor categoria da lista abaixo.
 
 Descrição: "{description}"
 Tipo: {"despesa" if transaction_type == "expense" else "receita"}
 
-Categorias: {', '.join(category_names)}
+Categorias Disponíveis: {cat_list_str}
 
-Retorne APENAS JSON:
+Retorne APENAS um objeto JSON no formato:
 {{
-  "category": "categoria_da_lista",
-  "subcategory": "subcategoria_especifica"
+  "category": "NOME_EXATO_DA_CATEGORIA_DA_LISTA",
+  "subcategory": "sugestão de subcategoria curta"
 }}
+"""
 
-Escolha a melhor categoria da lista."""
-
+        _dbg(f"[GROQ] Enviando prompt para Groq...")
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={
@@ -2195,10 +2219,10 @@ Escolha a melhor categoria da lista."""
             json={
                 "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.1,
-                "max_tokens": 100
+                "temperature": 0,
+                "max_tokens": 150
             },
-            timeout=5
+            timeout=10
         )
 
         _dbg(f"[GROQ] Status da resposta: {response.status_code}")
@@ -2206,37 +2230,36 @@ Escolha a melhor categoria da lista."""
         if response.status_code == 200:
             result = response.json()
             content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            _dbg(f"[GROQ] Resposta da IA: {content}")
+            _dbg(f"[GROQ] Resposta bruta: {content}")
             
-            # Limpar markdown code blocks se houver
-            content_clean = content.strip()
-            if content_clean.startswith("```json"):
-                content_clean = content_clean[7:]  # Remove ```json
-            if content_clean.startswith("```"):
-                content_clean = content_clean[3:]  # Remove ```
-            if content_clean.endswith("```"):
-                content_clean = content_clean[:-3]  # Remove ```
-            content_clean = content_clean.strip()
+            # Tentar extrair JSON de dentro de blocos de código se a IA os incluiu
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                content_clean = json_match.group(0)
+            else:
+                content_clean = content.strip()
 
-            _dbg(f"[GROQ] JSON limpo: {content_clean}")
+            _dbg(f"[GROQ] JSON para parse: {content_clean}")
             
-            # Tentar parsear JSON da resposta
-            import json
             try:
                 suggestion = json.loads(content_clean)
-                suggested_category = suggestion.get("category", "Outros")
-                suggested_subcategory = suggestion.get("subcategory")
+                suggested_category = str(suggestion.get("category", "")).strip()
+                suggested_subcategory = str(suggestion.get("subcategory", "")).strip()
 
                 _dbg(f"[GROQ] Categoria sugerida: {suggested_category}")
-                _dbg(f"[GROQ] Subcategoria sugerida: {suggested_subcategory}")
                 
-                # Validar se categoria existe
-                matched_cat = next((c for c in categories if c.name.lower() == suggested_category.lower()), None)
+                # Validar se categoria existe (tentar match exato, depois case-insensitive, depois normalizado)
+                matched_cat = next((c for c in categories if c.name == suggested_category), None)
+                if not matched_cat:
+                    matched_cat = next((c for c in categories if c.name.lower() == suggested_category.lower()), None)
+                if not matched_cat:
+                    norm_suggested = _normalize_str(suggested_category)
+                    matched_cat = next((c for c in categories if _normalize_str(c.name) == norm_suggested), None)
                 
                 if matched_cat:
-                    # Regra de negócio: salário não usa subcategoria (usa campo "De quem é o salário?" no app)
+                    # Regra de negócio: salário não usa subcategoria
                     if matched_cat.name.strip().lower() in ("salário", "salario"):
-                        suggested_subcategory = None
+                        suggested_subcategory = ""
 
                     resp = jsonify({
                         "success": True,
@@ -2248,25 +2271,22 @@ Escolha a melhor categoria da lista."""
                     })
                     return _cors_wrap(resp, origin), 200
                 else:
-                    _dbg(f"[GROQ] Categoria '{suggested_category}' não encontrada nas disponíveis")
-            except json.JSONDecodeError as e:
-                _dbg(f"[GROQ] Erro ao parsear JSON: {e}")
-                pass
+                    _dbg(f"[GROQ] Categoria '{suggested_category}' não encontrada na lista")
+            except Exception as e:
+                _dbg(f"[GROQ] Erro ao processar JSON: {e}")
         else:
             _dbg(f"[GROQ] Erro na API: {response.text}")
 
     except Exception as e:
         _dbg(f"[GROQ ERROR] Exceção: {e}")
-        import traceback
-        _dbg(f"[GROQ ERROR] Traceback: {traceback.format_exc()}")
 
-    # Se chegou aqui, houve erro: retornar erro e deixar o app liberar entrada manual
-    _dbg("[GROQ] Falha ao gerar categoria")
+    # Se falhou, retorna success: False mas com status 200 para o app liberar o modo manual sem erro feio
     resp = jsonify({
         "success": False,
-        "message": "Não foi possível gerar categoria. Preencha manualmente.",
+        "message": "IA não conseguiu sugerir. Preencha manualmente.",
     })
-    return _cors_wrap(resp, origin), 500
+    return _cors_wrap(resp, origin), 200
+
 
 
 @api_financeiro_bp.route("/api/finance-ai", methods=["POST", "OPTIONS"])
